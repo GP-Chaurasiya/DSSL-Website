@@ -202,7 +202,7 @@ nav {
     transition: var(--transition);
     border-radius: 40px 40px;
     margin: 0;
-    overflow: hidden;
+    /* NOTE: do NOT set overflow:hidden here — it blocks touch-scrolling on mobile */
 }
 
 nav ul {
@@ -212,12 +212,14 @@ nav ul {
     padding: 0;
     margin: 0;
     overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;           /* Firefox: hide scrollbar */
+    -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
+    touch-action: pan-x;             /* allow horizontal touch-scroll */
+    scroll-behavior: smooth;
 }
 
 nav ul::-webkit-scrollbar {
-    display: none;
+    display: none;  /* Chrome/Safari: hide scrollbar */
 }
 
 nav li {
@@ -1532,11 +1534,12 @@ nav a:hover i, nav a.active i {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 820px;
-    height: 500px;
+    width: min(92vw, 820px);
+    max-height: 80vh;
+    aspect-ratio: 16 / 9;
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     z-index: 9999;
 }
 
