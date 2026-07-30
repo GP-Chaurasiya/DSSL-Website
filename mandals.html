@@ -296,7 +296,7 @@
       <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
         <i class="ri-moon-line"></i>
       </button>
-      <a href="https://dsspl-registration.netlify.app/" target="_blank" onclick="event.preventDefault(); showRegisterPopup();">
+      <a href="https://srs-self-eight.vercel.app/" target="_blank" onclick="event.preventDefault(); showRegisterPopup();">
         <button class="register-btn">Register Now</button>
       </a>
     </div>
@@ -333,9 +333,9 @@
     <!-- Dynamic Filter indicator -->
     <div class="filter-header-section" id="activeFilterBanner">
       <div class="filter-info">
-        <img id="filterBannerLogo" src="Adarsh mandal.jpg" alt="Logo">
+        <img id="filterBannerLogo" src="Vashishta Mandal.png" alt="Logo">
         <div class="filter-info-text">
-          <h3 id="filterBannerName">Adarsh Mandal</h3>
+          <h3 id="filterBannerName">Vashishta Mandal</h3>
           <p id="filterBannerStat">Filtered fixtures and scores</p>
         </div>
       </div>
@@ -420,9 +420,9 @@
           if (sheetRes.ok) {
             const data = await sheetRes.json();
             playerCounts = {
-              "adarsh mandal": 0, "sankalp mandal": 0, "chanakya mandal": 0,
-              "vijay mandal": 0, "utkarsh mandal": 0, "rakshak mandal": 0,
-              "shaurya mandal": 0
+              "vashishta mandal": 0, "vishwamitra mandal": 0, "atrey mandal": 0,
+              "gautam mandal": 0, "bharadwaj mandal": 0, "jamdagni mandal": 0,
+              "kashyap mandal": 0
             };
             if (Array.isArray(data)) {
               data.forEach(row => {
@@ -491,7 +491,7 @@
           <div class="mandal-card-header" style="background-color: ${mandal.color};"></div>
           <div class="mandal-card-body">
             <div class="mandal-logo-wrapper" style="color: ${mandal.color}">
-              <img src="${mandal.logoUrl}" alt="${mandal.name}" onerror="this.src='Adarsh mandal.jpg'">
+              <img src="${mandal.logoUrl}" alt="${mandal.name}" onerror="this.src='Vashishta Mandal.png'">
             </div>
             <h3 class="mandal-name">${mandal.name}</h3>
             <span class="mandal-abbrev" style="color: ${mandal.color}; background-color: ${mandal.color}15">${mandal.abbreviation}</span>
@@ -570,7 +570,7 @@
             
             <div class="matchup-row">
               <div class="team-block">
-                <img src="${m.dalA.logoUrl}" onerror="this.src='Adarsh mandal.jpg'">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
                 <p>${m.dalA.name}</p>
               </div>
               
@@ -579,7 +579,7 @@
               </div>
               
               <div class="team-block">
-                <img src="${m.dalB.logoUrl}" onerror="this.src='Sankalp mandal.jpg'">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
                 <p>${m.dalB.name}</p>
               </div>
             </div>

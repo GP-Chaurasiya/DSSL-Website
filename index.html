@@ -36,7 +36,7 @@
             <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
                 <i class="ri-moon-line"></i>
             </button>
-            <a href="https://dsspl-registration.netlify.app/" target="_blank" rel="noopener noreferrer">
+            <a href="https://srs-self-eight.vercel.app/" target="_blank" rel="noopener noreferrer">
                 <button class="register-btn" aria-label="Register Now">Register Now</button>
             </a>
         </div>
@@ -120,7 +120,7 @@
 
             <div class="team">
                 <img src="Vashishta Mandal.png">
-                <p>Adarsh Mandal</p>
+                <p>Vashishta Mandal</p>
             </div>
 
             <div class="vs">VS</div>
@@ -228,14 +228,14 @@
 
     <!-- Cards Grid (7 Items) -->
     <div class="cards-grid">
-    <!-- Adarsh Mandal -->
+    <!-- Vashishta Mandal -->
     <div class="department-card">
         <div class="icon-wrapper">
             <img src="Vashishta Mandal.png" alt="Vashishta Mandal">
         </div>
         <h3>Vashishta Mandal</h3>
         <p class="player-count">
-            <span id="adarsh-count">0</span> Players 👥
+            <span id="vashishta-count">0</span> Players 👥
         </p>
     </div>
 
@@ -246,7 +246,7 @@
         </div>
         <h3>Vishwamitra Mandal</h3>
         <p class="player-count">
-            <span id="sankalp-count">0</span> Players 👥
+            <span id="vishwamitra-count">0</span> Players 👥
         </p>
     </div>
 
@@ -257,7 +257,7 @@
         </div>
         <h3>Atrey Mandal</h3>
         <p class="player-count">
-            <span id="chanakya-count">0</span> Players 👥
+            <span id="atrey-count">0</span> Players 👥
         </p>
     </div>
 
@@ -268,7 +268,7 @@
         </div>
         <h3>Gautam Mandal</h3>
         <p class="player-count">
-            <span id="vijay-count">0</span> Players 👥
+            <span id="gautam-count">0</span> Players 👥
         </p>
     </div>
 
@@ -279,7 +279,7 @@
         </div>
         <h3>Bharadwaj Mandal</h3>
         <p class="player-count">
-            <span id="vivekanand-count">0</span> Players 👥
+            <span id="bharadwaj-count">0</span> Players 👥
         </p>
     </div>
 
@@ -290,7 +290,7 @@
         </div>
         <h3>Jamdagni Mandal</h3>
         <p class="player-count">
-            <span id="rakshak-count">0</span> Players 👥
+            <span id="jamdagni-count">0</span> Players 👥
         </p>
     </div>
 
@@ -301,7 +301,7 @@
         </div>
         <h3>Kashyap Mandal</h3>
         <p class="player-count">
-            <span id="shaurya-count">0</span> Players 👥
+            <span id="kashyap-count">0</span> Players 👥
         </p>
     </div>
 </div>
@@ -663,7 +663,7 @@ function closePreview(){
 
         function openRegistration() {
             window.open(
-                "https://dsspl-registration.netlify.app/",
+                "https://srs-self-eight.vercel.app/",
                 "_blank"
             );
         }
@@ -815,13 +815,13 @@ async function updateDalCounts() {
 
         // Reset counts
         const counts = {
-            "adarsh mandal": 0,
-            "Vishwamitra Mandal": 0,
-            "Atrey Mandal": 0,
-            "Gautam Mandal": 0,
-            "utkarsh mandal": 0,
-            "Jamdagni Mandal": 0,
-            "Kashyap Mandal": 0
+            "vashishta mandal": 0,
+            "vishwamitra mandal": 0,
+            "atrey mandal": 0,
+            "gautam mandal": 0,
+            "bharadwaj mandal": 0,
+            "jamdagni mandal": 0,
+            "kashyap mandal": 0
         };
 
         // Count players from sheet
@@ -834,13 +834,13 @@ async function updateDalCounts() {
         });
 
         // Update UI
-        document.getElementById("adarsh-count").textContent = counts["adarsh mandal"];
-        document.getElementById("sankalp-count").textContent = counts["Vishwamitra Mandal"];
-        document.getElementById("chanakya-count").textContent = counts["Atrey Mandal"];
-        document.getElementById("vijay-count").textContent = counts["Gautam Mandal"];
-        document.getElementById("utkarsh-count").textContent = counts["utkarsh mandal"];
-        document.getElementById("rakshak-count").textContent = counts["Jamdagni Mandal"];
-        document.getElementById("shaurya-count").textContent = counts["Kashyap Mandal"];
+        document.getElementById("vashishta-count").textContent = counts["vashishta mandal"];
+        document.getElementById("vishwamitra-count").textContent = counts["vishwamitra mandal"];
+        document.getElementById("atrey-count").textContent = counts["atrey mandal"];
+        document.getElementById("gautam-count").textContent = counts["gautam mandal"];
+        document.getElementById("bharadwaj-count").textContent = counts["bharadwaj mandal"];
+        document.getElementById("jamdagni-count").textContent = counts["jamdagni mandal"];
+        document.getElementById("kashyap-count").textContent = counts["kashyap mandal"];
 
     } catch (error) {
         console.error("Error:", error);
@@ -1483,7 +1483,7 @@ function closeRegisterPopup() {
 }
 
 function redirectToRegistration() {
-    window.open('https://dsspl-registration.netlify.app/', '_blank');
+    window.open('https://srs-self-eight.vercel.app/', '_blank');
     closeRegisterPopup();
 }
 

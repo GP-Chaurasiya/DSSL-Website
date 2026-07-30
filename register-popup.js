@@ -317,7 +317,7 @@ function closeRegisterPopup() {
 }
 
 function redirectToRegistration() {
-    window.open('https://dsspl-registration.netlify.app/', '_blank');
+    window.open('https://srs-self-eight.vercel.app/', '_blank');
     closeRegisterPopup();
 }
 

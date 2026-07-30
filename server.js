@@ -21,7 +21,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const JWT_SECRET = process.env.JWT_SECRET || "dsspl_super_secret_jwt_key_2026_dsspl";
 

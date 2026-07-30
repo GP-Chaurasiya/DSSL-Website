@@ -4,13 +4,13 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 const MANDALS = [
-  { id: 1, name: "Adarsh Mandal", color: "#E53E3E", abbreviation: "AD", logoUrl: "Adarsh mandal.jpg" },
-  { id: 2, name: "Sankalp Mandal", color: "#3182CE", abbreviation: "SK", logoUrl: "Sankalp mandal.jpg" },
-  { id: 3, name: "Chanakya Mandal", color: "#38A169", abbreviation: "CH", logoUrl: "Chanakya mandal.jpg" },
-  { id: 4, name: "Vijay Mandal", color: "#D69E2E", abbreviation: "VJ", logoUrl: "vijay mandal.jpg" },
-  { id: 5, name: "Utkarsh Mandal", color: "#805AD5", abbreviation: "UK", logoUrl: "Utkarsh mandal.jpg" },
-  { id: 6, name: "Rakshak Mandal", color: "#DD6B20", abbreviation: "RK", logoUrl: "Rakshak mandal.jpg" },
-  { id: 7, name: "Shaurya Mandal", color: "#2C7A7B", abbreviation: "SH", logoUrl: "Shaurya mandal.jpg" },
+  { id: 1, name: "Vashishta Mandal", color: "#E53E3E", abbreviation: "VS", logoUrl: "Vashishta Mandal.png" },
+  { id: 2, name: "Vishwamitra Mandal", color: "#3182CE", abbreviation: "VM", logoUrl: "Vishwamitra Mandal.png" },
+  { id: 3, name: "Atrey Mandal", color: "#38A169", abbreviation: "AT", logoUrl: "Atrey Mandal.png" },
+  { id: 4, name: "Gautam Mandal", color: "#D69E2E", abbreviation: "GM", logoUrl: "Gautam Mandal.png" },
+  { id: 5, name: "Bharadwaj Mandal", color: "#805AD5", abbreviation: "BM", logoUrl: "Bharadwaj Mandal.png" },
+  { id: 6, name: "Jamdagni Mandal", color: "#DD6B20", abbreviation: "JM", logoUrl: "Jamdagni Mandal.png" },
+  { id: 7, name: "Kashyap Mandal", color: "#2C7A7B", abbreviation: "KM", logoUrl: "Kashyap Mandal.png" },
 ];
 
 async function main() {
@@ -20,7 +20,12 @@ async function main() {
   for (const mandal of MANDALS) {
     await prisma.mandal.upsert({
       where: { id: mandal.id },
-      update: {},
+      update: {
+        name: mandal.name,
+        color: mandal.color,
+        abbreviation: mandal.abbreviation,
+        logoUrl: mandal.logoUrl,
+      },
       create: {
         id: mandal.id,
         name: mandal.name,

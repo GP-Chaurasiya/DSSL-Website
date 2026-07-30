@@ -10,7 +10,8 @@
           "backdrop-filter",
           "scrollbar-width",
           "scrollbar-width: none",
-          "-webkit-mask-image"
+          "-webkit-mask-image",
+          "-webkit-overflow-scrolling"
         ]
       }
     ],
