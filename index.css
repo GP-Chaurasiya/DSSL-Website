@@ -68,21 +68,24 @@ header {
     justify-content: space-between;
     align-items: center;
     background-color: #003E8A;
-    padding: 6px 20px;
+    padding: 6px 24px;
     height: 100px;
     position: sticky;
     top: 0;
     z-index: 1000;
+    gap: 12px;
 }
 
 .header-left {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .logo {
-    height: 120px;
-    width: 300px;
+    height: 88px;
+    width: auto;
+    max-width: 260px;
     object-fit: contain;
     transition: var(--transition);
 }
@@ -91,13 +94,15 @@ header {
     transform: scale(1.05);
 }
 
+/* Center flipping logo — absolutely positioned relative to header */
 .logo-flip {
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 110px;
-    height: 110px;
+    width: 90px;
+    height: 90px;
+    pointer-events: none;
 }
 
 .logo-inner {
@@ -135,12 +140,13 @@ header {
     100% { transform: rotateY(360deg); }
 }
 
+/* header-right: flex, no absolute positioning */
 .header-right {
     display: flex;
     align-items: center;
-    gap: 20px;
-    position: absolute;
-    right: 40px;
+    gap: 14px;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .theme-toggle {
@@ -169,17 +175,18 @@ header {
     background: var(--primary-color);
     border: none;
     color: var(--accent-blue);
-    padding: 12px 28px;
-    font-size: 16px;
-    font-weight: 600;
+    padding: 10px 22px;
+    font-size: 15px;
+    font-weight: 700;
     border-radius: 25px;
     cursor: pointer;
     transition: var(--transition);
+    white-space: nowrap;
 }
 
 .register-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
 .register-btn:active {
@@ -195,6 +202,7 @@ nav {
     transition: var(--transition);
     border-radius: 40px 40px;
     margin: 0;
+    overflow: hidden;
 }
 
 nav ul {
@@ -203,28 +211,39 @@ nav ul {
     width: 100%;
     padding: 0;
     margin: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+nav ul::-webkit-scrollbar {
+    display: none;
 }
 
 nav li {
     flex: 1;
+    min-width: 0;
 }
 
 nav a {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 15px 20px;
+    gap: 7px;
+    padding: 14px 12px;
     text-decoration: none;
     color: var(--nav-text-color);
     font-weight: 500;
+    font-size: 14px;
     transition: var(--transition);
     border-left: 3px solid transparent;
+    white-space: nowrap;
 }
 
 nav a i {
     color: var(--nav-icon-color);
     font-size: 18px;
+    flex-shrink: 0;
 }
 
 nav a:hover, nav a.active {
@@ -239,87 +258,178 @@ nav a:hover i, nav a.active i {
 }
 
 /* ============= Responsive Queries ============= */
-@media (max-width: 992px) {
+
+/* ---- Large tablets (≤ 1024px) ---- */
+@media (max-width: 1024px) {
     header {
         height: 80px;
-        padding: 6px 15px;
+        padding: 6px 16px;
     }
 
     .logo {
-        height: 80px;
-        width: 200px;
+        height: 70px;
+        max-width: 200px;
     }
 
     .logo-flip {
-        width: 80px;
-        height: 80px;
-    }
-
-    .header-right {
-        right: 15px;
-        gap: 10px;
+        width: 70px;
+        height: 70px;
     }
 
     .register-btn {
-        padding: 8px 16px;
-        font-size: 13px;
+        padding: 9px 18px;
+        font-size: 14px;
     }
 }
 
+/* ---- Tablets (≤ 768px) ---- */
 @media (max-width: 768px) {
     header {
-        height: 70px;
-        padding: 4px 10px;
+        height: 64px;
+        padding: 0 12px;
+        gap: 8px;
     }
 
     .logo {
-        height: 55px;
-        width: auto;
+        height: 52px;
         max-width: 150px;
     }
 
+    /* Hide center spinning logo on smaller screens to avoid overlap */
     .logo-flip {
-        width: 55px;
-        height: 55px;
+        display: none;
     }
 
+    .header-right {
+        gap: 10px;
+    }
+
+    .theme-toggle {
+        width: 36px;
+        height: 36px;
+        font-size: 17px;
+    }
+
+    .register-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    /* Nav: show text + icon but make it scrollable */
     nav {
         border-radius: 20px;
     }
 
-    nav ul {
-        flex-direction: row;
-        overflow-x: auto;
-        white-space: nowrap;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
+    nav a {
+        padding: 11px 10px;
+        font-size: 13px;
+        gap: 5px;
     }
 
-    nav ul::-webkit-scrollbar {
+    nav a i {
+        font-size: 17px;
+    }
+}
+
+/* ---- Large phones (≤ 576px) ---- */
+@media (max-width: 576px) {
+    header {
+        height: 58px;
+        padding: 0 10px;
+    }
+
+    .logo {
+        height: 44px;
+        max-width: 130px;
+    }
+
+    .header-right {
+        gap: 8px;
+    }
+
+    .theme-toggle {
+        width: 33px;
+        height: 33px;
+        font-size: 15px;
+    }
+
+    /* Shorten Register button text via CSS content trick */
+    .register-btn {
+        padding: 7px 12px;
+        font-size: 12px;
+    }
+
+    /* Nav: icon-only on small phones, save space */
+    nav {
+        border-radius: 14px;
+    }
+
+    nav a {
+        padding: 10px 8px;
+        gap: 0;
+        flex-direction: column;
+        font-size: 10px;
+        gap: 2px;
+    }
+
+    nav a i {
+        font-size: 18px;
+    }
+}
+
+/* ---- Very small phones (≤ 380px) ---- */
+@media (max-width: 380px) {
+    header {
+        height: 54px;
+        padding: 0 8px;
+    }
+
+    .logo {
+        height: 38px;
+        max-width: 110px;
+    }
+
+    .theme-toggle {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+        border-width: 1.5px;
+    }
+
+    .register-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 18px;
+    }
+
+    /* Icon only on very small phones */
+    nav a span.nav-label {
         display: none;
     }
 
     nav a {
-        padding: 10px 14px;
-        font-size: 13px;
-        white-space: nowrap;
+        padding: 9px 6px;
+        flex-direction: column;
+        gap: 0;
     }
 
+    nav a i {
+        font-size: 19px;
+    }
+}
+
+@media (max-width: 768px) {
     .slider {
         height: auto !important;
         max-height: 50vh !important;
         width: 95% !important;
+        overflow: hidden !important;
     }
 
     .slide img {
         height: auto !important;
         max-height: 50vh !important;
         object-fit: contain !important;
-    }
-
-    /* Keep countdown over the poster but make it compact and less obstructive on small screens */
-    .slider {
-        overflow: hidden !important;
     }
 
     .countdown-wrapper {
@@ -329,8 +439,8 @@ nav a:hover i, nav a.active i {
         left: auto !important;
         transform: none !important;
         margin: 0 !important;
-        width: auto !important;
-        padding: 6px 8px !important; /* reduced padding to lower overall height */
+        width: 92% !important;
+        padding: 10px !important;
         box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
         background: rgba(8, 20, 45, 0.55) !important;
         border-radius: 12px !important;
@@ -338,20 +448,6 @@ nav a:hover i, nav a.active i {
 
     .countdown-container {
         gap: 8px !important;
-    }
-
-    .time-box {
-        width: 48px !important;
-        height: 48px !important; /* slightly smaller boxes to reduce wrapper height */
-    }
-
-    .time-box span {
-        font-size: 16px !important;
-    }
-
-    .countdown-wrapper {
-        width: 92% !important;
-        padding: 10px !important;
     }
 
     .time-box {
