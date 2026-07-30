@@ -269,17 +269,28 @@ nav a:hover i, nav a.active i {
     }
 
     .logo {
-        height: 70px;
-        max-width: 200px;
+        height: 65px;
+        max-width: 180px;
     }
 
     .logo-flip {
-        width: 70px;
-        height: 70px;
+        display: block;
+        width: 65px;
+        height: 65px;
     }
 
     .register-btn {
         padding: 9px 18px;
+        font-size: 14px;
+    }
+
+    /* Make nav scrollable horizontally on tablets */
+    nav li {
+        flex: 0 0 auto;
+    }
+
+    nav a {
+        padding: 12px 16px;
         font-size: 14px;
     }
 }
@@ -289,47 +300,54 @@ nav a:hover i, nav a.active i {
     header {
         height: 64px;
         padding: 0 12px;
-        gap: 8px;
+        gap: 6px;
     }
 
     .logo {
-        height: 52px;
-        max-width: 150px;
+        height: 48px;
+        max-width: 125px;
     }
 
-    /* Hide center spinning logo on smaller screens to avoid overlap */
+    /* Flip logo stays centered on tablet screens */
     .logo-flip {
-        display: none;
+        display: block;
+        width: 52px;
+        height: 52px;
     }
 
     .header-right {
-        gap: 10px;
+        gap: 8px;
     }
 
     .theme-toggle {
         width: 36px;
         height: 36px;
-        font-size: 17px;
+        font-size: 16px;
     }
 
     .register-btn {
-        padding: 8px 14px;
-        font-size: 13px;
+        padding: 7px 14px;
+        font-size: 12px;
     }
 
-    /* Nav: show text + icon but make it scrollable */
+    /* Nav: horizontally scrollable with auto-width items */
     nav {
         border-radius: 20px;
     }
 
+    nav li {
+        flex: 0 0 auto;
+    }
+
     nav a {
-        padding: 11px 10px;
+        padding: 11px 14px;
         font-size: 13px;
-        gap: 5px;
+        gap: 6px;
+        white-space: nowrap;
     }
 
     nav a i {
-        font-size: 17px;
+        font-size: 16px;
     }
 }
 
@@ -337,45 +355,55 @@ nav a:hover i, nav a.active i {
 @media (max-width: 576px) {
     header {
         height: 58px;
-        padding: 0 10px;
+        padding: 0 8px;
+        gap: 4px;
     }
 
     .logo {
+        height: 40px;
+        max-width: 95px;
+    }
+
+    /* Flip logo stays centered on phone screens */
+    .logo-flip {
+        display: block;
+        width: 44px;
         height: 44px;
-        max-width: 130px;
     }
 
     .header-right {
-        gap: 8px;
+        gap: 6px;
     }
 
     .theme-toggle {
-        width: 33px;
-        height: 33px;
-        font-size: 15px;
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
 
-    /* Shorten Register button text via CSS content trick */
     .register-btn {
-        padding: 7px 12px;
-        font-size: 12px;
+        padding: 6px 10px;
+        font-size: 11px;
     }
 
-    /* Nav: icon-only on small phones, save space */
+    /* Nav: compact horizontal scroll for phone screens */
     nav {
         border-radius: 14px;
     }
 
+    nav li {
+        flex: 0 0 auto;
+    }
+
     nav a {
-        padding: 10px 8px;
-        gap: 0;
-        flex-direction: column;
-        font-size: 10px;
-        gap: 2px;
+        padding: 9px 12px;
+        font-size: 12px;
+        gap: 5px;
+        white-space: nowrap;
     }
 
     nav a i {
-        font-size: 18px;
+        font-size: 15px;
     }
 }
 
@@ -383,40 +411,45 @@ nav a:hover i, nav a.active i {
 @media (max-width: 380px) {
     header {
         height: 54px;
-        padding: 0 8px;
+        padding: 0 6px;
     }
 
     .logo {
-        height: 38px;
-        max-width: 110px;
+        height: 34px;
+        max-width: 75px;
+    }
+
+    .logo-flip {
+        display: block;
+        width: 36px;
+        height: 36px;
     }
 
     .theme-toggle {
-        width: 30px;
-        height: 30px;
-        font-size: 14px;
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
         border-width: 1.5px;
     }
 
     .register-btn {
-        padding: 6px 10px;
-        font-size: 11px;
-        border-radius: 18px;
+        padding: 5px 8px;
+        font-size: 10px;
+        border-radius: 16px;
     }
 
-    /* Icon only on very small phones */
-    nav a span.nav-label {
-        display: none;
+    nav li {
+        flex: 0 0 auto;
     }
 
     nav a {
-        padding: 9px 6px;
-        flex-direction: column;
-        gap: 0;
+        padding: 8px 10px;
+        font-size: 11px;
+        gap: 4px;
     }
 
     nav a i {
-        font-size: 19px;
+        font-size: 14px;
     }
 }
 
