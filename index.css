@@ -587,6 +587,15 @@ nav a:hover i, nav a.active i {
     align-items: center;
 }
 
+.time-header {
+    color: #ffffff !important;
+    font-size: clamp(10px, 1.1vw, 13px);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    opacity: 0.95;
+    text-transform: uppercase;
+}
+
 .time-box span {
     font-size: clamp(20px, 3.2vw, 40px);
     font-weight: 800;
