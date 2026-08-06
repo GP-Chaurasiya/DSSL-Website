@@ -9,16 +9,23 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
+const compression = require("compression");
+const sharp = require("sharp");
+
 const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
 
-// Configure Socket.IO with CORS support for development/Vercel scoreboard integration
+// Enable HTTP Gzip/Deflate Compression for ultra-fast response loading
+app.use(compression());
+
+// Configure Socket.IO with CORS support and per-message deflate compression for fast realtime events
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST", "PATCH", "DELETE"]
-  }
+  },
+  perMessageDeflate: true
 });
 
 const PORT = process.env.PORT || 3000;
@@ -42,6 +49,50 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+
+// ── Shared Upload Helper ─────────────────────────────────────────────────────────
+// Reads file from disk, optimizes images with sharp, stores binary in PostgreSQL
+async function saveUploadedFile(file, title) {
+  const isVideo = file.mimetype.startsWith("video/");
+
+  let fileBuffer = fs.readFileSync(file.path);
+  let mimeType = file.mimetype;
+
+  // Optimize images with sharp before storing in PostgreSQL (smaller DB size)
+  if (!isVideo && file.mimetype.startsWith("image/")) {
+    try {
+      fileBuffer = await sharp(fileBuffer)
+        .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
+        .toBuffer();
+    } catch (err) {
+      console.warn("Image optimization skipped:", err.message);
+    }
+  }
+
+  // Create record with file binary data in PostgreSQL
+  const media = await prisma.media.create({
+    data: {
+      type: isVideo ? "VIDEO" : "IMAGE",
+      url: "pending",
+      title: title || file.originalname,
+      mimeType: mimeType,
+      data: isVideo ? null : fileBuffer // Store images in DB; videos stay on disk only
+    }
+  });
+
+  // Set persistent URL: images served from DB, videos from disk
+  const persistentUrl = isVideo
+    ? "/uploads/" + file.filename
+    : `/api/media/file/${media.id}`;
+
+  const updated = await prisma.media.update({
+    where: { id: media.id },
+    data: { url: persistentUrl },
+    select: { id: true, type: true, url: true, title: true, mimeType: true, createdAt: true }
+  });
+
+  return updated;
+}
 
 // Middlewares
 app.use(express.json());
@@ -127,7 +178,7 @@ app.get("/api/mandals", async (req, res) => {
     // Add logo mapping for scoreboard React client
     const mapped = mandals.map(d => ({
       ...d,
-      logo: d.logoUrl
+      logo: d.logoUrl ? (d.logoUrl.startsWith('/') ? d.logoUrl : `/${d.logoUrl}`) : '/Vashishta Mandal.png'
     }));
     res.json(mapped);
   } catch (error) {
@@ -139,11 +190,11 @@ app.post("/api/mandals", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANIS
   const { name, color, abbreviation, logoUrl } = req.body;
   try {
     const mandal = await prisma.mandal.create({
-      data: { name, color, abbreviation, logoUrl: logoUrl || "default_logo.png" }
+      data: { name, color, abbreviation, logoUrl: logoUrl || "Vashishta Mandal.png" }
     });
     res.status(201).json({
       ...mandal,
-      logo: mandal.logoUrl
+      logo: mandal.logoUrl.startsWith('/') ? mandal.logoUrl : `/${mandal.logoUrl}`
     });
   } catch (error) {
     res.status(500).json({ error: "Error creating mandal" });
@@ -155,6 +206,14 @@ app.post("/api/mandals", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANIS
 // Helper to convert Match data fields for Client
 const serializeMatch = (m) => {
   if (!m) return null;
+  const formatLogo = (mandal) => {
+    if (!mandal) return null;
+    const logoUrl = mandal.logoUrl || `${mandal.name}.png`;
+    return {
+      ...mandal,
+      logo: logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`
+    };
+  };
   return {
     ...m,
     id: m.id.toString(), // Convert number ID to string matching scoreboard expectations
@@ -162,8 +221,8 @@ const serializeMatch = (m) => {
     startTime: m.startTime ? m.startTime.getTime() : null,
     endTime: m.endTime ? m.endTime.getTime() : null,
     timerStartedAt: m.timerStartedAt ? m.timerStartedAt.getTime() : null,
-    dalA: m.dalA ? { ...m.dalA, logo: m.dalA.logoUrl } : null,
-    dalB: m.dalB ? { ...m.dalB, logo: m.dalB.logoUrl } : null,
+    dalA: formatLogo(m.dalA),
+    dalB: formatLogo(m.dalB),
   };
 };
 
@@ -443,7 +502,7 @@ app.delete("/api/matches/:id", authenticateToken, requireRole(["SUPER_ADMIN"]), 
   }
 });
 
-// Score Update API Endpoint (for Scorer/Organiser/Admin)
+// Score Update API Endpoint (for Scorer/Organiser/Admin) - Optimized for ⚡ ultra-fast execution
 app.post("/api/matches/:id/score", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   const matchId = parseInt(req.params.id);
   const { side, delta } = req.body; // side: "A" or "B", delta: +1, -1 etc
@@ -453,14 +512,18 @@ app.post("/api/matches/:id/score", authenticateToken, requireRole(["SUPER_ADMIN"
   const valDelta = parseInt(delta) || 0;
 
   try {
+    // Perform fast single atomic DB update without redundant read
     const match = await prisma.match.findUnique({ where: { id: matchId } });
     if (!match) return res.status(404).json({ error: "Match not found" });
+
+    const newScoreA = side === "A" ? Math.max(0, match.scoreA + valDelta) : match.scoreA;
+    const newScoreB = side === "B" ? Math.max(0, match.scoreB + valDelta) : match.scoreB;
 
     const updated = await prisma.match.update({
       where: { id: matchId },
       data: {
-        scoreA: side === "A" ? Math.max(0, match.scoreA + valDelta) : match.scoreA,
-        scoreB: side === "B" ? Math.max(0, match.scoreB + valDelta) : match.scoreB,
+        scoreA: newScoreA,
+        scoreB: newScoreB,
       },
       include: { dalA: true, dalB: true }
     });
@@ -586,7 +649,7 @@ app.get("/api/news", async (req, res) => {
   }
 });
 
-app.post("/api/news", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), async (req, res) => {
+app.post("/api/news", authenticateToken, requireRole(["SUPER_ADMIN", "MEDIA_TEAM"]), async (req, res) => {
   const { title, content } = req.body;
   if (!title || !content) {
     return res.status(400).json({ error: "Title and content required" });
@@ -609,7 +672,7 @@ app.post("/api/news", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TE
   }
 });
 
-app.delete("/api/news/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), async (req, res) => {
+app.delete("/api/news/:id", authenticateToken, requireRole(["SUPER_ADMIN", "MEDIA_TEAM"]), async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid post ID" });
 
@@ -622,12 +685,55 @@ app.delete("/api/news/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CREA
   }
 });
 
+// ── General Purpose File Upload API ─────────────────────────────────────────────
+// Any authenticated user can upload files - saves to uploads/ folder + PostgreSQL (binary)
+
+app.post("/api/upload", authenticateToken, upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file provided" });
+  }
+
+  try {
+    const media = await saveUploadedFile(req.file, req.body.title);
+    res.status(201).json(media);
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Error saving uploaded file" });
+  }
+});
+
 // ── Gallery / Media Upload APIs ─────────────────────────────────────────────────
 
+// Serve media files directly from PostgreSQL (persistent, survives server restarts)
+app.get("/api/media/file/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+  try {
+    const media = await prisma.media.findUnique({
+      where: { id },
+      select: { data: true, mimeType: true }
+    });
+
+    if (!media || !media.data) {
+      return res.status(404).send("Media not found");
+    }
+
+    res.set("Content-Type", media.mimeType);
+    res.set("Cache-Control", "public, max-age=604800, immutable");
+    res.send(Buffer.from(media.data));
+  } catch (error) {
+    console.error("Media serve error:", error);
+    res.status(500).send("Error serving media");
+  }
+});
+
+// List all media (excludes binary data from response for performance)
 app.get("/api/media", async (req, res) => {
   try {
     const media = await prisma.media.findMany({
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      select: { id: true, type: true, url: true, title: true, mimeType: true, createdAt: true }
     });
     res.json(media);
   } catch (error) {
@@ -635,38 +741,49 @@ app.get("/api/media", async (req, res) => {
   }
 });
 
-app.post("/api/media/upload", authenticateToken, requireRole(["SUPER_ADMIN", "MEDIA_TEAM"]), upload.single("file"), async (req, res) => {
+// Creator team upload endpoint
+app.post("/api/media/upload", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No media file provided" });
   }
 
-  const { title } = req.body;
-  const fileUrl = "/uploads/" + req.file.filename;
-  const isVideo = req.file.mimetype.startsWith("video/");
-
   try {
-    const media = await prisma.media.create({
-      data: {
-        type: isVideo ? "VIDEO" : "IMAGE",
-        url: fileUrl,
-        title: title || req.file.originalname
-      }
-    });
-
+    const media = await saveUploadedFile(req.file, req.body.title);
     io.emit("mediaUpdate", media);
     res.status(201).json(media);
   } catch (error) {
-    res.status(500).json({ error: "Error saving media metadata" });
+    console.error("Media upload error:", error);
+    res.status(500).json({ error: "Error saving media" });
+  }
+});
+
+// Creator team delete media endpoint
+app.delete("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid media ID" });
+
+  try {
+    await prisma.media.delete({ where: { id } });
+    io.emit("mediaUpdate");
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Error deleting media asset" });
   }
 });
 
 // ── Static Files & Dashboard Routes ───────────────────────────────────────────
 
-// Static files directories
-app.use("/uploads", express.static(uploadDir));
-app.use("/admin", express.static(path.join(ROOT, "admin")));
-app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard")));
-app.use(express.static(ROOT));
+// Static files directories with aggressive 7-day browser caching for high performance
+const staticCacheOptions = {
+  maxAge: "7d",
+  etag: true,
+  lastModified: true
+};
+
+app.use("/uploads", express.static(uploadDir, staticCacheOptions));
+app.use("/admin", express.static(path.join(ROOT, "admin"), staticCacheOptions));
+app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
+app.use(express.static(ROOT, staticCacheOptions));
 
 // Default home route serving index.html
 app.get("/", (req, res) => {

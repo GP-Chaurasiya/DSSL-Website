@@ -7,6 +7,7 @@
   <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="../notifications.css">
   <style>
     :root {
       /* Light mode palette */
@@ -644,7 +645,19 @@
           <span>Dashboard</span>
         </button>
       </li>
-      <li class="menu-item" data-access="ALL">
+      <li class="menu-item" data-access="CREATOR">
+        <button class="menu-btn" data-tab="media">
+          <i class="ri-image-line"></i>
+          <span>Media Gallery</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="MEDIA">
+        <button class="menu-btn" data-tab="news">
+          <i class="ri-news-line"></i>
+          <span>News & Posts</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
         <button class="menu-btn" data-tab="scoreboard">
           <i class="ri-dashboard-2-line"></i>
           <span>Live Scoreboard</span>
@@ -666,18 +679,6 @@
         <button class="menu-btn" data-tab="teams">
           <i class="ri-team-line"></i>
           <span>Team Management</span>
-        </button>
-      </li>
-      <li class="menu-item" data-access="CREATOR">
-        <button class="menu-btn" data-tab="news">
-          <i class="ri-news-line"></i>
-          <span>News & Posts</span>
-        </button>
-      </li>
-      <li class="menu-item" data-access="MEDIA">
-        <button class="menu-btn" data-tab="media">
-          <i class="ri-image-line"></i>
-          <span>Media Gallery</span>
         </button>
       </li>
       <li class="menu-item" data-access="SUPER_ADMIN">
@@ -725,60 +726,25 @@
 
       <!-- ── TAB: DASHBOARD ── -->
       <div class="tab-content active" id="tab-dashboard">
-        <div class="dashboard-grid">
-          <div class="stat-card">
-            <div class="stat-card-left">
-              <h3>Live Matches</h3>
-              <div class="stat-number" id="statLiveCount">0</div>
-            </div>
-            <div class="stat-icon" style="background-color: rgba(239, 68, 68, 0.1); color: var(--danger)">
-              <i class="ri-broadcast-line"></i>
-            </div>
+        <!-- Role Specific Banner -->
+        <div class="role-banner" id="dashboardRoleBanner" style="background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(37, 99, 235, 0.1) 100%); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h3 id="roleBannerTitle" style="font-size: 20px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 10px;">
+              <i class="ri-shield-user-line" style="color: var(--accent);"></i> Welcome to Admin Center
+            </h3>
+            <p id="roleBannerSubtitle" style="color: var(--text-muted); font-size: 14px;">Select modules from the sidebar to begin.</p>
           </div>
-          <div class="stat-card">
-            <div class="stat-card-left">
-              <h3>Total Scheduled</h3>
-              <div class="stat-number" id="statScheduledCount">0</div>
-            </div>
-            <div class="stat-icon">
-              <i class="ri-calendar-todo-line"></i>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-left">
-              <h3>Completed Games</h3>
-              <div class="stat-number" id="statCompletedCount">0</div>
-            </div>
-            <div class="stat-icon" style="background-color: rgba(16, 185, 129, 0.1); color: var(--success)">
-              <i class="ri-verified-badge-line"></i>
-            </div>
-          </div>
+          <span class="badge badge-live" id="roleBadge">ROLE</span>
         </div>
 
-        <div class="section-card">
-          <div class="section-header">
-            <h3>Live Scored Matches</h3>
-            <span class="badge badge-live">Realtime Sync</span>
-          </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sport</th>
-                  <th>Match details</th>
-                  <th>Venue</th>
-                  <th>Score</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="dashboardLiveMatchesList">
-                <tr>
-                  <td colspan="6" style="text-align: center; color: var(--text-muted);">No live matches running</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <!-- Dynamic Role Stats Grid -->
+        <div class="dashboard-grid" id="dashboardStatsGrid">
+          <!-- Populated dynamically based on user.role -->
+        </div>
+
+        <!-- Dynamic Role Content View (Forms, Previews, Match Tables) -->
+        <div id="dashboardRoleContent">
+          <!-- Populated dynamically based on user.role -->
         </div>
       </div>
 
@@ -875,8 +841,11 @@
                     <input type="text" id="matchResult" placeholder="Chanakya Mandal won by 5 runs">
                   </div>
                   <div class="form-group" style="grid-column: span 1">
-                    <label for="matchBanner">Match Banner URL / Image URL</label>
-                    <input type="text" id="matchBanner" placeholder="/images/cricket-banner.png">
+                    <label for="matchBannerFile">Match Banner Image</label>
+                    <input type="file" id="matchBannerFile" accept="image/*" style="margin-bottom: 6px;">
+                    <input type="hidden" id="matchBanner">
+                    <div id="matchBannerPreview" style="margin-top: 4px;"></div>
+                    <small style="color: var(--text-muted); font-size: 11px;">Image saved to uploads/ &amp; PostgreSQL</small>
                   </div>
                 </div>
                 <button type="submit" class="btn"><i class="ri-save-line"></i> Save Match Details</button>
@@ -1012,6 +981,7 @@
                   <th>Type</th>
                   <th>URL Path</th>
                   <th>Date</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="mediaList">
@@ -1115,5 +1085,6 @@
   <!-- Load Socket.IO client script provided dynamically by backend -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="admin.js"></script>
+  <script src="../notifications.js"></script>
 </body>
 </html>

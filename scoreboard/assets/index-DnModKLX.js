@@ -22858,52 +22858,52 @@ const SPORTS = [
 const MANDALS = [
   {
     id: 1,
-    name: "Adarsh Mandal",
+    name: "Vashishta Mandal",
     color: "#E53E3E",
-    abbreviation: "AD",
-    logo: "/assets/adarsh_mandal.jpg"
+    abbreviation: "VS",
+    logo: "/assets/vashishta_mandal.png"
   },
   {
     id: 2,
-    name: "Sankalp Mandal",
+    name: "Vishwamitra Mandal",
     color: "#3182CE",
-    abbreviation: "SK",
-    logo: "/assets/sankalp_mandal.jpg"
+    abbreviation: "VM",
+    logo: "/assets/vishwamitra_mandal.png"
   },
   {
     id: 3,
-    name: "Chanakya Mandal",
+    name: "Atrey Mandal",
     color: "#38A169",
-    abbreviation: "CH",
-    logo: "/assets/chanakya_mandal.jpg"
+    abbreviation: "AT",
+    logo: "/assets/atrey_mandal.png"
   },
   {
     id: 4,
-    name: "Vijay Mandal",
+    name: "Gautam Mandal",
     color: "#D69E2E",
-    abbreviation: "VJ",
-    logo: "/assets/vijay_mandal.jpg"
+    abbreviation: "GM",
+    logo: "/assets/gautam_mandal.png"
   },
   {
     id: 5,
-    name: "Utkarsh Mandal",
+    name: "Bharadwaj Mandal",
     color: "#805AD5",
-    abbreviation: "UK",
-    logo: "/assets/utkarsh_mandal.jpg"
+    abbreviation: "BM",
+    logo: "/assets/bharadwaj_mandal.png"
   },
   {
     id: 6,
-    name: "Rakshak Mandal",
+    name: "Jamdagni Mandal",
     color: "#DD6B20",
-    abbreviation: "RK",
-    logo: "/assets/rakshak_mandal.jpg"
+    abbreviation: "JM",
+    logo: "/assets/jamdagni_mandal.png"
   },
   {
     id: 7,
-    name: "Shaurya Mandal",
+    name: "Kashyap Mandal",
     color: "#2C7A7B",
-    abbreviation: "SH",
-    logo: "/assets/shaurya_mandal.jpg"
+    abbreviation: "KM",
+    logo: "/assets/kashyap_mandal.png"
   }
 ];
 const useUIStore = create((set) => ({
@@ -25047,23 +25047,7 @@ function SidebarNav({
               },
               item.path
             );
-          }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "a",
-            {
-              href: "/admin/index.html",
-              title: collapsed ? "Admin Portal" : void 0,
-              className: cn(
-                "flex items-center gap-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150 mt-4",
-                collapsed ? "px-0 justify-center" : "px-3",
-                "text-[#003E8A] bg-[#003E8A]/10 border border-[#003E8A]/20 hover:bg-[#003E8A] hover:text-white"
-              ),
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { className: "w-4 h-4 flex-shrink-0" }),
-                !collapsed && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex-1 truncate", children: "Admin Portal" })
-              ]
-            }
-          )
+          })
         ]
       }
     ),

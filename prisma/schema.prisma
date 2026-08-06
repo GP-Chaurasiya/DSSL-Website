@@ -73,6 +73,8 @@ model Media {
   type      String   // "IMAGE", "VIDEO"
   url       String
   title     String?
+  mimeType  String   @default("image/png")
+  data      Bytes?   // Actual file binary data stored in PostgreSQL for persistence
   createdAt DateTime @default(now())
 }
 
