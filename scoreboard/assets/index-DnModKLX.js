@@ -22820,10 +22820,10 @@ const SPORTS = [
   { id: 11, name: "Chess", slug: "chess", icon: "♟️", category: "individual" },
   {
     id: 12,
-    name: "Carrom",
-    slug: "carrom",
-    icon: "🎯",
-    category: "individual"
+    name: "High Jump",
+    slug: "high-jump",
+    icon: "🏋️",
+    category: "field"
   },
   {
     id: 13,
@@ -22853,7 +22853,21 @@ const SPORTS = [
     icon: "🥏",
     category: "field"
   },
-  { id: 17, name: "Shot Put", slug: "shot-put", icon: "⚫", category: "field" }
+  { id: 17, name: "Shot Put", slug: "shot-put", icon: "⚫", category: "field" },
+  {
+    id: 18,
+    name: "Athletics (200m)",
+    slug: "athletics-200m",
+    icon: "🏃",
+    category: "track"
+  },
+  {
+    id: 19,
+    name: "7 Stones",
+    slug: "7-stones",
+    icon: "🪨",
+    category: "team"
+  }
 ];
 const MANDALS = [
   {

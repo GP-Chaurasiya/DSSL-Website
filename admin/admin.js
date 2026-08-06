@@ -25,12 +25,14 @@ const SPORTS = [
   { id: 9, name: "Athletics (Relay)", icon: "🔁" },
   { id: 10, name: "Kho-Kho", icon: "🤸" },
   { id: 11, name: "Chess", icon: "♟️" },
-  { id: 12, name: "Carrom", icon: "🎯" },
+  { id: 12, name: "High Jump", icon: "🏋️" },
   { id: 13, name: "Tug of War", icon: "💪" },
   { id: 14, name: "Long Jump", icon: "🦘" },
   { id: 15, name: "Javelin Throw", icon: "🎿" },
   { id: 16, name: "Discus Throw", icon: "🥏" },
-  { id: 17, name: "Shot Put", icon: "⚫" }
+  { id: 17, name: "Shot Put", icon: "⚫" },
+  { id: 18, name: "Athletics (200m)", icon: "🏃" },
+  { id: 19, name: "7 Stones", icon: "🪨" }
 ];
 
 // Socket.IO Init
