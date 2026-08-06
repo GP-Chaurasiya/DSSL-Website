@@ -180,6 +180,11 @@ async function loadTabData(tab) {
       case "users":
         await loadUsers();
         break;
+      case "fixtures":
+        await loadDals();
+        await loadMatches();
+        initFixturesModule();
+        break;
       case "scoreboard":
         const iframe = document.getElementById("scoreboardIframe");
         if (iframe) {
@@ -1101,3 +1106,849 @@ socket.on("mediaUpdate", () => {
 
 // Load Initial tab
 loadTabData("dashboard");
+
+// ── FIXTURES MODULE IMPLEMENTATION ─────────────────────────────────────────────
+
+// Module State
+let activeFixtureFormat = "single-elimination";
+let generatedFixtures = [];
+let fixtureTeams = [];
+let bracketZoomScale = 1.0;
+let bracketTranslate = { x: 0, y: 0 };
+let isBracketDragging = false;
+let bracketDragStart = { x: 0, y: 0 };
+
+// Helper to switch tab programmatically (used by breadcrumb)
+function switchAdminTab(tabName) {
+  const btn = document.querySelector(`.menu-btn[data-tab="${tabName}"]`);
+  if (btn) btn.click();
+}
+
+function getBaseFixtureTeams() {
+  if (allDals && allDals.length > 0) {
+    return allDals.map(d => ({
+      id: d.id,
+      name: d.name,
+      abbr: (d.abbr || d.name.substring(0, 2)).toUpperCase(),
+      logo: (d.abbr || d.name.substring(0, 2)).toUpperCase()
+    }));
+  }
+  return [
+    { id: 1, name: "Chanakya Mandal",   abbr: "CK", logo: "CK" },
+    { id: 2, name: "Atrey Mandal",       abbr: "AT", logo: "AT" },
+    { id: 3, name: "Bharadwaj Mandal",   abbr: "BH", logo: "BH" },
+    { id: 4, name: "Gautam Mandal",      abbr: "GA", logo: "GA" },
+    { id: 5, name: "Jamdagni Mandal",    abbr: "JM", logo: "JM" },
+    { id: 6, name: "Kashyap Mandal",     abbr: "KS", logo: "KS" },
+    { id: 7, name: "Vishwamitra Mandal", abbr: "VM", logo: "VM" }
+  ];
+}
+
+function updateTeamsForCount(count) {
+  const base = getBaseFixtureTeams();
+  let num = parseInt(count, 10);
+  if (isNaN(num) || num < 2) num = 2;
+  if (num > 64) num = 64;
+
+  let teams = [];
+  for (let i = 0; i < num; i++) {
+    if (i < base.length) {
+      teams.push({ ...base[i] });
+    } else {
+      teams.push({
+        id: i + 1,
+        name: `Team ${i + 1}`,
+        abbr: `T${i + 1}`,
+        logo: `T${i + 1}`
+      });
+    }
+  }
+  fixtureTeams = teams;
+}
+
+// ── Initialize Fixtures Module ────────────────────────────────────────────────
+function initFixturesModule() {
+  const countEl = document.getElementById("fixtureFilterTeamCount");
+  const base = getBaseFixtureTeams();
+  if (countEl && (!countEl.value || parseInt(countEl.value, 10) <= 0)) {
+    countEl.value = base.length;
+  }
+  setupBracketDragEvents();
+  onFixtureFilterChange();
+}
+
+// ── Filter Change Handler ─────────────────────────────────────────────────────
+function onFixtureFilterChange() {
+  const formatEl = document.getElementById("fixtureFilterFormat");
+  const countEl  = document.getElementById("fixtureFilterTeamCount");
+  if (!formatEl) return;
+
+  if (countEl && countEl.value) {
+    updateTeamsForCount(countEl.value);
+  } else {
+    fixtureTeams = getBaseFixtureTeams();
+  }
+
+  const format = formatEl.value;
+  activeFixtureFormat = format;
+  renderBracketForFormat(format);
+}
+
+function onFixtureFormatSelect(val) {
+  onFixtureFilterChange();
+}
+
+// ── Route to correct bracket renderer ────────────────────────────────────────
+function renderBracketForFormat(format) {
+  const teams = [...fixtureTeams];
+  let nextPow2 = 1;
+  while (nextPow2 < teams.length) nextPow2 *= 2;
+  if (nextPow2 < 2) nextPow2 = 2;
+  const byes = nextPow2 - teams.length;
+
+  // Update BYE badge
+  const byeBadge = document.getElementById("fixtureByeBadge");
+  if (byeBadge) {
+    if (format === "league") {
+      byeBadge.textContent = `⚡ Round Robin`;
+    } else if (format === "group-knockout") {
+      byeBadge.textContent = `⚡ Group + KO`;
+    } else {
+      byeBadge.textContent = `⚡ ${byes} BYE${byes === 1 ? '' : 's'}`;
+    }
+  }
+  const printByes = document.getElementById("printByes");
+  if (printByes) printByes.textContent = format === "league" || format === "group-knockout" ? "—" : byes;
+  const printTeams = document.getElementById("printTotalTeams");
+  if (printTeams) printTeams.textContent = teams.length;
+
+  if (format === "single-elimination" || format === "double-elimination") {
+    generatedFixtures = buildKnockoutMatches(teams, byes, format === "double-elimination");
+    renderKnockoutBracket(generatedFixtures, format);
+  } else if (format === "league") {
+    generatedFixtures = buildLeagueRoundMatches(teams);
+    renderLeagueBlankBracket(generatedFixtures, teams);
+  } else if (format === "group-knockout") {
+    generatedFixtures = buildGroupKnockoutMatches(teams);
+    renderGroupKnockoutBlankBracket(generatedFixtures, teams);
+  }
+
+  setTimeout(drawBracketConnectors, 50);
+}
+
+// ── Match Builders ────────────────────────────────────────────────────────────
+
+function buildKnockoutMatches(teams, byes, isDouble) {
+  const numTeams = teams.length;
+  let nextPow2 = 1;
+  while (nextPow2 < numTeams) nextPow2 *= 2;
+  if (nextPow2 < 2) nextPow2 = 2;
+
+  const totalByes = nextPow2 - numTeams;
+  const numRounds = Math.round(Math.log2(nextPow2));
+
+  // Determine round titles
+  let roundNames = [];
+  if (numRounds === 1) {
+    roundNames = ["Final"];
+  } else if (numRounds === 2) {
+    roundNames = ["Semi Finals", "Final"];
+  } else if (numRounds === 3) {
+    roundNames = ["Round 1", "Semi Finals", "Final"];
+  } else if (numRounds === 4) {
+    roundNames = ["Round 1", "Quarter Finals", "Semi Finals", "Final"];
+  } else if (numRounds === 5) {
+    roundNames = ["Round 1", "Round 2", "Quarter Finals", "Semi Finals", "Final"];
+  } else {
+    roundNames = ["Round 1", "Round 2", "Round 3", "Quarter Finals", "Semi Finals", "Final"];
+  }
+
+  const matches = [];
+  let mid = 1;
+
+  for (let r = 0; r < numRounds; r++) {
+    const rName = roundNames[r] || `Round ${r + 1}`;
+    const slots = Math.pow(2, numRounds - 1 - r);
+
+    for (let s = 0; s < slots; s++) {
+      const isR1 = (r === 0);
+      const isByeMatch = isR1 && (s < totalByes);
+
+      matches.push({
+        id: mid,
+        matchNum: `M${String(mid).padStart(2, "0")}`,
+        round: rName,
+        label: rName,
+        isBye: isByeMatch,
+        status: isByeMatch ? "BYE" : "SCHEDULED"
+      });
+      mid++;
+    }
+  }
+
+  if (isDouble) {
+    matches.push(
+      { id: 101, matchNum: "L01", round: "Losers R1", label: "Losers Bracket", isBye: false, status: "SCHEDULED" },
+      { id: 102, matchNum: "L02", round: "Losers Final", label: "Losers Bracket", isBye: false, status: "SCHEDULED" }
+    );
+  }
+
+  return matches;
+}
+
+function buildLeagueMatches(teams) {
+  const venues = ["Main Ground", "Ground A", "Shriram Ground", "Gym Hall", "Vidyapeeth"];
+  const matches = [];
+  let mid = 1;
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matches.push({
+        id: mid, matchNum: `L${String(mid).padStart(2,"0")}`,
+        round: "League", label: "League Round Robin",
+        teamA: teams[i], teamB: teams[j],
+        winner: (mid % 2 === 0) ? teams[i] : teams[j],
+        status: mid === 1 ? "COMPLETED" : (mid === 2 ? "LIVE" : "SCHEDULED"),
+        date: `Aug ${10 + (mid % 6)}`, time: `${9 + (mid % 5)}:00 AM`, venue: venues[mid % venues.length]
+      });
+      mid++;
+    }
+  }
+  return matches;
+}
+
+function buildGroupMatches(teams) {
+  const venues = ["Main Ground", "Ground A", "Shriram Ground", "Gym Hall"];
+  return [
+    { id: 201, matchNum: "G01", round: "Group A", label: "Group A", teamA: teams[0], teamB: teams[1], winner: teams[0], status: "COMPLETED", date: "Aug 10", time: "10:00 AM", venue: venues[0] },
+    { id: 202, matchNum: "G02", round: "Group B", label: "Group B", teamA: teams[2], teamB: teams[3], winner: teams[2], status: "LIVE",      date: "Aug 10", time: "12:00 PM", venue: venues[1] },
+    { id: 203, matchNum: "G03", round: "Group C", label: "Group C", teamA: teams[4], teamB: teams[5] || teams[0], winner: teams[4], status: "SCHEDULED", date: "Aug 11", time: "09:00 AM", venue: venues[2] },
+    { id: 204, matchNum: "G04", round: "Group D", label: "Group D", teamA: teams[6] || teams[1], teamB: teams[2], winner: teams[6] || teams[1], status: "SCHEDULED", date: "Aug 11", time: "11:00 AM", venue: venues[3] },
+    { id: 205, matchNum: "SF1", round: "Semi Final 1", label: "Playoffs", teamA: teams[0], teamB: teams[2], winner: teams[0], status: "SCHEDULED", date: "Aug 14", time: "03:00 PM", venue: venues[0] },
+    { id: 206, matchNum: "SF2", round: "Semi Final 2", label: "Playoffs", teamA: teams[4], teamB: teams[6] || teams[1], winner: teams[4], status: "SCHEDULED", date: "Aug 14", time: "05:00 PM", venue: venues[1] },
+    { id: 207, matchNum: "GF",  round: "Grand Final", label: "Final",    teamA: teams[0], teamB: teams[4], winner: teams[0], status: "SCHEDULED", date: "Aug 16", time: "04:00 PM", venue: venues[0] }
+  ];
+}
+
+// ── Bracket Renderers ─────────────────────────────────────────────────────────
+
+function renderKnockoutBracket(matches, format) {
+  const canvas = document.getElementById("bracketCanvas");
+  if (!canvas) return;
+  canvas.innerHTML = "";
+
+  const isDouble = format === "double-elimination";
+
+  // Group rounds
+  const roundMap = {};
+  matches.filter(m => !m.round.includes("Loser")).forEach(m => {
+    if (!roundMap[m.round]) roundMap[m.round] = [];
+    roundMap[m.round].push(m);
+  });
+
+  const roundOrder = Object.keys(roundMap);
+
+  // Render winner bracket columns
+  roundOrder.forEach(rName => {
+    const rMatches = roundMap[rName];
+    if (!rMatches || rMatches.length === 0) return;
+
+    const col = document.createElement("div");
+    col.className = "round-column";
+
+    const title = document.createElement("div");
+    title.className = "round-title";
+    title.textContent = rName;
+    col.appendChild(title);
+
+    rMatches.forEach(m => col.appendChild(createMatchCard(m)));
+    canvas.appendChild(col);
+  });
+
+  // Champion column — always last
+  const champCol = document.createElement("div");
+  champCol.className = "round-column";
+  const champTitle = document.createElement("div");
+  champTitle.className = "round-title";
+  champTitle.textContent = "🏆 Champion";
+  champCol.appendChild(champTitle);
+
+  const champCard = document.createElement("div");
+  champCard.className = "match-card-node blank-style champion-card";
+  champCard.innerHTML = `
+    <div class="match-card-header">
+      <span>Champion</span>
+    </div>
+    <div class="match-team-row blank-slot" style="margin-top: 14px;">
+      <input type="text" class="blank-team-input" placeholder="" spellcheck="false">
+    </div>
+  `;
+  champCol.appendChild(champCard);
+  canvas.appendChild(champCol);
+
+  // If Double Elimination — add loser bracket section below
+  if (isDouble) {
+    const sep = document.createElement("div");
+    sep.style.cssText = "width:100%;display:flex;align-items:center;gap:12px;padding:24px 0 8px 0;min-width:max-content;";
+    sep.innerHTML = `<div style="flex:1;height:1px;background:var(--border-color);"></div><span style="font-size:13px;font-weight:700;color:var(--primary);white-space:nowrap;"><i class='ri-history-line'></i> Losers Bracket</span><div style="flex:1;height:1px;background:var(--border-color);"></div>`;
+    canvas.appendChild(sep);
+
+    const lbMatches = matches.filter(m => m.round.includes("Loser"));
+    const lbCol = document.createElement("div");
+    lbCol.className = "round-column";
+    const lbTitle = document.createElement("div");
+    lbTitle.className = "round-title";
+    lbTitle.textContent = "Losers Bracket";
+    lbCol.appendChild(lbTitle);
+    lbMatches.forEach(m => lbCol.appendChild(createMatchCard(m)));
+    canvas.appendChild(lbCol);
+  }
+
+  applyBracketTransform();
+  setTimeout(drawBracketConnectors, 50);
+}
+
+// ── Draw SVG Bracket Connectors ──────────────────────────────────────────────
+function drawBracketConnectors(targetCanvas = null, scaleOverride = null) {
+  // Only draw connectors for bracket-tree formats (knockout variants)
+  if (activeFixtureFormat === "league" || activeFixtureFormat === "group-knockout") return;
+
+  const canvas = targetCanvas || document.getElementById("bracketCanvas");
+  if (!canvas) return;
+
+  // Remove existing connector SVG
+  let existingSvg = canvas.querySelector(".svg-connector-layer");
+  if (existingSvg) existingSvg.remove();
+
+  // Find winner bracket columns
+  const allColumns = Array.from(canvas.querySelectorAll(".round-column"));
+  if (allColumns.length < 2) return;
+
+  const winnerCols = [];
+  for (let col of allColumns) {
+    if (col.previousElementSibling && col.previousElementSibling.innerHTML && col.previousElementSibling.innerHTML.includes("Losers Bracket")) {
+      break;
+    }
+    winnerCols.push(col);
+  }
+
+  if (winnerCols.length < 2) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const scale = scaleOverride !== null ? scaleOverride : (bracketZoomScale || 1.0);
+
+  // Create SVG element
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "svg-connector-layer");
+  svg.style.position = "absolute";
+  svg.style.top = "0";
+  svg.style.left = "0";
+  svg.style.width = "100%";
+  svg.style.height = "100%";
+  svg.style.pointerEvents = "none";
+  svg.style.zIndex = "1";
+  svg.style.overflow = "visible";
+
+  for (let c = 0; c < winnerCols.length - 1; c++) {
+    const colA = winnerCols[c];
+    const colB = winnerCols[c + 1];
+
+    const cardsA = Array.from(colA.querySelectorAll(".match-card-node"));
+    const cardsB = Array.from(colB.querySelectorAll(".match-card-node, .champion-card"));
+
+    if (cardsA.length === 0 || cardsB.length === 0) continue;
+
+    cardsA.forEach((cardA, idxA) => {
+      const rowsA = Array.from(cardA.querySelectorAll(".match-team-row"));
+      const rCardA = cardA.getBoundingClientRect();
+
+      const x1 = (rCardA.right - canvasRect.left) / scale;
+
+      let y1Top, y1Bot, y1Mid;
+
+      if (rowsA.length >= 2) {
+        const rTop = rowsA[0].getBoundingClientRect();
+        const rBot = rowsA[1].getBoundingClientRect();
+
+        y1Top = (rTop.top + rTop.height / 2 - canvasRect.top) / scale;
+        y1Bot = (rBot.top + rBot.height / 2 - canvasRect.top) / scale;
+        y1Mid = (y1Top + y1Bot) / 2;
+      } else {
+        y1Mid = (rCardA.top + rCardA.height / 2 - canvasRect.top) / scale;
+        y1Top = y1Mid - 10;
+        y1Bot = y1Mid + 10;
+      }
+
+      // Determine target card & row in colB
+      let targetCard, targetRow;
+      const targetCardIdx = Math.min(Math.floor(idxA / 2), cardsB.length - 1);
+      targetCard = cardsB[targetCardIdx];
+
+      if (targetCard) {
+        const targetRows = Array.from(targetCard.querySelectorAll(".match-team-row"));
+        if (targetRows.length >= 2) {
+          targetRow = targetRows[idxA % 2];
+        } else {
+          targetRow = targetCard;
+        }
+      }
+
+      if (!targetCard) return;
+
+      const rTarget = (targetRow || targetCard).getBoundingClientRect();
+      const x2 = (rTarget.left - canvasRect.left) / scale;
+      const y2 = (rTarget.top + rTarget.height / 2 - canvasRect.top) / scale;
+
+      const midX = x1 + (x2 - x1) * 0.45;
+      const turnX = x2 - 14;
+
+      let stemPath = `M ${midX} ${y1Mid} H ${x2}`;
+      if (Math.abs(y1Mid - y2) > 4) {
+        const dir = y2 > y1Mid ? 1 : -1;
+        stemPath = `
+          M ${midX} ${y1Mid} 
+          H ${turnX - 4} 
+          Q ${turnX} ${y1Mid} ${turnX} ${y1Mid + dir * 4} 
+          V ${y2 - dir * 4} 
+          Q ${turnX} ${y2} ${turnX + 4} ${y2} 
+          H ${x2}
+        `;
+      }
+
+      const pathStr = `
+        M ${x1} ${y1Top} 
+        H ${midX - 4} 
+        Q ${midX} ${y1Top} ${midX} ${y1Top + 4} 
+        V ${y1Mid - 4} 
+        Q ${midX} ${y1Mid} ${midX + 4} ${y1Mid}
+        
+        M ${x1} ${y1Bot} 
+        H ${midX - 4} 
+        Q ${midX} ${y1Bot} ${midX} ${y1Bot - 4} 
+        V ${y1Mid + 4} 
+        Q ${midX} ${y1Mid} ${midX + 4} ${y1Mid}
+        
+        ${stemPath}
+      `;
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", pathStr.replace(/\s+/g, " ").trim());
+      path.setAttribute("stroke", "#1e293b");
+      path.setAttribute("stroke-width", "2");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("opacity", "1");
+
+      svg.appendChild(path);
+    });
+  }
+
+  canvas.appendChild(svg);
+}
+
+// ── Draw SVG connectors for PRINT clone (scale = 1, no zoom) ─────────────────
+// Called after clone is in #printBodyContent so getBoundingClientRect is accurate
+function drawPrintConnectors(canvas) {
+  if (!canvas) return;
+  if (activeFixtureFormat === "league" || activeFixtureFormat === "group-knockout") return;
+
+  // Remove any stale SVG
+  const old = canvas.querySelector(".svg-connector-layer");
+  if (old) old.remove();
+
+  const allColumns = Array.from(canvas.querySelectorAll(".round-column"));
+  if (allColumns.length < 2) return;
+
+  // Only connect winner-bracket columns (stop before Losers Bracket title)
+  const winnerCols = [];
+  for (let col of allColumns) {
+    const title = col.querySelector(".round-title");
+    if (title && title.textContent.includes("Losers Bracket")) break;
+    winnerCols.push(col);
+  }
+  if (winnerCols.length < 2) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "svg-connector-layer");
+  svg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;";
+
+  for (let c = 0; c < winnerCols.length - 1; c++) {
+    const colA = winnerCols[c];
+    const colB = winnerCols[c + 1];
+
+    const cardsA = Array.from(colA.querySelectorAll(".match-card-node"));
+    const cardsB = Array.from(colB.querySelectorAll(".match-card-node, .champion-card"));
+    if (cardsA.length === 0 || cardsB.length === 0) continue;
+
+    cardsA.forEach((cardA, idxA) => {
+      const rowsA = Array.from(cardA.querySelectorAll(".match-team-row"));
+      const rCardA = cardA.getBoundingClientRect();
+
+      // x1 = right edge of cardA (relative to canvas)
+      const x1 = rCardA.right - canvasRect.left;
+
+      let y1Top, y1Bot, y1Mid;
+      if (rowsA.length >= 2) {
+        const rTop = rowsA[0].getBoundingClientRect();
+        const rBot = rowsA[1].getBoundingClientRect();
+        y1Top = rTop.top  + rTop.height  / 2 - canvasRect.top;
+        y1Bot = rBot.top  + rBot.height  / 2 - canvasRect.top;
+        y1Mid = (y1Top + y1Bot) / 2;
+      } else {
+        y1Mid = rCardA.top + rCardA.height / 2 - canvasRect.top;
+        y1Top = y1Mid - 10;
+        y1Bot = y1Mid + 10;
+      }
+
+      // Map to target card in next column
+      const targetCardIdx = Math.min(Math.floor(idxA / 2), cardsB.length - 1);
+      const targetCard    = cardsB[targetCardIdx];
+      if (!targetCard) return;
+
+      const targetRows = Array.from(targetCard.querySelectorAll(".match-team-row"));
+      const targetRow  = targetRows.length >= 2 ? targetRows[idxA % 2] : targetCard;
+      const rTarget    = (targetRow || targetCard).getBoundingClientRect();
+
+      // x2 = left edge of target row
+      const x2 = rTarget.left   - canvasRect.left;
+      const y2 = rTarget.top    + rTarget.height / 2 - canvasRect.top;
+
+      const midX  = x1 + (x2 - x1) * 0.45;
+      const turnX = x2 - 12;
+
+      let stemPath = `M ${midX} ${y1Mid} H ${x2}`;
+      if (Math.abs(y1Mid - y2) > 3) {
+        const dir = y2 > y1Mid ? 1 : -1;
+        stemPath = `
+          M ${midX} ${y1Mid}
+          H ${turnX - 4}
+          Q ${turnX} ${y1Mid} ${turnX} ${y1Mid + dir * 4}
+          V ${y2 - dir * 4}
+          Q ${turnX} ${y2} ${turnX + 4} ${y2}
+          H ${x2}
+        `;
+      }
+
+      const pathStr = `
+        M ${x1} ${y1Top}
+        H ${midX - 4}
+        Q ${midX} ${y1Top} ${midX} ${y1Top + 4}
+        V ${y1Mid - 4}
+        Q ${midX} ${y1Mid} ${midX + 4} ${y1Mid}
+
+        M ${x1} ${y1Bot}
+        H ${midX - 4}
+        Q ${midX} ${y1Bot} ${midX} ${y1Bot - 4}
+        V ${y1Mid + 4}
+        Q ${midX} ${y1Mid} ${midX + 4} ${y1Mid}
+
+        ${stemPath}
+      `;
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", pathStr.replace(/\s+/g, " ").trim());
+      path.setAttribute("stroke", "#000");
+      path.setAttribute("stroke-width", "1.5");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      svg.appendChild(path);
+    });
+  }
+
+  canvas.appendChild(svg);
+}
+
+
+function buildLeagueRoundMatches(teams) {
+  const n = teams.length;
+  const matches = [];
+  let mid = 1;
+  // Generate round-robin rounds: each round is a set of simultaneous matchups
+  // For n teams, there are n-1 rounds (if n is even) or n rounds (if n is odd)
+  const numTeams = n % 2 === 0 ? n : n + 1; // pad to even
+  const numRounds = numTeams - 1;
+  const teamList = [...teams];
+  if (n % 2 === 1) teamList.push({ id: 99, name: "BYE", abbr: "BYE", isBye: true });
+
+  for (let r = 0; r < numRounds; r++) {
+    const roundName = `Round ${r + 1}`;
+    const fixed = teamList[0];
+    const rotating = teamList.slice(1);
+    const rotated = r === 0 ? rotating : [...rotating.slice(numRounds - r), ...rotating.slice(0, numRounds - r)];
+    const half = numTeams / 2;
+    for (let i = 0; i < half; i++) {
+      const tA = i === 0 ? fixed : rotated[i - 1];
+      const tB = rotated[numTeams - 2 - i];
+      const isByeMatch = tA.isBye || tB.isBye;
+      matches.push({ id: mid, matchNum: `L${String(mid).padStart(2, "0")}`, round: roundName, isBye: isByeMatch, status: "SCHEDULED" });
+      mid++;
+    }
+  }
+  return matches;
+}
+
+function renderLeagueBlankBracket(matches, teams) {
+  const canvas = document.getElementById("bracketCanvas");
+  if (!canvas) return;
+  canvas.innerHTML = "";
+
+  // Group matches by round
+  const roundMap = {};
+  matches.forEach(m => {
+    if (!roundMap[m.round]) roundMap[m.round] = [];
+    roundMap[m.round].push(m);
+  });
+
+  Object.keys(roundMap).forEach(rName => {
+    const col = document.createElement("div");
+    col.className = "round-column";
+
+    const title = document.createElement("div");
+    title.className = "round-title";
+    title.textContent = rName;
+    col.appendChild(title);
+
+    roundMap[rName].forEach(m => col.appendChild(createMatchCard(m)));
+    canvas.appendChild(col);
+  });
+
+  applyBracketTransform();
+}
+
+// ── Group Stage + Knockout renderer (blank pill style) ────────────────────────
+function buildGroupKnockoutMatches(teams) {
+  const matches = [];
+  let mid = 1;
+  const numGroups = Math.min(4, Math.ceil(teams.length / 2));
+  const teamsPerGroup = Math.ceil(teams.length / numGroups);
+
+  for (let g = 0; g < numGroups; g++) {
+    const groupName = `Group ${String.fromCharCode(65 + g)}`;
+    const groupTeams = teams.slice(g * teamsPerGroup, (g + 1) * teamsPerGroup);
+    for (let i = 0; i < groupTeams.length; i++) {
+      for (let j = i + 1; j < groupTeams.length; j++) {
+        matches.push({ id: mid, matchNum: `G${String(mid).padStart(2, "0")}`, round: groupName, isBye: false, status: "SCHEDULED" });
+        mid++;
+      }
+    }
+  }
+
+  // Semi finals
+  for (let i = 0; i < Math.min(numGroups, 4); i += 2) {
+    matches.push({ id: mid, matchNum: `SF${i / 2 + 1}`, round: "Semi Finals", isBye: false, status: "SCHEDULED" });
+    mid++;
+  }
+
+  // Final
+  matches.push({ id: mid, matchNum: "GF", round: "Final", isBye: false, status: "SCHEDULED" });
+  mid++;
+
+  // Champion
+  matches.push({ id: mid, matchNum: "CH", round: "Champion", isBye: false, status: "SCHEDULED" });
+
+  return matches;
+}
+
+function renderGroupKnockoutBlankBracket(matches, teams) {
+  const canvas = document.getElementById("bracketCanvas");
+  if (!canvas) return;
+  canvas.innerHTML = "";
+
+  const roundMap = {};
+  matches.forEach(m => {
+    if (!roundMap[m.round]) roundMap[m.round] = [];
+    roundMap[m.round].push(m);
+  });
+
+  const roundOrder = Object.keys(roundMap);
+
+  roundOrder.forEach(rName => {
+    const isChamp = rName === "Champion";
+    const col = document.createElement("div");
+    col.className = "round-column";
+
+    const title = document.createElement("div");
+    title.className = "round-title";
+    title.textContent = isChamp ? "🏆 Champion" : rName;
+    col.appendChild(title);
+
+    if (isChamp) {
+      const champCard = document.createElement("div");
+      champCard.className = "match-card-node blank-style champion-card";
+      champCard.innerHTML = `
+        <div class="match-card-header"><span>Champion</span></div>
+        <div class="match-team-row blank-slot">
+          <input type="text" class="blank-team-input" placeholder="" spellcheck="false">
+        </div>
+      `;
+      col.appendChild(champCard);
+    } else {
+      roundMap[rName].forEach(m => col.appendChild(createMatchCard(m)));
+    }
+
+    canvas.appendChild(col);
+  });
+
+  applyBracketTransform();
+}
+
+// ── Match Card Node ───────────────────────────────────────────────────────────
+function createMatchCard(match) {
+  const card = document.createElement("div");
+  card.className = "match-card-node blank-style";
+
+  const gameNum = match.id || (match.matchNum ? match.matchNum.replace(/\D/g, '') : '');
+  const titleText = gameNum ? `Game ${gameNum}` : (match.round || "Game");
+  const isBye = match && match.isBye;
+
+  card.innerHTML = `
+    <div class="match-card-header">
+      <span>${titleText} ${isBye ? '<span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;font-weight:800;margin-left:4px;">BYE</span>' : ''}</span>
+    </div>
+    <div class="match-team-row blank-slot">
+      <input type="text" class="blank-team-input" placeholder="${isBye ? 'BYE (Automatic)' : ''}" spellcheck="false">
+    </div>
+    <div class="match-team-row blank-slot">
+      <input type="text" class="blank-team-input" placeholder="" spellcheck="false">
+    </div>
+  `;
+  return card;
+}
+
+// ── Bracket Viewport Controls ─────────────────────────────────────────────────
+function applyBracketTransform() {
+  const canvas = document.getElementById("bracketCanvas");
+  if (canvas) {
+    canvas.style.transform = `translate(${bracketTranslate.x}px,${bracketTranslate.y}px) scale(${bracketZoomScale})`;
+  }
+}
+
+function zoomBracket(delta) {
+  bracketZoomScale = Math.min(Math.max(0.3, bracketZoomScale + delta), 2.5);
+  applyBracketTransform();
+}
+
+function resetBracketZoom() {
+  bracketZoomScale = 1.0;
+  bracketTranslate = { x: 0, y: 0 };
+  applyBracketTransform();
+}
+
+function fitBracketScreen() {
+  const viewport = document.getElementById("bracketViewport");
+  const canvas   = document.getElementById("bracketCanvas");
+  if (!viewport || !canvas) return;
+  const vW = viewport.clientWidth;
+  const cW = canvas.scrollWidth || 900;
+  bracketZoomScale = Math.min(1.0, (vW - 60) / cW);
+  bracketTranslate = { x: 10, y: 10 };
+  applyBracketTransform();
+}
+
+function toggleBracketFullscreen() {
+  const card = document.querySelector(".bracket-card");
+  if (!card) return;
+  if (!document.fullscreenElement) {
+    card.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+function setupBracketDragEvents() {
+  const viewport = document.getElementById("bracketViewport");
+  if (!viewport || viewport.dataset.dragInit) return;
+  viewport.dataset.dragInit = "true";
+
+  viewport.addEventListener("mousedown", e => {
+    isBracketDragging = true;
+    bracketDragStart = { x: e.clientX - bracketTranslate.x, y: e.clientY - bracketTranslate.y };
+    viewport.style.cursor = "grabbing";
+  });
+  window.addEventListener("mousemove", e => {
+    if (!isBracketDragging) return;
+    bracketTranslate.x = e.clientX - bracketDragStart.x;
+    bracketTranslate.y = e.clientY - bracketDragStart.y;
+    applyBracketTransform();
+  });
+  window.addEventListener("mouseup", () => {
+    isBracketDragging = false;
+    if (viewport) viewport.style.cursor = "grab";
+  });
+  viewport.addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomBracket(e.deltaY < 0 ? 0.06 : -0.06);
+  }, { passive: false });
+}
+
+// ── Print Action ──────────────────────────────────────────────────────────────
+function printBracketAction() {
+  const sEl = document.getElementById("fixtureFilterSport");
+  const fEl = document.getElementById("fixtureFilterFormat");
+
+  const pTitle  = document.getElementById("printTournamentTitle");
+  const pSport  = document.getElementById("printSportCat");
+  const pFmt    = document.getElementById("printFormat");
+  const pTeams  = document.getElementById("printTotalTeams");
+  const pMatch  = document.getElementById("printTotalMatches");
+  const pDate   = document.getElementById("printDate");
+
+  if (pTitle)  pTitle.textContent  = "DEV SANSKRITI SPORTS PREMIER LEAGUE";
+  if (pSport)  pSport.textContent  = `${sEl ? sEl.value : "Cricket"}`;
+  if (pFmt)    pFmt.textContent    = fEl ? fEl.options[fEl.selectedIndex].text : "Single Elimination";
+  if (pTeams)  pTeams.textContent  = fixtureTeams.length;
+  if (pMatch)  pMatch.textContent  = generatedFixtures.length;
+  if (pDate)   pDate.textContent   = new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+
+  const printContainer = document.getElementById("printContainer");
+  const printBody = document.getElementById("printBodyContent");
+  const bracketCanvas = document.getElementById("bracketCanvas");
+
+  if (printBody && bracketCanvas) {
+    printBody.innerHTML = "";
+
+    // Clone the bracket, copy input values
+    const clone = bracketCanvas.cloneNode(true);
+    const origInputs = bracketCanvas.querySelectorAll("input");
+    const cloneInputs = clone.querySelectorAll("input");
+    origInputs.forEach((inp, idx) => {
+      if (cloneInputs[idx]) {
+        cloneInputs[idx].setAttribute("value", inp.value);
+        cloneInputs[idx].value = inp.value;
+      }
+    });
+
+    // Remove old SVG connector layer from clone — it has wrong screen coordinates
+    const oldSvg = clone.querySelector(".svg-connector-layer");
+    if (oldSvg) oldSvg.remove();
+
+    clone.style.transform = "none";
+    clone.style.position = "relative";
+    printBody.appendChild(clone);
+
+    // Show print container so elements have real layout
+    if (printContainer) printContainer.style.display = "flex";
+
+    // Redraw connectors ON the clone, after its layout has settled
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        drawPrintConnectors(clone);
+        window.print();
+        setTimeout(() => {
+          if (printContainer) printContainer.style.display = "none";
+        }, 500);
+      });
+    });
+  } else {
+    window.print();
+  }
+}
+
+window.addEventListener("resize", () => {
+  if (document.getElementById("tab-fixtures")?.classList.contains("active") || document.querySelector('[data-tab="fixtures"]')?.classList.contains("active")) {
+    drawBracketConnectors();
+  }
+});

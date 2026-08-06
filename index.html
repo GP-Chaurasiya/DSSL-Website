@@ -60,42 +60,6 @@
                 <img src="new_banner.jpg" alt="DSSPL Banner">
             </div>
         </div>
-        <div class="countdown-wrapper">
-            <h3>OPENING CEREMONY IN</h3>
-            <div class="countdown-container">
-                <div class="time-box">
-                    <div class="time-header">DAYS</div>
-                    <div class="time-body">
-                        <span id="days">09</span>
-                        <div class="crease"></div>
-                    </div>
-                </div>
-                <div class="separator"></div>
-                <div class="time-box">
-                    <div class="time-header">HRS</div>
-                    <div class="time-body">
-                        <span id="hours">14</span>
-                        <div class="crease"></div>
-                    </div>
-                </div>
-                <div class="separator"></div>
-                <div class="time-box">
-                    <div class="time-header">MINS</div>
-                    <div class="time-body">
-                        <span id="minutes">32</span>
-                        <div class="crease"></div>
-                    </div>
-                </div>
-                <div class="separator"></div>
-                <div class="time-box">
-                    <div class="time-header">SECS</div>
-                    <div class="time-body">
-                        <span id="seconds">18</span>
-                        <div class="crease"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
         <!-- Dots OUTSIDE slides -->
         <div class="dots">
             <span class="dot active"></span>
@@ -693,57 +657,7 @@ if (slider && totalSlides) {
 }
 </script>
 
-
 <script>
-
-// Set Event Date
-const targetDate =
-new Date("August 16, 2026 00:00:00").getTime();
-
-function updateCountdown(){
-
-    const now = new Date().getTime();
-    const gap = targetDate - now;
-
-    const days =
-    Math.floor(gap / (1000 * 60 * 60 * 24));
-
-    const hours =
-    Math.floor(
-        (gap % (1000 * 60 * 60 * 24)) /
-        (1000 * 60 * 60)
-    );
-
-    const minutes =
-    Math.floor(
-        (gap % (1000 * 60 * 60)) /
-        (1000 * 60)
-    );
-
-    const seconds =
-    Math.floor(
-        (gap % (1000 * 60)) /
-        1000
-    );
-
-    document.getElementById("days")
-    .innerText = days;
-
-    document.getElementById("hours")
-    .innerText = hours;
-
-    document.getElementById("minutes")
-    .innerText = minutes;
-
-    document.getElementById("seconds")
-    .innerText = seconds;
-}
-
-setInterval(updateCountdown, 1000);
-
-updateCountdown();
-
-</script>
 
 <script>
 const topBtn = document.getElementById("topBtn");
