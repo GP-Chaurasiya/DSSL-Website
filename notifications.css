@@ -105,9 +105,9 @@
 .notifications-dropdown {
   position: absolute;
   top: calc(100% + 12px);
-  right: 0;
-  width: 380px;
-  max-width: 90vw;
+  right: -60px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
   background-color: #ffffff;
   border: 1px solid #dde1e7;
   border-radius: 14px;
@@ -120,24 +120,24 @@
   color: #333333;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .notifications-dropdown {
-    position: fixed;
-    top: 68px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: calc(100vw - 24px);
-    margin: 0 auto;
-    border-radius: 18px;
-    max-height: calc(85vh - 70px);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
-    z-index: 10000;
+    position: fixed !important;
+    top: 64px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    margin: 0 auto !important;
+    border-radius: 18px !important;
+    max-height: calc(85vh - 64px) !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35) !important;
+    z-index: 99999 !important;
   }
 }
 
 .notifications-dropdown.active {
-  display: flex;
+  display: flex !important;
 }
 
 /* Dropdown Header — light */
