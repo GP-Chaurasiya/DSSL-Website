@@ -317,7 +317,7 @@ function closeRegisterPopup() {
 }
 
 function redirectToRegistration() {
-    window.open('http://localhost:5173', '_blank');
+    window.open('register/', '_blank');
     closeRegisterPopup();
 }
 
