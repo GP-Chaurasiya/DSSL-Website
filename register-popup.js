@@ -321,8 +321,17 @@ function redirectToRegistration() {
     closeRegisterPopup();
 }
 
-// Auto-show popup once per session when website is opened
+// Auto-show popup once per session — HOME PAGE ONLY
+function isHomePage() {
+    const path = window.location.pathname.toLowerCase();
+    // Matches: "/", "", "index.html", or local/server paths ending with "/index.html"
+    return path === '/' || path === '' || path.endsWith('/index.html') || path.endsWith('\\index.html');
+}
+
 function initAutoPopup() {
+    // Only auto-show on the home page
+    if (!isHomePage()) return;
+
     // Check if popup has already been shown in this session
     if (!sessionStorage.getItem('dsspl_popup_shown')) {
         // Add a slight delay so it doesn't pop up instantly before rendering
