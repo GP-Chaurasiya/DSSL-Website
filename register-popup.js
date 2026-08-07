@@ -323,9 +323,17 @@ function redirectToRegistration() {
 
 // Auto-show popup once per session — HOME PAGE ONLY
 function isHomePage() {
-    const path = window.location.pathname.toLowerCase();
-    // Matches: "/", "", "index.html", or local/server paths ending with "/index.html"
-    return path === '/' || path === '' || path.endsWith('/index.html') || path.endsWith('\\index.html');
+    // Get exact path (lowercase)
+    const rawPath = window.location.pathname.toLowerCase();
+    
+    // Normalize slashes
+    const normalizedPath = rawPath.replace(/\\/g, '/');
+    
+    // Get the filename part (e.g. "mandals.html", "index.html", or "")
+    const lastSegment = normalizedPath.split('/').pop();
+    
+    // Matches ONLY empty string (root '/'), 'index.html', or 'index.htm'
+    return lastSegment === '' || lastSegment === 'index.html' || lastSegment === 'index.htm';
 }
 
 function initAutoPopup() {
