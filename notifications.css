@@ -93,6 +93,12 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.notification-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ─────────────────────────────────────────────────────────── */
 /* LIGHT MODE DROPDOWN (default)                               */
 /* ─────────────────────────────────────────────────────────── */
@@ -112,6 +118,22 @@
   overflow: hidden;
   animation: dropdownFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   color: #333333;
+}
+
+@media (max-width: 640px) {
+  .notifications-dropdown {
+    position: fixed;
+    top: 68px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    margin: 0 auto;
+    border-radius: 18px;
+    max-height: calc(85vh - 70px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+  }
 }
 
 .notifications-dropdown.active {
