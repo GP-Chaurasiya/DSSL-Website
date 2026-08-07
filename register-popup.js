@@ -317,7 +317,8 @@ function closeRegisterPopup() {
 }
 
 function redirectToRegistration() {
-    window.open('register/index.html', '_blank');
+    const targetUrl = window.location.origin + '/register/index.html';
+    window.open(targetUrl, '_blank');
     closeRegisterPopup();
 }
 
