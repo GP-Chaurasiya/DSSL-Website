@@ -18,7 +18,7 @@ const SPORTS = [
   { id: 2, name: "Football", icon: "⚽" },
   { id: 3, name: "Cricket", icon: "🏏" },
   { id: 4, name: "Volleyball", icon: "🏐" },
-  { id: 5, name: "Badminton", icon: "🏸" },
+  { id: 5, name: "Badminton (Doubles)", icon: "🏸" },
   { id: 6, name: "Table Tennis", icon: "🏓" },
   { id: 7, name: "Athletics (100m)", icon: "🏃" },
   { id: 8, name: "Athletics (400m)", icon: "🏃" },
@@ -32,7 +32,8 @@ const SPORTS = [
   { id: 16, name: "Discus Throw", icon: "🥏" },
   { id: 17, name: "Shot Put", icon: "⚫" },
   { id: 18, name: "Athletics (200m)", icon: "🏃" },
-  { id: 19, name: "7 Stones", icon: "🪨" }
+  { id: 19, name: "7 Stones", icon: "🪨" },
+  { id: 20, name: "Kabaddi", icon: "🤼" }
 ];
 
 // Socket.IO Init
