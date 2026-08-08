@@ -771,6 +771,60 @@ app.delete("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CRE
   }
 });
 
+// ── Registration Settings APIs ────────────────────────────────────────────────
+const settingsFilePath = path.join(ROOT, "registration_settings.json");
+
+function getRegistrationSettings() {
+  try {
+    if (fs.existsSync(settingsFilePath)) {
+      const data = fs.readFileSync(settingsFilePath, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Error reading registration_settings.json:", err);
+  }
+  return {
+    masterEnabled: true,
+    sportsConfig: {}
+  };
+}
+
+function saveRegistrationSettings(settings) {
+  try {
+    fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), "utf8");
+    return true;
+  } catch (err) {
+    console.error("Error saving registration_settings.json:", err);
+    return false;
+  }
+}
+
+app.get("/api/settings/registration", (req, res) => {
+  const settings = getRegistrationSettings();
+  res.json(settings);
+});
+
+app.post("/api/settings/registration", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  const { masterEnabled, sportsConfig } = req.body;
+  
+  const currentSettings = getRegistrationSettings();
+  const updatedSettings = {
+    masterEnabled: typeof masterEnabled === "boolean" ? masterEnabled : currentSettings.masterEnabled,
+    sportsConfig: sportsConfig && typeof sportsConfig === "object" ? sportsConfig : currentSettings.sportsConfig,
+    updatedAt: new Date().toISOString(),
+    updatedBy: req.user ? req.user.username : "Admin"
+  };
+
+  const success = saveRegistrationSettings(updatedSettings);
+  if (!success) {
+    return res.status(500).json({ error: "Failed to save registration settings" });
+  }
+
+  io.emit("registrationSettingsUpdate", updatedSettings);
+  res.json(updatedSettings);
+});
+
+
 // ── Static Files & Dashboard Routes ───────────────────────────────────────────
 
 // Static files directories with aggressive 7-day browser caching for high performance

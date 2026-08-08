@@ -1440,6 +1440,12 @@
           <span>Team Management</span>
         </button>
       </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="registration-settings">
+          <i class="ri-user-add-line"></i>
+          <span>Registration Control</span>
+        </button>
+      </li>
       <li class="menu-item" data-access="SUPER_ADMIN">
         <button class="menu-btn" data-tab="users">
           <i class="ri-user-settings-line"></i>
@@ -1768,6 +1774,47 @@
               </thead>
               <tbody id="usersList">
                 <!-- Users list loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: REGISTRATION CONTROL ── -->
+      <div class="tab-content" id="tab-registration-settings">
+        <div class="section-card">
+          <div class="section-header">
+            <div>
+              <h3><i class="ri-toggle-line"></i> Master Registration Status</h3>
+              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Global switch to open or close team registration for all sports</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span id="masterStatusBadge" class="badge badge-success" style="font-size: 13px; padding: 6px 14px;">OPEN</span>
+              <button class="btn" id="toggleMasterRegistrationBtn" onclick="toggleMasterRegistration()"><i class="ri-power-flash-line"></i> Toggle Master Switch</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3><i class="ri-time-line"></i> Sport-Specific Registration Schedules</h3>
+              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Configure start &amp; end date-times and enable/disable registration for individual sports</p>
+            </div>
+            <button class="btn" onclick="saveAllRegistrationSettings()"><i class="ri-save-3-line"></i> Save All Settings</button>
+          </div>
+          <div class="table-container" style="margin-top: 1rem;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sport</th>
+                  <th>Status</th>
+                  <th>Registration Window (Start &ndash; End)</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="regSportsTableBody">
+                <!-- Dynamically populated -->
               </tbody>
             </table>
           </div>

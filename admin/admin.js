@@ -183,6 +183,9 @@ async function loadTabData(tab) {
       case "users":
         await loadUsers();
         break;
+      case "registration-settings":
+        await loadRegistrationSettings();
+        break;
       case "fixtures":
         await loadDals();
         await loadMatches();
@@ -1950,8 +1953,194 @@ function printBracketAction() {
   }
 }
 
+
 window.addEventListener("resize", () => {
   if (document.getElementById("tab-fixtures")?.classList.contains("active") || document.querySelector('[data-tab="fixtures"]')?.classList.contains("active")) {
     drawBracketConnectors();
   }
 });
+
+// ── REGISTRATION CONTROL MODULE ──────────────────────────────────────────────
+let registrationSettingsData = {
+  masterEnabled: true,
+  sportsConfig: {}
+};
+
+const REGISTRATION_SPORTS_LIST = [
+  { id: "basketball", name: "Basketball (5 Players)", icon: "🏀" },
+  { id: "football", name: "Football (11 Players)", icon: "⚽" },
+  { id: "cricket", name: "Cricket (11 Players)", icon: "🏏" },
+  { id: "volleyball", name: "Volleyball (6 Players)", icon: "🏐" },
+  { id: "badminton_doubles", name: "Badminton (Doubles)", icon: "🏸" },
+  { id: "table_tennis", name: "Table Tennis (Singles)", icon: "🏓" },
+  { id: "chess", name: "Chess (Singles)", icon: "♟️" },
+  { id: "kho_kho", name: "Kho-Kho (10 Players)", icon: "🤸" },
+  { id: "tug_of_war", name: "Tug Of War (8 Players)", icon: "💪" },
+  { id: "relay_race", name: "Relay Race (4 Players)", icon: "🏃" },
+  { id: "seven_stones", name: "7 Stones (7 Players)", icon: "🪨" },
+  { id: "kabaddi", name: "Kabaddi (7 Players)", icon: "🤼" },
+  { id: "athletics_100m", name: "Athletics (100m Sprint)", icon: "🏃" },
+  { id: "athletics_200m", name: "Athletics (200m Sprint)", icon: "🏃" },
+  { id: "athletics_400m", name: "Athletics (400m)", icon: "🏃" },
+  { id: "long_jump", name: "Long Jump", icon: "🦘" },
+  { id: "high_jump", name: "High Jump", icon: "🏋️" },
+  { id: "shot_put", name: "Shot Put", icon: "⚫" },
+  { id: "discus_throw", name: "Discus Throw", icon: "🥏" },
+  { id: "javelin_throw", name: "Javelin Throw", icon: "🎯" }
+];
+
+async function loadRegistrationSettings() {
+  try {
+    const data = await apiCall("/api/settings/registration");
+    if (data) {
+      registrationSettingsData = data;
+    }
+    renderRegistrationControl();
+  } catch (error) {
+    console.error("Failed to load registration settings:", error);
+    renderRegistrationControl();
+  }
+}
+
+function renderRegistrationControl() {
+  const badge = document.getElementById("masterStatusBadge");
+  const toggleBtn = document.getElementById("toggleMasterRegistrationBtn");
+  
+  const isOpen = registrationSettingsData.masterEnabled !== false;
+  if (badge) {
+    badge.textContent = isOpen ? "OPEN" : "CLOSED";
+    badge.className = isOpen ? "badge badge-success" : "badge badge-danger";
+    badge.style.fontSize = "13px";
+    badge.style.padding = "6px 14px";
+  }
+  if (toggleBtn) {
+    toggleBtn.innerHTML = isOpen 
+      ? `<i class="ri-close-circle-line"></i> Close Master Registration`
+      : `<i class="ri-checkbox-circle-line"></i> Open Master Registration`;
+    toggleBtn.style.backgroundColor = isOpen ? "var(--danger, #ef4444)" : "var(--success, #22c55e)";
+    toggleBtn.style.color = "#fff";
+  }
+
+  const tbody = document.getElementById("regSportsTableBody");
+  if (!tbody) return;
+
+  const sportsConfig = registrationSettingsData.sportsConfig || {};
+
+  tbody.innerHTML = REGISTRATION_SPORTS_LIST.map(sport => {
+    const config = sportsConfig[sport.id] || {};
+    const enabled = config.enabled !== false;
+    const startDate = config.startDate || "";
+    const endDate = config.endDate || "";
+
+    // Status check
+    const now = new Date();
+    let statusText = "Active";
+    let statusClass = "badge-success";
+
+    if (!enabled) {
+      statusText = "Disabled";
+      statusClass = "badge-danger";
+    } else if (startDate && new Date(startDate) > now) {
+      statusText = "Scheduled";
+      statusClass = "badge-warning";
+    } else if (endDate && new Date(endDate) < now) {
+      statusText = "Closed";
+      statusClass = "badge-secondary";
+    }
+
+    return `
+      <tr>
+        <td>
+          <div style="display: flex; align-items: center; gap: 10px; font-weight: 600;">
+            <span style="font-size: 20px;">${sport.icon}</span>
+            <span>${sport.name}</span>
+          </div>
+        </td>
+        <td>
+          <span class="badge ${statusClass}">${statusText}</span>
+        </td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <label style="font-size: 11px; color: var(--text-muted);">Start Time:</label>
+              <input type="datetime-local" class="input" id="regStart_${sport.id}" value="${startDate}" style="padding: 6px 10px; font-size: 13px;">
+            </div>
+            <span style="color: var(--text-muted); font-size: 14px;">&rarr;</span>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <label style="font-size: 11px; color: var(--text-muted);">End Time:</label>
+              <input type="datetime-local" class="input" id="regEnd_${sport.id}" value="${endDate}" style="padding: 6px 10px; font-size: 13px;">
+            </div>
+          </div>
+        </td>
+        <td>
+          <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500;">
+            <input type="checkbox" id="regEnabled_${sport.id}" ${enabled ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+            Enable Sport
+          </label>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+async function toggleMasterRegistration() {
+  const current = registrationSettingsData.masterEnabled !== false;
+  const nextState = !current;
+  
+  try {
+    const updated = await apiCall("/api/settings/registration", {
+      method: "POST",
+      body: JSON.stringify({
+        masterEnabled: nextState,
+        sportsConfig: registrationSettingsData.sportsConfig || {}
+      })
+    });
+    registrationSettingsData = updated;
+    renderRegistrationControl();
+    alert(`Master Registration is now ${nextState ? "OPEN" : "CLOSED"}`);
+  } catch (error) {
+    alert("Error updating master registration status: " + error.message);
+  }
+}
+
+async function saveAllRegistrationSettings() {
+  const newSportsConfig = {};
+
+  REGISTRATION_SPORTS_LIST.forEach(sport => {
+    const enabledInput = document.getElementById(`regEnabled_${sport.id}`);
+    const startInput = document.getElementById(`regStart_${sport.id}`);
+    const endInput = document.getElementById(`regEnd_${sport.id}`);
+
+    newSportsConfig[sport.id] = {
+      enabled: enabledInput ? enabledInput.checked : true,
+      startDate: startInput ? startInput.value : "",
+      endDate: endInput ? endInput.value : ""
+    };
+  });
+
+  try {
+    const updated = await apiCall("/api/settings/registration", {
+      method: "POST",
+      body: JSON.stringify({
+        masterEnabled: registrationSettingsData.masterEnabled !== false,
+        sportsConfig: newSportsConfig
+      })
+    });
+    registrationSettingsData = updated;
+    renderRegistrationControl();
+    alert("Registration schedules and settings saved successfully!");
+  } catch (error) {
+    alert("Error saving registration settings: " + error.message);
+  }
+}
+
+// Socket listener for real-time registration settings updates
+socket.on("registrationSettingsUpdate", (data) => {
+  if (data) {
+    registrationSettingsData = data;
+    if (document.getElementById("tab-registration-settings")?.classList.contains("active")) {
+      renderRegistrationControl();
+    }
+  }
+});
+
