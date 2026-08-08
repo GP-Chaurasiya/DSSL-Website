@@ -411,6 +411,30 @@
       color: var(--text-muted);
     }
 
+    .badge-success {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-danger {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-secondary {
+      background-color: rgba(100, 116, 139, 0.15);
+      color: #64748b;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
     @keyframes pulse {
       0% { opacity: 0.6; }
       50% { opacity: 1; }
@@ -508,6 +532,37 @@
     }
 
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Generic input class used in dynamic tables */
+    .input {
+      padding: 8px 10px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      color-scheme: dark;
+    }
+    .input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .form-control:focus {
       outline: none;
       border-color: var(--primary);
     }
@@ -1721,8 +1776,8 @@
           <form id="mediaForm" enctype="multipart/form-data">
             <div class="form-grid">
               <div class="form-group">
-                <label for="mediaFile">Choose File (Image or Video)</label>
-                <input type="file" id="mediaFile" accept="image/*,video/*" required>
+                <label for="mediaFile">Choose File (Images up to 150 MB, Videos up to 50 GB)</label>
+                <input type="file" id="mediaFile" accept="image/*,video/*,.mp4,.mov,.webm,.avi,.mkv" required>
               </div>
               <div class="form-group">
                 <label for="mediaTitle">Title / Caption</label>
@@ -1774,47 +1829,6 @@
               </thead>
               <tbody id="usersList">
                 <!-- Users list loaded dynamically -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── TAB: REGISTRATION CONTROL ── -->
-      <div class="tab-content" id="tab-registration-settings">
-        <div class="section-card">
-          <div class="section-header">
-            <div>
-              <h3><i class="ri-toggle-line"></i> Master Registration Status</h3>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Global switch to open or close team registration for all sports</p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span id="masterStatusBadge" class="badge badge-success" style="font-size: 13px; padding: 6px 14px;">OPEN</span>
-              <button class="btn" id="toggleMasterRegistrationBtn" onclick="toggleMasterRegistration()"><i class="ri-power-flash-line"></i> Toggle Master Switch</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h3><i class="ri-time-line"></i> Sport-Specific Registration Schedules</h3>
-              <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Configure start &amp; end date-times and enable/disable registration for individual sports</p>
-            </div>
-            <button class="btn" onclick="saveAllRegistrationSettings()"><i class="ri-save-3-line"></i> Save All Settings</button>
-          </div>
-          <div class="table-container" style="margin-top: 1rem;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sport</th>
-                  <th>Status</th>
-                  <th>Registration Window (Start &ndash; End)</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="regSportsTableBody">
-                <!-- Dynamically populated -->
               </tbody>
             </table>
           </div>
@@ -1918,6 +1932,89 @@
       <!-- ── TAB: LIVE SCOREBOARD ── -->
       <div class="tab-content" id="tab-scoreboard" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
         <iframe src="/scoreboard/" style="width: 100%; height: 100%; border: none;" id="scoreboardIframe"></iframe>
+      </div>
+
+      <!-- ── TAB: REGISTRATION CONTROL ── -->
+      <div class="tab-content" id="tab-registration-settings">
+        <!-- Master Toggle Card -->
+        <div class="section-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 10px;">
+                <i class="ri-toggle-line" style="color: var(--primary);"></i>
+                Master Registration Switch
+              </h3>
+              <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+                Turn the entire registration portal ON or OFF for all users. When closed, participants cannot register for any sport.
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+              <span id="masterStatusBadge" class="badge badge-success" style="font-size: 13px; padding: 6px 14px;">OPEN</span>
+              <button class="btn" id="toggleMasterRegistrationBtn" onclick="toggleMasterRegistration()"
+                style="background-color: var(--danger, #ef4444); color: #fff; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <i class="ri-close-circle-line"></i> Close Master Registration
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-Sport Registration Schedule Card -->
+        <div class="section-card">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 10px;">
+                <i class="ri-calendar-schedule-line" style="color: var(--primary);"></i>
+                Per-Sport Registration Schedule
+              </h3>
+              <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+                Set the registration open/close time window for each sport individually. Leave dates empty for no time restriction.
+              </p>
+            </div>
+            <button class="btn" onclick="saveAllRegistrationSettings()" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+              <i class="ri-save-line"></i> Save All Settings
+            </button>
+          </div>
+
+          <!-- Legend -->
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 1rem; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">STATUS LEGEND:</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-success" style="font-size: 11px; padding: 2px 8px;">Active</span> Open & within window</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-warning" style="font-size: 11px; padding: 2px 8px;">Scheduled</span> Upcoming (start date in future)</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-secondary" style="font-size: 11px; padding: 2px 8px;">Closed</span> End date has passed</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-danger" style="font-size: 11px; padding: 2px 8px;">Disabled</span> Manually disabled</span>
+          </div>
+
+          <!-- Sports Table -->
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; min-width: 780px;">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">Sport</th>
+                  <th style="width: 12%;">Status</th>
+                  <th style="width: 46%;">Registration Window</th>
+                  <th style="width: 12%;">Enable</th>
+                </tr>
+              </thead>
+              <tbody id="regSportsTableBody">
+                <!-- Rendered dynamically by admin.js renderRegistrationControl() -->
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);">
+                    <i class="ri-loader-2-line" style="font-size: 24px;"></i>
+                    <div style="margin-top: 8px;">Loading registration settings...</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Save Bar -->
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <span style="font-size: 13px; color: var(--text-muted);">Changes are saved to server and broadcast in real-time to all connected users.</span>
+            <button class="btn" onclick="saveAllRegistrationSettings()" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+              <i class="ri-save-line"></i> Save All Settings
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -2026,9 +2123,8 @@
     </div>
   </div>
 
-  <!-- Load Socket.IO client script provided dynamically by backend -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="admin.js?v=20260809_v2"></script>
+  <script src="admin.js?v=20260809_v4"></script>
   <script src="../notifications.js"></script>
 </body>
 </html>

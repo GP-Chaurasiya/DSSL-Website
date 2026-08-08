@@ -367,15 +367,15 @@ async function renderDashboard() {
         <form id="dashMediaForm" enctype="multipart/form-data">
           <div class="form-grid">
             <div class="form-group">
-              <label for="dashMediaFile">Select Image or Video</label>
-              <input type="file" id="dashMediaFile" accept="image/*,video/*" required>
+              <label for="dashMediaFile">Select Image (up to 150 MB) or Video (up to 50 GB)</label>
+              <input type="file" id="dashMediaFile" accept="image/*,video/*,.mp4,.mov,.webm,.avi,.mkv" required>
             </div>
             <div class="form-group">
               <label for="dashMediaTitle">Asset Caption / Title</label>
               <input type="text" id="dashMediaTitle" placeholder="e.g. Ceremony highlight photo">
             </div>
           </div>
-          <button type="submit" class="btn" style="margin-top: 1rem;"><i class="ri-upload-cloud-line"></i> Upload Asset</button>
+          <button type="submit" id="dashMediaSubmitBtn" class="btn" style="margin-top: 1rem;"><i class="ri-upload-cloud-line"></i> Upload Asset</button>
         </form>
       </div>
 
@@ -407,17 +407,39 @@ async function renderDashboard() {
       e.preventDefault();
       const fileInput = document.getElementById("dashMediaFile");
       const titleInput = document.getElementById("dashMediaTitle");
+      const submitBtn = document.getElementById("dashMediaSubmitBtn");
 
-      if (!fileInput.files[0]) return;
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const isVideo = ["mp4", "mov", "webm", "avi", "mkv", "m4v", "3gp", "flv", "wmv"].includes(ext) || file.type.startsWith("video/");
+      const maxImgSize = 150 * 1024 * 1024; // 150 MB
+      const maxVidSize = 50 * 1024 * 1024 * 1024; // 50 GB
+
+      if (!isVideo && file.size > maxImgSize) {
+        alert("Image exceeds the maximum allowed limit of 150 MB.");
+        return;
+      }
+      if (isVideo && file.size > maxVidSize) {
+        alert("Video exceeds the maximum allowed limit of 50 GB.");
+        return;
+      }
+
       const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
+      formData.append("file", file);
       formData.append("title", titleInput.value);
 
       try {
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading Asset...`; }
         await apiCall("/api/media/upload", { method: "POST", body: formData });
         alert("Media uploaded successfully.");
         renderDashboard();
-      } catch (err) { alert(err.message); }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `<i class="ri-upload-cloud-line"></i> Upload Asset`; }
+      }
     });
 
   } else if (user.role === "MEDIA_TEAM") {
@@ -1036,14 +1058,31 @@ document.getElementById("mediaForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fileInput = document.getElementById("mediaFile");
   const titleInput = document.getElementById("mediaTitle");
+  const submitBtn = e.target.querySelector("button[type='submit']");
 
-  if (!fileInput.files[0]) return;
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const isVideo = ["mp4", "mov", "webm", "avi", "mkv", "m4v", "3gp", "flv", "wmv"].includes(ext) || file.type.startsWith("video/");
+  const maxImgSize = 150 * 1024 * 1024; // 150 MB
+  const maxVidSize = 50 * 1024 * 1024 * 1024; // 50 GB
+
+  if (!isVideo && file.size > maxImgSize) {
+    alert("Image exceeds the maximum allowed limit of 150 MB.");
+    return;
+  }
+  if (isVideo && file.size > maxVidSize) {
+    alert("Video exceeds the maximum allowed limit of 50 GB.");
+    return;
+  }
 
   const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
+  formData.append("file", file);
   formData.append("title", titleInput.value);
 
   try {
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading Asset...`; }
     await apiCall("/api/media/upload", {
       method: "POST",
       body: formData
@@ -1054,6 +1093,8 @@ document.getElementById("mediaForm").addEventListener("submit", async (e) => {
     alert("Media asset uploaded successfully.");
   } catch (error) {
     alert(error.message);
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `<i class="ri-upload-cloud-line"></i> Upload Asset`; }
   }
 });
 

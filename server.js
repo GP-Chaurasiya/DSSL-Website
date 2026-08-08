@@ -38,7 +38,14 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer Storage Configuration
+// Serve uploaded videos statically with full Range / Seeking support
+app.use("/uploads", express.static(uploadDir, {
+  acceptRanges: true,
+  maxAge: "7d"
+}));
+
+// Multer Storage Configuration (Supports up to 50 GB videos & 150 MB photos)
+const MAX_FILE_SIZE = 50 * 1024 * 1024 * 1024; // 50 GB limit
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -48,39 +55,50 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE }
+});
 
 // ── Shared Upload Helper ─────────────────────────────────────────────────────────
-// Reads file from disk, optimizes images with sharp, stores binary in PostgreSQL
+// Saves media metadata. Images are optimized from disk via sharp into PostgreSQL bytea.
+// Videos stay on disk in /uploads/ and stream directly via HTTP range requests.
 async function saveUploadedFile(file, title) {
-  const isVideo = file.mimetype.startsWith("video/");
+  const ext = path.extname(file.originalname).toLowerCase();
+  const isVideoExt = [".mp4", ".mov", ".webm", ".avi", ".mkv", ".m4v", ".3gp", ".flv", ".wmv"].includes(ext);
+  const isVideo = isVideoExt || (file.mimetype && file.mimetype.startsWith("video/"));
 
-  let fileBuffer = fs.readFileSync(file.path);
   let mimeType = file.mimetype;
+  if (!mimeType || mimeType === "application/octet-stream") {
+    mimeType = isVideo ? "video/mp4" : "image/jpeg";
+  }
 
-  // Optimize images with sharp before storing in PostgreSQL (smaller DB size)
-  if (!isVideo && file.mimetype.startsWith("image/")) {
+  let fileBuffer = null;
+
+  if (!isVideo) {
+    // Process image directly from disk path using sharp to prevent RAM memory spikes
     try {
-      fileBuffer = await sharp(fileBuffer)
+      fileBuffer = await sharp(file.path)
         .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
         .toBuffer();
     } catch (err) {
-      console.warn("Image optimization skipped:", err.message);
+      console.warn("Image sharp optimization fallback:", err.message);
+      fileBuffer = fs.readFileSync(file.path);
     }
   }
 
-  // Create record with file binary data in PostgreSQL
+  // Create database record (images store binary data; videos store null data and stay on disk)
   const media = await prisma.media.create({
     data: {
       type: isVideo ? "VIDEO" : "IMAGE",
       url: "pending",
       title: title || file.originalname,
       mimeType: mimeType,
-      data: isVideo ? null : fileBuffer // Store images in DB; videos stay on disk only
+      data: isVideo ? null : fileBuffer
     }
   });
 
-  // Set persistent URL: images served from DB, videos from disk
+  // Persistent URL: images served from DB endpoint, videos served statically from disk
   const persistentUrl = isVideo
     ? "/uploads/" + file.filename
     : `/api/media/file/${media.id}`;
