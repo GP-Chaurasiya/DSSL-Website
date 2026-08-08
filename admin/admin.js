@@ -184,6 +184,7 @@ async function loadTabData(tab) {
         await loadUsers();
         break;
       case "registration-settings":
+        renderRegistrationControl();
         await loadRegistrationSettings();
         break;
       case "fixtures":
@@ -2143,4 +2144,18 @@ socket.on("registrationSettingsUpdate", (data) => {
     }
   }
 });
+
+// Bind functions globally for HTML inline onclick handlers
+window.toggleMasterRegistration = toggleMasterRegistration;
+window.saveAllRegistrationSettings = saveAllRegistrationSettings;
+window.renderRegistrationControl = renderRegistrationControl;
+window.loadRegistrationSettings = loadRegistrationSettings;
+
+// Auto-render table on script load
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", renderRegistrationControl);
+} else {
+  renderRegistrationControl();
+}
+
 

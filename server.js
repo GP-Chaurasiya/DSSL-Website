@@ -835,7 +835,7 @@ const staticCacheOptions = {
 };
 
 app.use("/uploads", express.static(uploadDir, staticCacheOptions));
-app.use("/admin", express.static(path.join(ROOT, "admin"), staticCacheOptions));
+app.use("/admin", express.static(path.join(ROOT, "admin"), { maxAge: 0, etag: false }));
 app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
 app.use(express.static(ROOT, staticCacheOptions));
 
