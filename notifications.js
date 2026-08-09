@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DSSL YouTube-Style Notification System
  * Handles bell dropdown UI, local storage persistence, and realtime Socket.IO notifications.
  */

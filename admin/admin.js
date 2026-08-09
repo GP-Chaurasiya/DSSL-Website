@@ -1,4 +1,4 @@
-﻿// Auth Verification
+// Auth Verification
 const token = localStorage.getItem("DSSL_token");
 const user = JSON.parse(localStorage.getItem("DSSL_user") || "null");
 

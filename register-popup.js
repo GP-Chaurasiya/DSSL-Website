@@ -1,4 +1,4 @@
-﻿// ============= DSSL Registration Popup Component =============
+// ============= DSSL Registration Popup Component =============
 // This file creates and manages the registration popup modal across all pages.
 
 (function() {
