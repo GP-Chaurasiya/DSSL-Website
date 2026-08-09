@@ -722,7 +722,7 @@ async function updateDalCounts() {
         rows.forEach(row => {
             if (!row.trim()) return; // skip blank rows
             const cols = row.split(",").map(c => c.replace(/^"|"$/g, "").trim());
-            const mandal = (cols[6] || "").toLowerCase(); // Column G = Mandal
+            const mandal = (cols[7] || "").toLowerCase(); // Column H = Mandal (Input sheet: S.No,RegId,Name,ScholarID,Course,Semester,Sport,Mandal,...)
             for (const key in counts) {
                 if (mandal.includes(key)) {
                     counts[key]++;
