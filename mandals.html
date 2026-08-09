@@ -175,6 +175,62 @@
       color: var(--primary-color);
     }
 
+    .mandal-departments {
+      width: 100%;
+      margin-top: 1.2rem;
+      padding: 16px 14px;
+      background: linear-gradient(135deg, var(--bg-color) 0%, rgba(255, 188, 1, 0.03) 100%);
+      border-radius: 14px;
+      border: 1.5px solid var(--border-light);
+    }
+
+    .departments-title {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-main);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .departments-title:before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .departments-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .departments-list li {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-color);
+      padding: 6px 0;
+      line-height: 1.5;
+    }
+
+    .departments-list li:before {
+      content: "";
+      color: var(--primary-color);
+      font-weight: bold;
+      margin-right: 8px;
+      display: inline-block;
+      width: 3px;
+      height: 3px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+    }
+
     .mandal-action-btn {
       width: 100%;
       margin-top: 1rem;
@@ -387,6 +443,45 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    // Department Mapping for Each Mandal
+    const mandalsDeptsMap = {
+      "Vashishta Mandal": [
+        "Department of Computer Science"
+      ],
+      "Vishwamitra Mandal": [
+        "B.Voc Animation",
+        "BBA - TTM",
+        "BA English"
+      ],
+      "Atrey Mandal": [
+        "Department of Mathematics",
+        "Department of Journalism",
+        "Department of Education",
+        "Department of Philosophy, Religious Studies, and Divinity"
+      ],
+      "Gautam Mandal": [
+        "Department of Hindi",
+        "Department of History & Indian Culture",
+        "Department of Vedic Studies & Sanskrit",
+        "Department of Indian Classical Music"
+      ],
+      "Bharadwaj Mandal": [
+        "Department of Psychology",
+        "Department of Medicinal Plant Sciences",
+        "Department of Rural Studies & Sustainability"
+      ],
+      "Jamdagni Mandal": [
+        "All Undergraduate (UG) students of the Faculty of Yoga and Health"
+      ],
+      "Kashyap Mandal": [
+        "All Post-Graduate (PG) students of the Faculty of Yoga and Health"
+      ]
+    };
+
+    function getDepartments(mandalName) {
+      return mandalsDeptsMap[mandalName] || [];
+    }
+
     let allDals = [];
     let allMatches = [];
     let playerCounts = {};
@@ -466,6 +561,9 @@
         card.className = "mandal-card";
         card.style.color = mandal.color; // Allows logo border to change color on hover
 
+        const departments = getDepartments(mandal.name);
+        const deptsList = departments.map(d => `<li>${d}</li>`).join('');
+        
         card.innerHTML = `
           <div class="mandal-card-header" style="background-color: ${mandal.color};"></div>
           <div class="mandal-card-body">
@@ -475,29 +573,10 @@
             <h3 class="mandal-name">${mandal.name}</h3>
             <span class="mandal-abbrev" style="color: ${mandal.color}; background-color: ${mandal.color}15">${mandal.abbreviation}</span>
             
-            <div class="mandal-stats-grid">
-              <div class="mandal-stat-box">
-                <span class="mandal-stat-val">${stats.played}</span>
-                <span class="mandal-stat-lbl">Played</span>
-              </div>
-              <div class="mandal-stat-box">
-                <span class="mandal-stat-val" style="color: #10b981;">${stats.wins}</span>
-                <span class="mandal-stat-lbl">Won</span>
-              </div>
-              <div class="mandal-stat-box">
-                <span class="mandal-stat-val" style="color: #ffbc01;">${stats.points}</span>
-                <span class="mandal-stat-lbl">Points</span>
-              </div>
+            <div class="mandal-departments">
+              <div class="departments-title">Departments</div>
+              <ul class="departments-list">${deptsList}</ul>
             </div>
-
-            <div class="mandal-meta">
-              <span class="mandal-meta-item"><i class="ri-group-line"></i> ${pCount} Players</span>
-              <span class="mandal-meta-item"><i class="ri-shield-check-line"></i> Record: ${stats.wins}W-${stats.losses}L</span>
-            </div>
-
-            <button class="mandal-action-btn" onclick="filterDalMatches(${mandal.id}, '${mandal.name}', '${mandal.logoUrl}')">
-              <i class="ri-eye-line"></i> View Team Fixtures
-            </button>
           </div>
         `;
         container.appendChild(card);
