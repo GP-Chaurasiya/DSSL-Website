@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DSSPL Admin Login</title>
+  <title>DSSL Admin Login</title>
   <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
@@ -41,7 +41,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: url('../DSSPL-logo.png') no-repeat center center;
+      background: url('../DSSL-logo.png') no-repeat center center;
       background-size: cover;
       opacity: 0.03;
       filter: blur(10px);
@@ -205,8 +205,8 @@
 
   <div class="login-container">
     <div class="logo-area">
-      <img src="../DSSPL_LOGO.png" alt="DSSPL Logo">
-      <h1>DSSPL Admin Panel</h1>
+      <img src="../DSSL_LOGO.png" alt="DSSL Logo">
+      <h1>DSSL Admin Panel</h1>
       <p>Management & Realtime Scoring Portal</p>
     </div>
 
@@ -245,7 +245,7 @@
 
   <script>
     // Redirect if already logged in
-    if (localStorage.getItem("dsspl_token")) {
+    if (localStorage.getItem("DSSL_token")) {
       window.location.href = "index.html";
     }
 
@@ -279,8 +279,8 @@
         }
 
         // Save Auth state
-        localStorage.setItem("dsspl_token", data.token);
-        localStorage.setItem("dsspl_user", JSON.stringify(data.user));
+        localStorage.setItem("DSSL_token", data.token);
+        localStorage.setItem("DSSL_user", JSON.stringify(data.user));
 
         // Redirect
         window.location.href = "index.html";

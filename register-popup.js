@@ -1,4 +1,4 @@
-// ============= DSSPL Registration Popup Component =============
+﻿// ============= DSSL Registration Popup Component =============
 // This file creates and manages the registration popup modal across all pages.
 
 (function() {
@@ -10,8 +10,8 @@
             <div class="popup-icon-circle">
                 <i class="ri-trophy-fill"></i>
             </div>
-            <h2>DSSPL 2026</h2>
-            <p class="popup-subtitle">Dev Sanskriti Sports Premier League</p>
+            <h2>DSSL 2026</h2>
+            <p class="popup-subtitle">Dev Sanskriti Sports League</p>
             <div class="popup-divider"></div>
             <div class="popup-info-grid">
                 <div class="popup-info-item">
@@ -342,12 +342,12 @@ function initAutoPopup() {
     if (!isHomePage()) return;
 
     // Check if popup has already been shown in this session
-    if (!sessionStorage.getItem('dsspl_popup_shown')) {
+    if (!sessionStorage.getItem('DSSL_popup_shown')) {
         // Add a slight delay so it doesn't pop up instantly before rendering
         setTimeout(() => {
             showRegisterPopup();
             // Mark as shown for this session
-            sessionStorage.setItem('dsspl_popup_shown', 'true');
+            sessionStorage.setItem('DSSL_popup_shown', 'true');
         }, 1500);
     }
 }

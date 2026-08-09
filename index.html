@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DSSPL-Screen Nahi Green</title>
+    <title>DSSL-Screen Nahi Green</title>
     <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
     <link rel="icon" type="image/svg+xml" href="favicon/favicon.svg">
     <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png">
@@ -21,14 +21,14 @@
 <body>
     <header>
         <div class="header-left">
-            <img src="DSSPL_LOGO.png" alt="DSSPL Logo" class="logo">
+            <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
             <div class="logo-flip">
                 <div class="logo-inner">
                     <div class="logo-front">
                         <img src="dsvv Logo .png" alt="Front Logo">
                     </div>
                     <div class="logo-back">
-                        <img src="DSSPL-logo.png" alt="Back Logo">
+                        <img src="DSSL-logo.png" alt="Back Logo">
                     </div>
                 </div>
             </div>
@@ -55,7 +55,7 @@
     <section class="slider">
         <div class="slides">
             <div class="slide active">
-                <img src="new_banner.jpg" alt="DSSPL Banner">
+                <img src="new_banner.jpg" alt="DSSL Banner">
             </div>
         </div>
         <!-- Dots OUTSIDE slides -->
@@ -511,7 +511,7 @@
         </div>
     </div>
     <div class="footer-bottom">
-        © DSSPL-2026 | All Rights Reserved
+        © DSSL-2026 | All Rights Reserved
     </div>
 </footer>
 
@@ -995,7 +995,7 @@ function renderRealtimeSections() {
           performerMap.set(dalId, {
             id: dalId,
             name: mandal?.name || `Mandal ${dalId}`,
-            logo: mandal?.logoUrl || mandal?.logo || "DSSPL_LOGO.png",
+            logo: mandal?.logoUrl || mandal?.logo || "DSSL_LOGO.png",
             wins: 0,
             pointsFor: 0,
             matches: 0,
@@ -1024,7 +1024,7 @@ function renderRealtimeSections() {
     } else {
       performersList.innerHTML = performers.map((p, index) => `
         <div class="player">
-          <img src="${p.logo}" alt="${p.name}" onerror="this.src='DSSPL_LOGO.png'">
+          <img src="${p.logo}" alt="${p.name}" onerror="this.src='DSSL_LOGO.png'">
           <span class="badge ${index === 0 ? 'orange' : 'purple'}"><i class="${index === 0 ? 'ri-trophy-fill' : 'ri-award-fill'}"></i>${index === 0 ? 'Top Mandal' : 'Strong Performer'}</span>
           <h3>${p.name}</h3>
           <p>${p.matches} Matches Played</p>
@@ -1074,7 +1074,7 @@ async function loadHomeGallery() {
         `;
       } else {
         card.innerHTML = `
-          <img src="${item.url}" alt="${item.title || 'Gallery image'}" onerror="this.src='DSSPL_LOGO.png'">
+          <img src="${item.url}" alt="${item.title || 'Gallery image'}" onerror="this.src='DSSL_LOGO.png'">
         `;
       }
       track.appendChild(card);

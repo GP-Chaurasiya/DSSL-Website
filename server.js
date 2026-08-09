@@ -1,4 +1,4 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -30,7 +30,7 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const JWT_SECRET = process.env.JWT_SECRET || "dsspl_super_secret_jwt_key_2026_dsspl";
+const JWT_SECRET = process.env.JWT_SECRET || "DSSL_super_secret_jwt_key_2026_DSSL";
 
 // Ensure upload directory exists
 const uploadDir = path.join(ROOT, "uploads");
@@ -887,5 +887,5 @@ io.on("connection", (socket) => {
 
 // Start Server
 server.listen(PORT, () => {
-  console.log(`DSSPL Server running at http://localhost:${PORT}`);
+  console.log(`DSSL Server running at http://localhost:${PORT}`);
 });

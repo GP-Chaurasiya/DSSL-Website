@@ -1,10 +1,10 @@
-/**
- * DSSPL YouTube-Style Notification System
+﻿/**
+ * DSSL YouTube-Style Notification System
  * Handles bell dropdown UI, local storage persistence, and realtime Socket.IO notifications.
  */
 
 (function () {
-  const NOTIF_STORAGE_KEY = "dsspl_notifications_v1";
+  const NOTIF_STORAGE_KEY = "DSSL_notifications_v1";
   let socket = null;
 
   // Initial State from LocalStorage
@@ -27,7 +27,7 @@
         id: "default-1",
         type: "news",
         source: "Media Team",
-        title: "DSSPL Sports Tournament 2026 Announced!",
+        title: "DSSL Sports Tournament 2026 Announced!",
         time: Date.now() - 3600000 * 2,
         read: false,
         icon: "ri-newspaper-line",

@@ -1,6 +1,6 @@
-// Auth Verification
-const token = localStorage.getItem("dsspl_token");
-const user = JSON.parse(localStorage.getItem("dsspl_user") || "null");
+﻿// Auth Verification
+const token = localStorage.getItem("DSSL_token");
+const user = JSON.parse(localStorage.getItem("DSSL_user") || "null");
 
 if (!token || !user) {
   logout();
@@ -124,8 +124,8 @@ document.getElementById("closeSidebarBtn").addEventListener("click", () => {
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
 function logout() {
-  localStorage.removeItem("dsspl_token");
-  localStorage.removeItem("dsspl_user");
+  localStorage.removeItem("DSSL_token");
+  localStorage.removeItem("DSSL_user");
   window.location.href = "login.html";
 }
 
@@ -748,7 +748,7 @@ function renderScorerPanel() {
   document.getElementById("cricketBatsman").value = activeMatch.currentBatsman ?? "";
   document.getElementById("cricketBowler").value = activeMatch.currentBowler ?? "";
   document.getElementById("cricketRunRate").value = activeMatch.runRate ?? 0.0;
-  document.getElementById("matchTournament").value = activeMatch.tournamentName ?? "DSSPL 2026";
+  document.getElementById("matchTournament").value = activeMatch.tournamentName ?? "DSSL 2026";
   document.getElementById("matchResult").value = activeMatch.result ?? "";
   document.getElementById("matchBanner").value = activeMatch.matchBanner ?? "";
 
@@ -1944,7 +1944,7 @@ function printBracketAction() {
   const pMatch  = document.getElementById("printTotalMatches");
   const pDate   = document.getElementById("printDate");
 
-  if (pTitle)  pTitle.textContent  = "DEV SANSKRITI SPORTS PREMIER LEAGUE";
+  if (pTitle)  pTitle.textContent  = "Dev Sanskriti Sports League";
   if (pSport)  pSport.textContent  = `${sEl ? sEl.value : "Cricket"}`;
   if (pFmt)    pFmt.textContent    = fEl ? fEl.options[fEl.selectedIndex].text : "Single Elimination";
   if (pTeams)  pTeams.textContent  = fixtureTeams.length;
