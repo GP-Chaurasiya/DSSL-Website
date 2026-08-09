@@ -23501,7 +23501,7 @@ function getPageTitle(pathname) {
     const sport = SPORTS.find((s) => s.id === Number(sportMatch[1]));
     return sport ? `${sport.icon} ${sport.name} Scoreboard` : "Scoreboard";
   }
-  return "DSSPL";
+  return "DSSL";
 }
 function Header({ onMenuClick }) {
   const { location: location2 } = useRouterState();
@@ -23533,8 +23533,8 @@ function Header({ onMenuClick }) {
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2 lg:hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               "img",
               {
-                src: "/assets/dsspl-logo.png",
-                alt: "DSSPL",
+                src: "/assets/DSSL-logo.png",
+                alt: "DSSL",
                 className: "h-8 w-auto object-contain"
               }
             ) }),
@@ -24850,13 +24850,13 @@ function Sidebar({
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "img",
                 {
-                  src: "/assets/dsspl-logo.png",
-                  alt: "DSSPL Logo",
+                  src: "/assets/DSSL-logo.png",
+                  alt: "DSSL Logo",
                   className: "h-9 w-auto object-contain flex-shrink-0"
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col min-w-0", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display font-bold text-[13px] text-foreground leading-tight truncate", children: "DSSPL" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display font-bold text-[13px] text-foreground leading-tight truncate", children: "DSSL" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] text-muted-foreground leading-tight truncate", children: "Sports Manager" })
               ] })
             ] }),
@@ -24885,7 +24885,7 @@ function Sidebar({
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 py-3 border-t border-border flex-shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-[11px] text-muted-foreground text-center", children: [
             "© ",
             (/* @__PURE__ */ new Date()).getFullYear(),
-            " DSSPL"
+            " DSSL"
           ] }) })
         ]
       }
@@ -24904,21 +24904,21 @@ function Sidebar({
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "img",
                 {
-                  src: "/assets/dsspl-logo.png",
-                  alt: "DSSPL Logo",
+                  src: "/assets/DSSL-logo.png",
+                  alt: "DSSL Logo",
                   className: "h-9 w-auto object-contain flex-shrink-0"
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col min-w-0", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display font-bold text-[13px] text-foreground leading-tight truncate", children: "DSSPL" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display font-bold text-[13px] text-foreground leading-tight truncate", children: "DSSL" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] text-muted-foreground leading-tight truncate", children: "Sports Manager" })
               ] })
             ] }),
             desktopCollapsed && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-center w-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               "img",
               {
-                src: "/assets/dsspl-logo.png",
-                alt: "DSSPL Logo",
+                src: "/assets/DSSL-logo.png",
+                alt: "DSSL Logo",
                 className: "h-8 w-8 object-contain flex-shrink-0"
               }
             ) }),
@@ -24969,7 +24969,7 @@ function Sidebar({
               children: !desktopCollapsed && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-[11px] text-muted-foreground text-center", children: [
                 "© ",
                 (/* @__PURE__ */ new Date()).getFullYear(),
-                " DSSPL"
+                " DSSL"
               ] })
             }
           )
@@ -30512,7 +30512,7 @@ const BASE_URL = typeof window !== "undefined" && (window.location.port === "517
 const getHeaders = (extraHeaders = {}) => {
   const headers = { ...extraHeaders };
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("dsspl_token");
+    const token = localStorage.getItem("DSSL_token");
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -32661,7 +32661,7 @@ function SettingsPage() {
       const url2 = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url2;
-      a.download = `dsspl-matches-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`;
+      a.download = `DSSL-matches-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url2);
       ue.success("Matches exported successfully");
@@ -32842,19 +32842,19 @@ function SettingsPage() {
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "shadow-xs border-border", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(CardTitle, { className: "font-display text-[15px]", children: "About DSSPL" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(CardTitle, { className: "font-display text-[15px]", children: "About DSSL" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "space-y-3 text-sm text-muted-foreground", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Dev Sanskriti School Premier League — Annual Inter-Mandal Sports Tournament." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Dev Sanskriti School League — Annual Inter-Mandal Sports Tournament." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-medium text-foreground", children: "Version 1.0.0" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
           "© ",
           (/* @__PURE__ */ new Date()).getFullYear(),
-          " DSSPL.",
+          " DSSL.",
           " ",
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "a",
             {
-              href: `https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "dsspl")}`,
+              href: `https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "DSSL")}`,
               target: "_blank",
               rel: "noopener noreferrer",
               className: "text-[#003E8A] hover:underline",
@@ -36655,7 +36655,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     {
       attribute: "class",
       defaultTheme: "light",
-      storageKey: "dsspl-theme",
+      storageKey: "DSSL-theme",
       enableSystem: true,
       children: /* @__PURE__ */ jsxRuntimeExports.jsxs(QueryClientProvider, { client: queryClient, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(RealtimeSync, {}),
