@@ -61,7 +61,7 @@ model Match {
   currentBatsman   String    @default("")
   currentBowler    String    @default("")
   runRate          Float     @default(0.0)
-  tournamentName   String    @default("DSSPL 2026")
+  tournamentName   String    @default("DSSL 2026")
   result           String    @default("")
   matchBanner      String    @default("")
   
