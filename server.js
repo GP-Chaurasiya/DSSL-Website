@@ -1,4 +1,4 @@
-﻿require("dotenv").config();
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -845,17 +845,17 @@ app.post("/api/settings/registration", authenticateToken, requireRole(["SUPER_AD
 
 // ── Static Files & Dashboard Routes ───────────────────────────────────────────
 
-// Static files directories with aggressive 7-day browser caching for high performance
+// Static files directories with no-cache in dev for instant updates
 const staticCacheOptions = {
-  maxAge: "7d",
+  maxAge: 0,
   etag: true,
   lastModified: true
 };
 
-app.use("/uploads", express.static(uploadDir, staticCacheOptions));
+app.use("/uploads", express.static(uploadDir, { maxAge: "7d", acceptRanges: true }));
 app.use("/admin", express.static(path.join(ROOT, "admin"), { maxAge: 0, etag: false }));
-app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
-app.use(express.static(ROOT, staticCacheOptions));
+app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), { maxAge: 0, etag: false }));
+app.use(express.static(ROOT, { maxAge: 0, etag: false }));
 
 // Default home route serving index.html
 app.get("/", (req, res) => {
