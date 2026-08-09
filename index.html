@@ -694,61 +694,7 @@ topBtn.addEventListener("click", () => {
 <!-- Load Socket.IO Client dynamically -->
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// Google Sheets gviz API — works directly without 3rd party, reads "Input" tab
-const SHEET_ID = "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
-const SHEET_TAB = "Input";
-
-async function updateDalCounts() {
-    try {
-        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
-        const response = await fetch(url);
-        const text = await response.text();
-
-        // Parse CSV rows
-        const rows = text.trim().split("\n").slice(1); // skip header row
-
-        // Reset counts
-        const counts = {
-            "vashishta": 0,
-            "vishwamitra": 0,
-            "atrey": 0,
-            "gautam": 0,
-            "bharadwaj": 0,
-            "jamdagni": 0,
-            "kashyap": 0
-        };
-
-        // Column G = index 6 = Mandal
-        rows.forEach(row => {
-            if (!row.trim()) return; // skip blank rows
-            const cols = row.split(",").map(c => c.replace(/^"|"$/g, "").trim());
-            const mandal = (cols[7] || "").toLowerCase(); // Column H = Mandal (Input sheet: S.No,RegId,Name,ScholarID,Course,Semester,Sport,Mandal,...)
-            for (const key in counts) {
-                if (mandal.includes(key)) {
-                    counts[key]++;
-                    break;
-                }
-            }
-        });
-
-        // Update UI
-        document.getElementById("vashishta-count").textContent = counts["vashishta"];
-        document.getElementById("vishwamitra-count").textContent = counts["vishwamitra"];
-        document.getElementById("atrey-count").textContent = counts["atrey"];
-        document.getElementById("gautam-count").textContent = counts["gautam"];
-        document.getElementById("bharadwaj-count").textContent = counts["bharadwaj"];
-        document.getElementById("jamdagni-count").textContent = counts["jamdagni"];
-        document.getElementById("kashyap-count").textContent = counts["kashyap"];
-
-    } catch (error) {
-        console.error("Error fetching mandal counts:", error);
-    }
-}
-
-// Load instantly on page load
-updateDalCounts();
-// Auto-refresh every 30 seconds
-setInterval(updateDalCounts, 30000);
+// sheet-sync.js handles live Google Sheet player counts automatically
 
 // ── Realtime Scoring & Leaderboard integration ────────────────────────────────
 let socket = null;
@@ -1112,9 +1058,20 @@ if (socket) {
     console.log("Realtime media update received");
     loadHomeGallery();
   });
+  // 5-second match auto-polling fallback for live scores
+  setInterval(async () => {
+    try {
+      const matchRes = await fetch("/api/matches");
+      if (matchRes.ok) {
+        allMatches = await matchRes.json();
+        renderRealtimeSections();
+      }
+    } catch (e) {}
+  }, 5000);
 }
 </script>
 
+<script src="sheet-sync.js?v=20260809_dssl"></script>
 <script src="register-popup.js?v=20260809_dssl"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="notifications.js"></script>

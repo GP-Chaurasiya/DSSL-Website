@@ -444,7 +444,18 @@
 
     // Run
     loadMatches();
+    // 5-second match auto-polling fallback
+    setInterval(async () => {
+      try {
+        const res = await fetch("/api/matches");
+        if (res.ok) {
+          allMatches = await res.json();
+          renderMatches();
+        }
+      } catch (e) {}
+    }, 5000);
   </script>
+<script src="sheet-sync.js?v=20260809_dssl"></script>
 <script src="register-popup.js?v=20260809_dssl"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="notifications.js"></script>

@@ -393,7 +393,18 @@
 
     // Run
     loadLeaderboardData();
+    // 5-second match auto-polling fallback
+    setInterval(async () => {
+      try {
+        const matchesRes = await fetch("/api/matches");
+        if (matchesRes.ok) {
+          allMatches = await matchesRes.json();
+          computeLeaderboard();
+        }
+      } catch (e) {}
+    }, 5000);
   </script>
+<script src="sheet-sync.js?v=20260809_dssl"></script>
 <script src="register-popup.js?v=20260809_dssl"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="notifications.js"></script>
