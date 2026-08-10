@@ -26,6 +26,8 @@ model Mandal {
   players      Player[]
   matchesA     Match[]    @relation("DalA")
   matchesB     Match[]    @relation("DalB")
+  plannedMatchesA PlannedMatch[] @relation("PlannedDalA")
+  plannedMatchesB PlannedMatch[] @relation("PlannedDalB")
 }
 
 model Player {
@@ -68,6 +70,25 @@ model Match {
   description      String    @default("")
   
   createdAt        DateTime  @default(now())
+}
+
+model PlannedMatch {
+  id               Int       @id @default(autoincrement())
+  sportId          Int
+  sportName        String
+  status           String    @default("scheduled")
+  venue            String
+  startTime        DateTime?
+  endTime          DateTime?
+  durationMinutes  Int       @default(60)
+  dalAId           Int
+  dalA             Mandal    @relation("PlannedDalA", fields: [dalAId], references: [id])
+  dalBId           Int
+  dalB             Mandal    @relation("PlannedDalB", fields: [dalBId], references: [id])
+  matchRound       String    @default("")
+  description      String    @default("")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Media {

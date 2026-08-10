@@ -246,6 +246,29 @@ const serializeMatch = (m) => {
   };
 };
 
+const serializePlannedMatch = (m) => {
+  if (!m) return null;
+  const formatLogo = (mandal) => {
+    if (!mandal) return null;
+    const logoUrl = mandal.logoUrl || `${mandal.name}.png`;
+    return {
+      ...mandal,
+      logo: logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`
+    };
+  };
+  return {
+    ...m,
+    id: m.id.toString(),
+    duration: m.durationMinutes,
+    startTime: m.startTime ? m.startTime.getTime() : null,
+    endTime: m.endTime ? m.endTime.getTime() : null,
+    dalA: formatLogo(m.dalA),
+    dalB: formatLogo(m.dalB),
+    matchRound: m.matchRound || "",
+    description: m.description || ""
+  };
+};
+
 app.get("/api/matches", async (req, res) => {
   try {
     const dbMatches = await prisma.match.findMany({
@@ -255,6 +278,67 @@ app.get("/api/matches", async (req, res) => {
     res.json(dbMatches.map(serializeMatch));
   } catch (error) {
     res.status(500).json({ error: "Error fetching matches" });
+  }
+});
+
+app.get("/api/planned-matches", async (req, res) => {
+  try {
+    const plannedMatches = await prisma.plannedMatch.findMany({
+      orderBy: [
+        { startTime: "asc" },
+        { createdAt: "desc" }
+      ],
+      include: { dalA: true, dalB: true }
+    });
+    res.json(plannedMatches.map(serializePlannedMatch));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching planned matches" });
+  }
+});
+
+app.post("/api/planned-matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, startTime, endTime, description, matchRound } = req.body;
+  if (!sportId || !dalAId || !dalBId || !venue) {
+    return res.status(400).json({ error: "Missing required planned match parameters" });
+  }
+
+  try {
+    const plannedMatch = await prisma.plannedMatch.create({
+      data: {
+        sportId: parseInt(sportId),
+        sportName: sportName || "Sport",
+        venue,
+        dalAId: parseInt(dalAId),
+        dalBId: parseInt(dalBId),
+        durationMinutes: durationMinutes ? parseInt(durationMinutes) : 60,
+        startTime: startTime ? new Date(startTime) : null,
+        endTime: endTime ? new Date(endTime) : null,
+        matchRound: matchRound || "",
+        description: description || ""
+      },
+      include: { dalA: true, dalB: true }
+    });
+
+    const serialized = serializePlannedMatch(plannedMatch);
+    io.emit("plannedMatchUpdate", serialized);
+    res.status(201).json(serialized);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error creating planned match" });
+  }
+});
+
+app.delete("/api/planned-matches/:id", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req, res) => {
+  const plannedMatchId = parseInt(req.params.id);
+  if (isNaN(plannedMatchId)) return res.status(400).json({ error: "Invalid planned match ID" });
+
+  try {
+    await prisma.plannedMatch.delete({ where: { id: plannedMatchId } });
+    io.emit("plannedMatchDelete", plannedMatchId.toString());
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Error deleting planned match" });
   }
 });
 
@@ -854,14 +938,19 @@ app.post("/api/settings/registration", authenticateToken, requireRole(["SUPER_AD
 // Static files directories with no-cache in dev for instant updates
 const staticCacheOptions = {
   maxAge: 0,
-  etag: true,
-  lastModified: true
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
 };
 
 app.use("/uploads", express.static(uploadDir, { maxAge: "7d", acceptRanges: true }));
-app.use("/admin", express.static(path.join(ROOT, "admin"), { maxAge: 0, etag: false }));
-app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), { maxAge: 0, etag: false }));
-app.use(express.static(ROOT, { maxAge: 0, etag: false }));
+app.use("/admin", express.static(path.join(ROOT, "admin"), staticCacheOptions));
+app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
+app.use(express.static(ROOT, staticCacheOptions));
 
 // Default home route serving index.html
 app.get("/", (req, res) => {

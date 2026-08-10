@@ -10,9 +10,11 @@ if (!token || !user) {
 let activeMatch = null;
 let timerInterval = null;
 let allMatches = [];
+let plannedMatches = [];
 let allDals = [];
 let scheduleCalendarDate = new Date();
 let scheduleViewMode = "calendar";
+let newMatchMode = "schedule";
 
 const SPORT_COLORS = {
   "Table Tennis": "#3b82f6",
@@ -189,6 +191,7 @@ async function loadTabData(tab) {
       case "scheduling":
         await loadDals();
         await loadMatches();
+        await loadPlannedMatches();
         renderSchedulingList();
         break;
       case "teams":
@@ -228,6 +231,10 @@ async function loadTabData(tab) {
 // Fetch lists
 async function loadMatches() {
   allMatches = await apiCall("/api/matches");
+}
+
+async function loadPlannedMatches() {
+  plannedMatches = await apiCall("/api/planned-matches");
 }
 
 async function loadDals() {
@@ -705,10 +712,17 @@ function formatScheduleDateTime(match) {
   return `${date}, ${startTime}${endTime}`;
 }
 
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function filterScheduleMatches() {
   const sportFilter = document.getElementById("scheduleSportFilter")?.value || "";
   const venueFilter = document.getElementById("scheduleVenueFilter")?.value || "";
-  return [...allMatches]
+  return [...plannedMatches]
     .filter(m => !sportFilter || m.sportName === sportFilter)
     .filter(m => !venueFilter || m.venue === venueFilter)
     .sort((a, b) => getMatchDate(a) - getMatchDate(b));
@@ -730,7 +744,7 @@ function populateScheduleControls() {
   }
   if (venueFilter) {
     const current = venueFilter.value;
-    venueFilter.innerHTML = `<option value="">All Venues</option>` + [...new Set(allMatches.map(m => m.venue).filter(Boolean))]
+    venueFilter.innerHTML = `<option value="">All Venues</option>` + [...new Set(plannedMatches.map(m => m.venue).filter(Boolean))]
       .sort()
       .map(v => `<option value="${v}">${v}</option>`)
       .join("");
@@ -741,10 +755,10 @@ function populateScheduleControls() {
 function renderScheduleStats() {
   const el = document.getElementById("scheduleStatsGrid");
   if (!el) return;
-  const total = allMatches.length;
-  const scheduled = allMatches.filter(m => m.status === "scheduled").length;
-  const live = allMatches.filter(m => m.status === "live").length;
-  const completed = allMatches.filter(m => m.status === "completed").length;
+  const total = plannedMatches.length;
+  const scheduled = plannedMatches.filter(m => m.status === "scheduled").length;
+  const live = plannedMatches.filter(m => m.status === "live").length;
+  const completed = plannedMatches.filter(m => m.status === "completed").length;
   const stats = [
     ["ri-calendar-event-line", "Total Matches", total, "All scheduled matches", "#3b82f6"],
     ["ri-checkbox-circle-line", "Scheduled", scheduled, "Upcoming matches", "#65a30d"],
@@ -785,6 +799,8 @@ function renderScheduleCalendar() {
     const dayMatches = matches.filter(m => getMatchDate(m).toDateString() === dayKey);
     const cell = document.createElement("div");
     cell.className = `calendar-day ${day.getMonth() !== month ? "muted-day" : ""}`;
+    cell.title = "Click to add planned match";
+    cell.addEventListener("click", () => openNewMatchModal("planner", formatDateInputValue(day)));
     cell.innerHTML = `<div class="day-number">${day.getDate()}</div>`;
     dayMatches.slice(0, 3).forEach(m => {
       const btn = document.createElement("button");
@@ -792,6 +808,10 @@ function renderScheduleCalendar() {
       btn.className = "calendar-event";
       btn.style.setProperty("--sport-color", getSportColor(m.sportName));
       btn.innerHTML = `${m.sportName}<span>${getMatchDate(m).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>`;
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openNewMatchModal("planner", formatDateInputValue(day));
+      });
       cell.appendChild(btn);
     });
     if (dayMatches.length > 3) {
@@ -814,13 +834,24 @@ function renderScheduleTables() {
   const upcomingBody = document.getElementById("upcomingScheduleMatchesList");
   const matches = filterScheduleMatches();
   const rows = matches.map(renderScheduleRow).join("");
-  if (tbody) tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No matches found.</td></tr>`;
+  if (tbody) tbody.innerHTML = rows || `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No matches found.</td></tr>`;
 
   const upcoming = matches.filter(m => m.status !== "completed").slice(0, 6);
   if (upcomingBody) {
-    upcomingBody.innerHTML = upcoming.map(renderScheduleRow).join("") || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
+    upcomingBody.innerHTML = upcoming.map(renderScheduleRow).join("") || `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
   }
 }
+
+window.deletePlannedMatch = async function(id) {
+  if (!confirm("Are you sure you want to delete this planned match?")) return;
+  try {
+    await apiCall(`/api/planned-matches/${id}`, { method: "DELETE" });
+    plannedMatches = plannedMatches.filter(m => m.id.toString() !== id.toString());
+    renderSchedulingList();
+  } catch (error) {
+    alert(error.message);
+  }
+};
 
 function renderAdminScheduleTable() {
   const tbody = document.getElementById("adminScheduleMatchesList");
@@ -861,6 +892,9 @@ function renderScheduleRow(m) {
       <td>${getMatchupText(m)}</td>
       <td>${m.venue}</td>
       <td><span class="badge badge-${m.status}">${m.status}</span></td>
+      <td>
+        <button class="btn btn-icon btn-danger" title="Delete" onclick="deletePlannedMatch(${m.id})"><i class="ri-delete-bin-line"></i></button>
+      </td>
     </tr>
   `;
 }
@@ -1182,25 +1216,68 @@ window.setMatchStatus = async function(id, status) {
 // ── Modals Logic ──────────────────────────────────────────────────────────────
 const newMatchModal = document.getElementById("newMatchModal");
 const openNewMatchModalBtn = document.getElementById("openNewMatchModalBtn");
+const openPlannerMatchModalBtn = document.getElementById("openPlannerMatchModalBtn");
 const closeNewMatchModalBtn = document.getElementById("closeNewMatchModalBtn");
 const cancelNewMatchBtn = document.getElementById("cancelNewMatchBtn");
 
-if (openNewMatchModalBtn) {
-  openNewMatchModalBtn.addEventListener("click", async () => {
-    // Fill select selectors
-    const sportSelect = document.getElementById("matchSport");
-    sportSelect.innerHTML = SPORTS.map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join("");
+function setNewMatchModalMode(mode) {
+  newMatchMode = mode;
+  const title = document.getElementById("newMatchModalTitle");
+  const submitBtn = document.getElementById("newMatchSubmitBtn");
+  const liveSelect = document.getElementById("matchIsLive");
+  const liveModeGroup = document.getElementById("matchLiveModeGroup");
+  const planningTimeFields = document.getElementById("matchPlanningTimeFields");
+  const dateInput = document.getElementById("matchDate");
+  const startInput = document.getElementById("matchStartTime");
 
-    const dalASelect = document.getElementById("matchDalA");
-    const dalBSelect = document.getElementById("matchDalB");
-    dalASelect.innerHTML = allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
-    dalBSelect.innerHTML = allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
-
-    newMatchModal.style.display = "flex";
-  });
+  if (title) {
+    title.innerHTML = mode === "planner"
+      ? `<i class="ri-calendar-schedule-line"></i> Add Planned Match`
+      : `<i class="ri-add-line"></i> Schedule On-Spot Match`;
+  }
+  if (submitBtn) submitBtn.textContent = mode === "planner" ? "Add to Planner" : "Start Live Match";
+  if (liveSelect) {
+    liveSelect.innerHTML = mode === "planner"
+      ? `<option value="false">Planned Fixture</option>`
+      : `<option value="true">Yes (Start Live Now)</option>`;
+    liveSelect.value = mode === "planner" ? "false" : "true";
+    liveSelect.disabled = true;
+  }
+  if (liveModeGroup) liveModeGroup.style.display = mode === "planner" ? "none" : "";
+  if (planningTimeFields) planningTimeFields.style.display = mode === "planner" ? "" : "none";
+  if (dateInput) dateInput.required = mode === "planner";
+  if (startInput) startInput.required = mode === "planner";
 }
 
-const closeModal = () => { if (newMatchModal) newMatchModal.style.display = "none"; };
+async function openNewMatchModal(mode = "schedule", plannedDate = null) {
+  document.getElementById("newMatchForm")?.reset();
+  document.getElementById("matchDuration").value = "60";
+  setNewMatchModalMode(mode);
+  if (!allDals.length) await loadDals();
+
+  const sportSelect = document.getElementById("matchSport");
+  sportSelect.innerHTML = SPORTS.map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join("");
+
+  const dalASelect = document.getElementById("matchDalA");
+  const dalBSelect = document.getElementById("matchDalB");
+  dalASelect.innerHTML = allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
+  dalBSelect.innerHTML = allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
+
+  if (mode === "planner" && plannedDate) {
+    const dateInput = document.getElementById("matchDate");
+    if (dateInput) dateInput.value = plannedDate;
+  }
+
+  newMatchModal.style.display = "flex";
+}
+
+if (openNewMatchModalBtn) openNewMatchModalBtn.addEventListener("click", () => openNewMatchModal("schedule"));
+if (openPlannerMatchModalBtn) openPlannerMatchModalBtn.addEventListener("click", () => openNewMatchModal("planner"));
+
+const closeModal = () => {
+  if (newMatchModal) newMatchModal.style.display = "none";
+  document.getElementById("matchIsLive")?.removeAttribute("disabled");
+};
 if (closeNewMatchModalBtn) closeNewMatchModalBtn.addEventListener("click", closeModal);
 if (cancelNewMatchBtn) cancelNewMatchBtn.addEventListener("click", closeModal);
 
@@ -1213,14 +1290,14 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const dalAId = document.getElementById("matchDalA").value;
   const dalBId = document.getElementById("matchDalB").value;
   const duration = document.getElementById("matchDuration").value;
-  const isLive = document.getElementById("matchIsLive")?.value === "true";
+  const isLive = newMatchMode === "schedule";
   const matchDate = document.getElementById("matchDate")?.value || "";
   const startClock = document.getElementById("matchStartTime")?.value || "";
   const endClock = document.getElementById("matchEndTime")?.value || "";
   const matchRound = document.getElementById("matchRound")?.value.trim() || "";
   const matchDescription = document.getElementById("matchDescription")?.value.trim() || "";
-  const startTime = matchDate && startClock ? new Date(`${matchDate}T${startClock}`).toISOString() : null;
-  const endTime = matchDate && endClock ? new Date(`${matchDate}T${endClock}`).toISOString() : null;
+  const startTime = newMatchMode === "planner" && matchDate && startClock ? new Date(`${matchDate}T${startClock}`).toISOString() : null;
+  const endTime = newMatchMode === "planner" && matchDate && endClock ? new Date(`${matchDate}T${endClock}`).toISOString() : null;
 
   if (dalAId === dalBId) {
     alert("Mandals must be unique teams!");
@@ -1228,26 +1305,33 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   }
 
   try {
-    await apiCall("/api/matches", {
+    const endpoint = newMatchMode === "planner" ? "/api/planned-matches" : "/api/matches";
+    const payload = {
+      sportId,
+      sportName: sport.name,
+      venue,
+      dalAId,
+      dalBId,
+      durationMinutes: duration,
+      startTime,
+      endTime,
+      matchRound,
+      description: matchDescription
+    };
+
+    if (newMatchMode === "schedule") {
+      payload.isLive = isLive;
+    }
+
+    await apiCall(endpoint, {
       method: "POST",
-      body: JSON.stringify({
-        sportId,
-        sportName: sport.name,
-        venue,
-        dalAId,
-        dalBId,
-        durationMinutes: duration,
-        isLive,
-        startTime,
-        endTime,
-        matchRound,
-        description: matchDescription
-      })
+      body: JSON.stringify(payload)
     });
     closeModal();
     e.target.reset();
     document.getElementById("matchDuration").value = "60";
     await loadMatches();
+    await loadPlannedMatches();
     loadTabData("scheduling");
   } catch (error) {
     alert(error.message);
@@ -1371,6 +1455,24 @@ socket.on("matchDelete", (matchId) => {
   }
   const activeTab = document.querySelector(".menu-btn.active").getAttribute("data-tab");
   loadTabData(activeTab);
+});
+
+socket.on("plannedMatchUpdate", (data) => {
+  const idx = plannedMatches.findIndex(m => m.id.toString() === data.id.toString());
+  if (idx !== -1) {
+    plannedMatches[idx] = data;
+  } else {
+    plannedMatches.push(data);
+  }
+
+  const activeTab = document.querySelector(".menu-btn.active")?.getAttribute("data-tab");
+  if (activeTab === "scheduling") renderSchedulingList();
+});
+
+socket.on("plannedMatchDelete", (matchId) => {
+  plannedMatches = plannedMatches.filter(m => m.id.toString() !== matchId.toString());
+  const activeTab = document.querySelector(".menu-btn.active")?.getAttribute("data-tab");
+  if (activeTab === "scheduling") renderSchedulingList();
 });
 
 socket.on("newsUpdate", () => {

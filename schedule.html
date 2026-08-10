@@ -251,8 +251,8 @@
         const dalsRes = await fetch("/api/mandals");
         allDals = await dalsRes.json();
         
-        // Load Matches
-        const matchesRes = await fetch("/api/matches");
+        // Load planned fixtures only. Live/on-spot matches are managed separately.
+        const matchesRes = await fetch("/api/planned-matches");
         allMatches = await matchesRes.json();
 
         renderSchedule();
@@ -335,7 +335,7 @@
     }
 
     // Socket listeners
-    socket.on("matchUpdate", (match) => {
+    socket.on("plannedMatchUpdate", (match) => {
       const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
       if (idx !== -1) {
         allMatches[idx] = match;
@@ -345,7 +345,7 @@
       renderSchedule();
     });
 
-    socket.on("matchDelete", (matchId) => {
+    socket.on("plannedMatchDelete", (matchId) => {
       allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
       renderSchedule();
     });

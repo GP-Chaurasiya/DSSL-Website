@@ -706,6 +706,7 @@
     }
 
     let allMatches = [];
+    let plannedMatches = [];
     let allDals = [];
 
     // Format milliseconds timer
@@ -724,6 +725,9 @@
         // Fetch Matches
         const matchesRes = await fetch("/api/matches");
         allMatches = await matchesRes.json();
+
+        const plannedRes = await fetch("/api/planned-matches");
+        plannedMatches = plannedRes.ok ? await plannedRes.json() : [];
 
         renderRealtimeSections();
       } catch (error) {
@@ -813,7 +817,7 @@
 
       // 2. Upcoming Match Card
       const upcomingCard = document.getElementById("event-card");
-      const upcomingMatches = allMatches.filter(m => m.status === "scheduled" || m.status === "upcoming");
+      const upcomingMatches = plannedMatches.filter(m => m.status === "scheduled" || m.status === "upcoming");
       if (upcomingMatches.length > 0) {
         const m = upcomingMatches[0];
         upcomingCard.innerHTML = `
@@ -822,7 +826,7 @@
             <h3>UPCOMING MATCH</h3>
         </div>
         <div class="match-time">
-            <span>${new Date(m.createdAt).toLocaleDateString()}</span>
+            <span>${new Date(m.startTime || m.createdAt).toLocaleDateString()}</span>
             <span>${m.venue}</span>
         </div>
         <div class="teams">
@@ -1055,6 +1059,21 @@
         renderRealtimeSections();
       });
 
+      socket.on("plannedMatchUpdate", (updatedMatch) => {
+        const idx = plannedMatches.findIndex(m => m.id.toString() == updatedMatch.id.toString());
+        if (idx !== -1) {
+          plannedMatches[idx] = updatedMatch;
+        } else {
+          plannedMatches.push(updatedMatch);
+        }
+        renderRealtimeSections();
+      });
+
+      socket.on("plannedMatchDelete", (matchId) => {
+        plannedMatches = plannedMatches.filter(m => m.id.toString() != matchId.toString());
+        renderRealtimeSections();
+      });
+
       socket.on("mediaUpdate", () => {
         console.log("Realtime media update received");
         loadHomeGallery();
@@ -1065,6 +1084,8 @@
           const matchRes = await fetch("/api/matches");
           if (matchRes.ok) {
             allMatches = await matchRes.json();
+            const plannedRes = await fetch("/api/planned-matches");
+            if (plannedRes.ok) plannedMatches = await plannedRes.json();
             renderRealtimeSections();
           }
         } catch (e) { }
