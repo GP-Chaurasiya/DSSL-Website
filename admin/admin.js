@@ -834,11 +834,11 @@ function renderScheduleTables() {
   const upcomingBody = document.getElementById("upcomingScheduleMatchesList");
   const matches = filterScheduleMatches();
   const rows = matches.map(renderScheduleRow).join("");
-  if (tbody) tbody.innerHTML = rows || `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No matches found.</td></tr>`;
+  if (tbody) tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No matches found.</td></tr>`;
 
   const upcoming = matches.filter(m => m.status !== "completed").slice(0, 6);
   if (upcomingBody) {
-    upcomingBody.innerHTML = upcoming.map(renderScheduleRow).join("") || `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
+    upcomingBody.innerHTML = upcoming.map(renderScheduleRow).join("") || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
   }
 }
 
@@ -889,7 +889,6 @@ function renderScheduleRow(m) {
     <tr>
       <td>${formatScheduleDateTime(m)}</td>
       <td><span class="badge" style="background: ${getSportColor(m.sportName)}24; color: ${getSportColor(m.sportName)}; border: 1px solid ${getSportColor(m.sportName)}55;">${m.sportName}</span></td>
-      <td>${getMatchupText(m)}</td>
       <td>${m.venue}</td>
       <td><span class="badge badge-${m.status}">${m.status}</span></td>
       <td>
@@ -1251,17 +1250,11 @@ function setNewMatchModalMode(mode) {
 
 async function openNewMatchModal(mode = "schedule", plannedDate = null) {
   document.getElementById("newMatchForm")?.reset();
-  document.getElementById("matchDuration").value = "60";
   setNewMatchModalMode(mode);
   if (!allDals.length) await loadDals();
 
   const sportSelect = document.getElementById("matchSport");
   sportSelect.innerHTML = SPORTS.map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join("");
-
-  const dalASelect = document.getElementById("matchDalA");
-  const dalBSelect = document.getElementById("matchDalB");
-  dalASelect.innerHTML = allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
-  dalBSelect.innerHTML = allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
 
   if (mode === "planner" && plannedDate) {
     const dateInput = document.getElementById("matchDate");
@@ -1287,19 +1280,17 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const sportId = document.getElementById("matchSport").value;
   const sport = SPORTS.find(s => s.id == sportId);
   const venue = document.getElementById("matchVenue").value;
-  const dalAId = document.getElementById("matchDalA").value;
-  const dalBId = document.getElementById("matchDalB").value;
-  const duration = document.getElementById("matchDuration").value;
+  const dalAId = allDals[0]?.id ?? null;
+  const dalBId = allDals[1]?.id ?? allDals[0]?.id ?? null;
   const isLive = newMatchMode === "schedule";
   const matchDate = document.getElementById("matchDate")?.value || "";
   const startClock = document.getElementById("matchStartTime")?.value || "";
   const endClock = document.getElementById("matchEndTime")?.value || "";
-  const matchRound = document.getElementById("matchRound")?.value.trim() || "";
   const matchDescription = document.getElementById("matchDescription")?.value.trim() || "";
   const startTime = newMatchMode === "planner" && matchDate && startClock ? new Date(`${matchDate}T${startClock}`).toISOString() : null;
   const endTime = newMatchMode === "planner" && matchDate && endClock ? new Date(`${matchDate}T${endClock}`).toISOString() : null;
 
-  if (dalAId === dalBId) {
+  if (!dalAId || !dalBId || dalAId === dalBId) {
     alert("Mandals must be unique teams!");
     return;
   }
@@ -1312,10 +1303,8 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
       venue,
       dalAId,
       dalBId,
-      durationMinutes: duration,
       startTime,
       endTime,
-      matchRound,
       description: matchDescription
     };
 
@@ -1329,7 +1318,6 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
     });
     closeModal();
     e.target.reset();
-    document.getElementById("matchDuration").value = "60";
     await loadMatches();
     await loadPlannedMatches();
     loadTabData("scheduling");
