@@ -64,6 +64,8 @@ model Match {
   tournamentName   String    @default("DSSL 2026")
   result           String    @default("")
   matchBanner      String    @default("")
+  matchRound       String    @default("")
+  description      String    @default("")
   
   createdAt        DateTime  @default(now())
 }

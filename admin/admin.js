@@ -11,6 +11,27 @@ let activeMatch = null;
 let timerInterval = null;
 let allMatches = [];
 let allDals = [];
+let scheduleCalendarDate = new Date();
+let scheduleViewMode = "calendar";
+
+const SPORT_COLORS = {
+  "Table Tennis": "#3b82f6",
+  "Badminton (Doubles)": "#65a30d",
+  "Badminton": "#65a30d",
+  "Chess": "#8b5cf6",
+  "7 Stones": "#f59e0b",
+  "Football": "#ef4444",
+  "Athletics (100m)": "#14b8a6",
+  "Athletics (200m)": "#14b8a6",
+  "Athletics (400m)": "#14b8a6",
+  "Athletics (Relay)": "#14b8a6",
+  "Tug of War": "#facc15",
+  "Volleyball": "#06b6d4",
+  "Cricket": "#22c55e",
+  "Basketball": "#f97316",
+  "Kabaddi": "#ec4899",
+  "Kho-Kho": "#a855f7"
+};
 
 // Sports Catalogue Matching Scoreboard Client
 const SPORTS = [
@@ -651,33 +672,232 @@ function openScorerPanel(id) {
 // ── Rendering Scheduling List ────────────────────────────────────────────────
 
 function renderSchedulingList() {
-  const tbody = document.getElementById("scheduleMatchesList");
-  tbody.innerHTML = "";
-
-  allMatches.forEach((m) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${m.sportName}</strong></td>
-      <td>${m.dalA.name} VS ${m.dalB.name}</td>
-      <td>${m.venue}</td>
-      <td>${new Date(m.createdAt).toLocaleDateString()}</td>
-      <td><span class="badge badge-${m.status}">${m.status}</span></td>
-      <td>
-        <div style="display: flex; gap: 6px;">
-          ${m.status !== "live" && m.status !== "completed" ? `
-            <button class="btn btn-icon" title="Start Live" onclick="setMatchStatus(${m.id}, 'live')">
-              <i class="ri-play-fill" style="color: var(--success)"></i>
-            </button>
-          ` : ""}
-          <button class="btn btn-icon btn-danger" onclick="deleteMatch(${m.id})">
-            <i class="ri-delete-bin-line"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+  populateScheduleControls();
+  renderAdminScheduleTable();
+  renderScheduleStats();
+  renderScheduleCalendar();
+  renderScheduleTables();
 }
+
+function getMatchDate(match) {
+  const raw = match.startTime || match.createdAt;
+  return raw ? new Date(raw) : new Date();
+}
+
+function getMatchEndDate(match) {
+  return match.endTime ? new Date(match.endTime) : null;
+}
+
+function getSportColor(sportName) {
+  return SPORT_COLORS[sportName] || "#3b82f6";
+}
+
+function getMatchupText(match) {
+  return match.matchRound || match.round || `${match.dalA?.name || "Team A"} VS ${match.dalB?.name || "Team B"}`;
+}
+
+function formatScheduleDateTime(match) {
+  const start = getMatchDate(match);
+  const end = getMatchEndDate(match);
+  const date = start.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const startTime = start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const endTime = end ? ` - ${end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}` : "";
+  return `${date}, ${startTime}${endTime}`;
+}
+
+function filterScheduleMatches() {
+  const sportFilter = document.getElementById("scheduleSportFilter")?.value || "";
+  const venueFilter = document.getElementById("scheduleVenueFilter")?.value || "";
+  return [...allMatches]
+    .filter(m => !sportFilter || m.sportName === sportFilter)
+    .filter(m => !venueFilter || m.venue === venueFilter)
+    .sort((a, b) => getMatchDate(a) - getMatchDate(b));
+}
+
+function populateScheduleControls() {
+  const sportFilter = document.getElementById("scheduleSportFilter");
+  const venueFilter = document.getElementById("scheduleVenueFilter");
+  const sportSelect = document.getElementById("matchSport");
+
+  if (sportSelect && sportSelect.options.length === 0) {
+    sportSelect.innerHTML = `<option value="">Select Sport</option>` + SPORTS.map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join("");
+  }
+  if (sportFilter && sportFilter.dataset.ready !== "true") {
+    sportFilter.innerHTML = `<option value="">All Sports</option>` + SPORTS
+      .map(s => `<option value="${s.name}">${s.name}</option>`)
+      .join("");
+    sportFilter.dataset.ready = "true";
+  }
+  if (venueFilter) {
+    const current = venueFilter.value;
+    venueFilter.innerHTML = `<option value="">All Venues</option>` + [...new Set(allMatches.map(m => m.venue).filter(Boolean))]
+      .sort()
+      .map(v => `<option value="${v}">${v}</option>`)
+      .join("");
+    venueFilter.value = current;
+  }
+}
+
+function renderScheduleStats() {
+  const el = document.getElementById("scheduleStatsGrid");
+  if (!el) return;
+  const total = allMatches.length;
+  const scheduled = allMatches.filter(m => m.status === "scheduled").length;
+  const live = allMatches.filter(m => m.status === "live").length;
+  const completed = allMatches.filter(m => m.status === "completed").length;
+  const stats = [
+    ["ri-calendar-event-line", "Total Matches", total, "All scheduled matches", "#3b82f6"],
+    ["ri-checkbox-circle-line", "Scheduled", scheduled, "Upcoming matches", "#65a30d"],
+    ["ri-time-line", "In Progress", live, "Matches ongoing", "#f59e0b"],
+    ["ri-check-double-line", "Completed", completed, "Finished matches", "#8b5cf6"]
+  ];
+  el.innerHTML = stats.map(([icon, label, value, note, color]) => `
+    <div class="planner-stat-card">
+      <div class="planner-stat-icon" style="background: ${color}24; color: ${color};"><i class="${icon}"></i></div>
+      <div>
+        <div class="planner-stat-label">${label}</div>
+        <div class="planner-stat-value">${value}</div>
+        <div class="planner-stat-note">${note}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderScheduleCalendar() {
+  const grid = document.getElementById("scheduleCalendarGrid");
+  const label = document.getElementById("scheduleMonthLabel");
+  const legend = document.getElementById("scheduleLegend");
+  if (!grid || !label) return;
+
+  const year = scheduleCalendarDate.getFullYear();
+  const month = scheduleCalendarDate.getMonth();
+  label.textContent = scheduleCalendarDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  grid.innerHTML = "";
+
+  const first = new Date(year, month, 1);
+  const start = new Date(year, month, 1 - first.getDay());
+  const matches = filterScheduleMatches();
+
+  for (let i = 0; i < 42; i++) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    const dayKey = day.toDateString();
+    const dayMatches = matches.filter(m => getMatchDate(m).toDateString() === dayKey);
+    const cell = document.createElement("div");
+    cell.className = `calendar-day ${day.getMonth() !== month ? "muted-day" : ""}`;
+    cell.innerHTML = `<div class="day-number">${day.getDate()}</div>`;
+    dayMatches.slice(0, 3).forEach(m => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "calendar-event";
+      btn.style.setProperty("--sport-color", getSportColor(m.sportName));
+      btn.innerHTML = `${m.sportName}<span>${getMatchDate(m).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>`;
+      cell.appendChild(btn);
+    });
+    if (dayMatches.length > 3) {
+      const more = document.createElement("div");
+      more.style.cssText = "font-size: 11px; color: var(--text-muted); font-weight: 700;";
+      more.textContent = `+${dayMatches.length - 3} more`;
+      cell.appendChild(more);
+    }
+    grid.appendChild(cell);
+  }
+
+  if (legend) {
+    const sports = [...new Set(matches.map(m => m.sportName).filter(Boolean))].slice(0, 9);
+    legend.innerHTML = sports.map(s => `<span class="legend-chip" style="--sport-color: ${getSportColor(s)}"><span class="legend-dot"></span>${s}</span>`).join("");
+  }
+}
+
+function renderScheduleTables() {
+  const tbody = document.getElementById("scheduleMatchesList");
+  const upcomingBody = document.getElementById("upcomingScheduleMatchesList");
+  const matches = filterScheduleMatches();
+  const rows = matches.map(renderScheduleRow).join("");
+  if (tbody) tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No matches found.</td></tr>`;
+
+  const upcoming = matches.filter(m => m.status !== "completed").slice(0, 6);
+  if (upcomingBody) {
+    upcomingBody.innerHTML = upcoming.map(renderScheduleRow).join("") || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
+  }
+}
+
+function renderAdminScheduleTable() {
+  const tbody = document.getElementById("adminScheduleMatchesList");
+  if (!tbody) return;
+
+  const rows = [...allMatches]
+    .sort((a, b) => getMatchDate(a) - getMatchDate(b))
+    .map((m) => `
+      <tr>
+        <td><strong>${m.sportName}</strong></td>
+        <td>${getMatchupText(m)}</td>
+        <td>${m.venue || "-"}</td>
+        <td>${formatScheduleDateTime(m)}</td>
+        <td><span class="badge badge-${m.status}">${(m.status || "scheduled").toUpperCase()}</span></td>
+        <td>
+          <div style="display: flex; gap: 6px;">
+            ${m.status !== "live" && m.status !== "completed" ? `
+              <button class="btn btn-icon" title="Start Live" onclick="setMatchStatus(${m.id}, 'live')">
+                <i class="ri-play-fill" style="color: var(--success)"></i>
+              </button>
+            ` : ""}
+            <button class="btn btn-icon" title="Scoring Control" onclick="openScorerPanel(${m.id})"><i class="ri-edit-line"></i></button>
+            <button class="btn btn-icon btn-danger" title="Delete" onclick="deleteMatch(${m.id})"><i class="ri-delete-bin-line"></i></button>
+          </div>
+        </td>
+      </tr>
+    `)
+    .join("");
+
+  tbody.innerHTML = rows || `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No scheduled matches yet.</td></tr>`;
+}
+
+function renderScheduleRow(m) {
+  return `
+    <tr>
+      <td>${formatScheduleDateTime(m)}</td>
+      <td><span class="badge" style="background: ${getSportColor(m.sportName)}24; color: ${getSportColor(m.sportName)}; border: 1px solid ${getSportColor(m.sportName)}55;">${m.sportName}</span></td>
+      <td>${getMatchupText(m)}</td>
+      <td>${m.venue}</td>
+      <td><span class="badge badge-${m.status}">${m.status}</span></td>
+    </tr>
+  `;
+}
+
+window.setScheduleView = function(view) {
+  scheduleViewMode = view;
+  document.getElementById("scheduleCalendarView")?.classList.toggle("active", view === "calendar");
+  document.getElementById("scheduleListView")?.classList.toggle("active", view === "list");
+  document.getElementById("calendarViewBtn")?.classList.toggle("active", view === "calendar");
+  document.getElementById("listViewBtn")?.classList.toggle("active", view === "list");
+};
+
+window.changeScheduleMonth = function(delta) {
+  scheduleCalendarDate = new Date(scheduleCalendarDate.getFullYear(), scheduleCalendarDate.getMonth() + delta, 1);
+  renderSchedulingList();
+};
+
+window.goScheduleToday = function() {
+  scheduleCalendarDate = new Date();
+  renderSchedulingList();
+};
+
+window.setSchedulingSubtab = function(tab) {
+  const isPlanner = tab === "planner";
+  document.getElementById("scheduleMainPanel")?.classList.toggle("active", !isPlanner);
+  document.getElementById("schedulePlannerPanel")?.classList.toggle("active", isPlanner);
+  document.getElementById("scheduleMainTabBtn")?.classList.toggle("active", !isPlanner);
+  document.getElementById("schedulePlannerTabBtn")?.classList.toggle("active", isPlanner);
+  if (isPlanner) {
+    populateScheduleControls();
+    renderScheduleStats();
+    renderScheduleCalendar();
+    renderScheduleTables();
+  } else {
+    renderAdminScheduleTable();
+  }
+};
 
 function renderTeamsList() {
   const tbody = document.getElementById("teamsList");
@@ -980,11 +1200,11 @@ if (openNewMatchModalBtn) {
   });
 }
 
-const closeModal = () => { newMatchModal.style.display = "none"; };
+const closeModal = () => { if (newMatchModal) newMatchModal.style.display = "none"; };
 if (closeNewMatchModalBtn) closeNewMatchModalBtn.addEventListener("click", closeModal);
 if (cancelNewMatchBtn) cancelNewMatchBtn.addEventListener("click", closeModal);
 
-document.getElementById("newMatchForm").addEventListener("submit", async (e) => {
+document.getElementById("newMatchForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   
   const sportId = document.getElementById("matchSport").value;
@@ -993,7 +1213,14 @@ document.getElementById("newMatchForm").addEventListener("submit", async (e) => 
   const dalAId = document.getElementById("matchDalA").value;
   const dalBId = document.getElementById("matchDalB").value;
   const duration = document.getElementById("matchDuration").value;
-  const isLive = document.getElementById("matchIsLive").value === "true";
+  const isLive = document.getElementById("matchIsLive")?.value === "true";
+  const matchDate = document.getElementById("matchDate")?.value || "";
+  const startClock = document.getElementById("matchStartTime")?.value || "";
+  const endClock = document.getElementById("matchEndTime")?.value || "";
+  const matchRound = document.getElementById("matchRound")?.value.trim() || "";
+  const matchDescription = document.getElementById("matchDescription")?.value.trim() || "";
+  const startTime = matchDate && startClock ? new Date(`${matchDate}T${startClock}`).toISOString() : null;
+  const endTime = matchDate && endClock ? new Date(`${matchDate}T${endClock}`).toISOString() : null;
 
   if (dalAId === dalBId) {
     alert("Mandals must be unique teams!");
@@ -1010,10 +1237,16 @@ document.getElementById("newMatchForm").addEventListener("submit", async (e) => 
         dalAId,
         dalBId,
         durationMinutes: duration,
-        isLive
+        isLive,
+        startTime,
+        endTime,
+        matchRound,
+        description: matchDescription
       })
     });
     closeModal();
+    e.target.reset();
+    document.getElementById("matchDuration").value = "60";
     await loadMatches();
     loadTabData("scheduling");
   } catch (error) {

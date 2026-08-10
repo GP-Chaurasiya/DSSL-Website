@@ -37,99 +37,84 @@
       font-size: 16px;
     }
 
-    /* Filter Bar */
-    .filter-bar {
-      background-color: var(--surface-color);
+    .fixtures-table-card {
+      background: var(--surface-color);
       border: 1px solid var(--border-color);
-      border-radius: 20px;
-      padding: 1.5rem;
-      margin-bottom: 2.5rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: center;
+      border-radius: 18px;
+      padding: 1rem;
       box-shadow: var(--shadow);
+      overflow-x: auto;
     }
 
-    .search-wrapper-custom {
-      flex: 1;
-      min-width: 250px;
-      position: relative;
-    }
-
-    .search-wrapper-custom input {
+    .fixtures-table {
       width: 100%;
-      padding: 10px 16px 10px 40px;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: inherit;
+      border-collapse: collapse;
+      min-width: 860px;
+      text-align: center;
+    }
+
+    .fixtures-table th,
+    .fixtures-table td {
+      padding: 12px 14px;
+      border: 1px solid var(--border-light);
       font-size: 14px;
-      outline: none;
-      transition: var(--transition);
     }
 
-    .search-wrapper-custom input:focus {
-      border-color: var(--primary-color);
+    .fixtures-table thead th {
+      font-weight: 800;
+      color: var(--heading-color);
+      background: var(--surface-color);
     }
 
-    .search-wrapper-custom i {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
+    .month-row td {
+      text-align: left;
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--heading-color);
+      background: linear-gradient(90deg, rgba(0, 62, 138, 0.08), rgba(255, 188, 1, 0.06));
+    }
+
+    .month-row:nth-of-type(odd) td {
+      background: linear-gradient(90deg, rgba(34, 197, 94, 0.12), rgba(255, 255, 255, 0.02));
+    }
+
+    .fixture-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
       color: var(--text-muted);
     }
 
-    .select-wrapper {
-      min-width: 180px;
+    .page-buttons {
+      display: flex;
+      gap: 8px;
     }
 
-    .select-wrapper select {
-      width: 100%;
-      padding: 10px 16px;
+    .page-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      background-color: var(--bg-color);
+      background: var(--surface-color);
       color: var(--text-color);
-      font-family: inherit;
-      font-size: 14px;
-      outline: none;
+      font: inherit;
+      font-weight: 700;
       cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      background-size: 16px;
     }
 
-    .select-wrapper select:focus {
-      border-color: var(--primary-color);
+    .page-btn.active {
+      background: var(--accent-blue);
+      color: #fff;
     }
 
-    .reset-btn {
-      padding: 10px 20px;
-      border: 1px solid var(--border-color);
-      background-color: transparent;
-      color: var(--text-color);
-      border-radius: 12px;
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .reset-btn:hover {
-      background-color: var(--border-light);
-    }
-
-    /* Schedule List */
-    .matches-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 1.5rem;
+    .empty-fixtures {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 3rem 1rem;
     }
   </style>
 </head>
@@ -175,33 +160,8 @@
       <p>Browse full tournament fixtures. Filter matches by sports categories or specific Mandals to find schedules.</p>
     </div>
 
-    <!-- Filters -->
-    <div class="filter-bar">
-      <div class="search-wrapper-custom">
-        <i class="ri-search-line"></i>
-        <input type="text" id="searchInput" placeholder="Search team, sport, or venue...">
-      </div>
-
-      <div class="select-wrapper">
-        <select id="sportFilter">
-          <option value="">All Sports</option>
-          <!-- Dynamic sports list options -->
-        </select>
-      </div>
-
-      <div class="select-wrapper">
-        <select id="dalFilter">
-          <option value="">All Mandals</option>
-          <!-- Dynamic mandals list options -->
-        </select>
-      </div>
-
-      <button class="reset-btn" onclick="resetFilters()"><i class="ri-refresh-line"></i> Reset Filters</button>
-    </div>
-
-    <!-- Fixtures Grid -->
-    <div class="matches-grid" id="scheduleContainer">
-      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">
+    <div class="fixtures-table-card" id="scheduleContainer">
+      <div class="empty-fixtures">
         <i class="ri-loader-3-line" style="font-size: 30px; display: inline-block; animation: spin 1s infinite linear;"></i>
         <p style="margin-top: 10px;">Loading fixtures schedule...</p>
       </div>
@@ -291,24 +251,6 @@
         const dalsRes = await fetch("/api/mandals");
         allDals = await dalsRes.json();
         
-        // Populate Mandals selector
-        const dalSelect = document.getElementById("dalFilter");
-        allDals.forEach(d => {
-          const opt = document.createElement("option");
-          opt.value = d.id;
-          opt.textContent = d.name;
-          dalSelect.appendChild(opt);
-        });
-
-        // Populate Sports selector
-        const sportSelect = document.getElementById("sportFilter");
-        SPORTS.forEach(s => {
-          const opt = document.createElement("option");
-          opt.value = s.id;
-          opt.textContent = `${s.icon} ${s.name}`;
-          sportSelect.appendChild(opt);
-        });
-
         // Load Matches
         const matchesRes = await fetch("/api/matches");
         allMatches = await matchesRes.json();
@@ -323,103 +265,74 @@
       const container = document.getElementById("scheduleContainer");
       container.innerHTML = "";
 
-      const query = document.getElementById("searchInput").value.trim().toLowerCase();
-      const sportFilter = document.getElementById("sportFilter").value;
-      const dalFilter = document.getElementById("dalFilter").value;
-
-      // Filter matches (typically scheduled, but we show upcoming/live as well, prioritized)
-      const filtered = allMatches.filter((m) => {
-        // Matches matching query
-        const matchesSearch = m.sportName.toLowerCase().includes(query) || 
-                              m.venue.toLowerCase().includes(query) ||
-                              m.dalA.name.toLowerCase().includes(query) ||
-                              m.dalB.name.toLowerCase().includes(query);
-        
-        // Matches matching sport select
-        const matchesSport = !sportFilter || m.sportId == sportFilter;
-
-        // Matches matching mandal select
-        const matchesDal = !dalFilter || m.dalAId == dalFilter || m.dalBId == dalFilter;
-
-        return matchesSearch && matchesSport && matchesDal;
-      });
+      const getMatchDate = (m) => new Date(m.startTime || m.createdAt || Date.now());
+      const getEndDate = (m) => m.endTime ? new Date(m.endTime) : null;
+      const filtered = [...allMatches].sort((a, b) => getMatchDate(a) - getMatchDate(b));
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px;">No scheduled fixtures match your criteria.</div>`;
+        container.innerHTML = `<div class="empty-fixtures">No scheduled fixtures available yet.</div>`;
         return;
       }
 
+      const grouped = new Map();
       filtered.forEach((m) => {
-        const card = document.createElement("div");
-        card.className = "match-card-item";
-
-        let statusText = m.status;
-        if (m.status === "live") statusText = "Live";
-        if (m.status === "completed") statusText = "Finished";
-        if (m.status === "scheduled") statusText = "Upcoming";
-
-        let footerText = `<i class="ri-map-pin-line"></i> ${m.venue}`;
-        if (m.status === "live") {
-          let sec = m.elapsedSeconds;
-          if (m.timerRunning && m.timerStartedAt) {
-            sec += Math.max(0, Math.floor((Date.now() - new Date(m.timerStartedAt).getTime()) / 1000));
-          }
-          const min = Math.floor(sec / 60).toString().padStart(2, "0");
-          const s = (sec % 60).toString().padStart(2, "0");
-          footerText = `<i class="ri-time-line"></i> In Progress: ${min}:${s} (${m.venue})`;
-        } else if (m.status === "scheduled") {
-          footerText = `<i class="ri-calendar-line"></i> Scheduled (${m.venue})`;
-        }
-
-        card.innerHTML = `
-          <div>
-            <div class="card-top-row">
-              <span class="sport-tag">${m.sportName}</span>
-              <span class="status-badge status-${m.status}">${statusText}</span>
-            </div>
-            
-            <div class="matchup-row">
-              <div class="team-block">
-                <img src="${m.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
-                <p>${m.dalA.name}</p>
-              </div>
-              
-              <div class="score-block">
-                ${m.status === "scheduled" ? "VS" : `${m.scoreA} - ${m.scoreB}`}
-              </div>
-              
-              <div class="team-block">
-                <img src="${m.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
-                <p>${m.dalB.name}</p>
-              </div>
-            </div>
-            ${m.sportName.toLowerCase().includes("cricket") && m.overs && m.status === "live" ? `
-            <div style="text-align: center; font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 10px;">
-              Overs: ${m.overs} | Wickets: ${m.wickets}
-            </div>
-            ` : ""}
-          </div>
-          
-          <div class="card-footer-row">
-            <span>${footerText}</span>
-            <a href="match-details.html?id=${m.id}" class="btn-action">Scorecard</a>
-          </div>
-        `;
-        container.appendChild(card);
+        const date = getMatchDate(m);
+        const key = date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(m);
       });
-    }
 
-    function resetFilters() {
-      document.getElementById("searchInput").value = "";
-      document.getElementById("sportFilter").value = "";
-      document.getElementById("dalFilter").value = "";
-      renderSchedule();
-    }
+      let index = 1;
+      const rows = [];
+      grouped.forEach((matches, monthLabel) => {
+        rows.push(`<tr class="month-row"><td colspan="6">${monthLabel}</td></tr>`);
+        matches.forEach((m) => {
+          const start = getMatchDate(m);
+          const end = getEndDate(m);
+          const dateText = start.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
+          const dayText = start.toLocaleDateString("en-IN", { weekday: "short" });
+          const startText = start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+          const endText = end ? end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
+          const timeText = endText ? `${startText} - ${endText}` : startText;
+          const matchupText = m.matchRound ? `${m.matchRound}` : `${m.sportName} - ${m.dalA.name} VS ${m.dalB.name}`;
+          rows.push(`
+            <tr>
+              <td>${index++}</td>
+              <td>${dateText}</td>
+              <td>${dayText}</td>
+              <td>${timeText}</td>
+              <td>${matchupText}</td>
+              <td>${m.venue}</td>
+            </tr>
+          `);
+        });
+      });
 
-    // Attach listeners
-    document.getElementById("searchInput").addEventListener("input", renderSchedule);
-    document.getElementById("sportFilter").addEventListener("change", renderSchedule);
-    document.getElementById("dalFilter").addEventListener("change", renderSchedule);
+      container.innerHTML = `
+        <table class="fixtures-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Day</th>
+              <th>Time</th>
+              <th>Event / Round</th>
+              <th>Venue</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+        <div class="fixture-pagination">
+          <span>Show <strong>${filtered.length}</strong> entries</span>
+          <div class="page-buttons">
+            <button type="button" class="page-btn active">1</button>
+            <button type="button" class="page-btn">2</button>
+            <button type="button" class="page-btn">3</button>
+            <button type="button" class="page-btn"><i class="ri-arrow-right-s-line"></i></button>
+          </div>
+        </div>
+      `;
+    }
 
     // Socket listeners
     socket.on("matchUpdate", (match) => {

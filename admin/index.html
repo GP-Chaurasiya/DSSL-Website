@@ -1430,6 +1430,57 @@
         display: block;
       }
     }
+    /* Scheduling Planner */
+    .planner-shell { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; }
+    .planner-stats { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+    .planner-stat-card, .planner-panel { background: linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.92)); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow); }
+    [data-theme="light"] .planner-stat-card, [data-theme="light"] .planner-panel { background: #ffffff; }
+    .planner-stat-card { display: flex; align-items: center; gap: 1rem; padding: 1.1rem; min-width: 0; }
+    .planner-stat-icon { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 21px; }
+    .planner-stat-label { color: var(--text-muted); font-size: 12px; line-height: 1.2; }
+    .planner-stat-value { font-size: 24px; font-weight: 800; line-height: 1.1; margin-top: 2px; }
+    .planner-stat-note { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+    .planner-panel { padding: 1.1rem; margin-bottom: 1rem; }
+    .planner-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .planner-panel-title h3, .planner-panel-title h4 { font-size: 17px; font-weight: 800; }
+    .planner-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .planner-toolbar-left, .planner-toolbar-right, .calendar-nav { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+    .segmented { display: inline-flex; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.02); }
+    .segmented button { border: 0; background: transparent; color: var(--text-muted); padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .segmented button.active { background: var(--primary); color: #05070d; }
+    .planner-select, .planner-input { width: 100%; min-height: 38px; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(255, 255, 255, 0.02); color: var(--text-main); font: inherit; font-size: 13px; color-scheme: dark; }
+    [data-theme="light"] .planner-select, [data-theme="light"] .planner-input { background: #f8fafc; color-scheme: light; }
+    .calendar-nav { padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px; }
+    .calendar-nav button { width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent; color: var(--text-main); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .calendar-month-label { min-width: 112px; text-align: center; font-size: 13px; font-weight: 700; }
+    .schedule-calendar { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+    .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .calendar-weekdays div { padding: 10px 8px; color: var(--text-muted); font-size: 12px; font-weight: 700; text-align: center; border-bottom: 1px solid var(--border-color); }
+    .calendar-day { min-height: 96px; padding: 8px; border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.01); }
+    .calendar-day:nth-child(7n) { border-right: 0; }
+    .day-number { font-size: 13px; font-weight: 800; margin-bottom: 7px; }
+    .muted-day .day-number { color: var(--text-muted); opacity: 0.65; }
+    .calendar-event { display: block; width: 100%; border: 0; border-left: 3px solid currentColor; border-radius: 6px; padding: 4px 6px; margin-bottom: 5px; background: rgba(59, 130, 246, 0.12); color: var(--sport-color, #3b82f6); font: inherit; font-size: 11px; font-weight: 800; line-height: 1.2; text-align: left; cursor: pointer; }
+    .calendar-event span { display: block; color: var(--text-main); font-size: 10px; font-weight: 600; margin-top: 2px; }
+    .sport-legend { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.9rem; color: var(--text-main); font-size: 12px; }
+    .legend-chip { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sport-color, #3b82f6); }
+    .planner-list-view { display: none; }
+    .planner-list-view.active, .planner-calendar-view.active { display: block; }
+    .planner-calendar-view { display: none; }
+    .planner-form { display: grid; gap: 0.9rem; }
+    .planner-form .form-group { gap: 7px; }
+    .planner-form textarea { resize: vertical; min-height: 74px; }
+    .planner-form-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.2rem; }
+    .quick-tips { color: var(--text-muted); font-size: 13px; line-height: 1.7; padding-left: 1rem; }
+    .planner-shell.planner-readonly { grid-template-columns: 1fr; }
+    .schedule-subtabs { display: inline-flex; gap: 0.5rem; padding: 5px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(255, 255, 255, 0.02); margin-bottom: 1.25rem; }
+    .schedule-subtab-btn { border: 0; background: transparent; color: var(--text-muted); border-radius: 8px; padding: 9px 14px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+    .schedule-subtab-btn.active { background: var(--primary); color: #05070d; }
+    .schedule-subtab-panel { display: none; }
+    .schedule-subtab-panel.active { display: block; }
+    @media (max-width: 1200px) { .planner-shell { grid-template-columns: 1fr; } .planner-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 720px) { .planner-stats { grid-template-columns: 1fr; } .calendar-weekdays { display: none; } .calendar-grid { grid-template-columns: 1fr; } .calendar-day { min-height: auto; border-right: 0; } }
   </style>
 </head>
 <body data-theme="dark">
@@ -1677,32 +1728,125 @@
 
       <!-- ── TAB: SCHEDULING ── -->
       <div class="tab-content" id="tab-scheduling">
-        <div class="section-card">
-          <div class="section-header">
-            <h3>Match Schedule & Fixtures</h3>
-            <button class="btn" id="openNewMatchModalBtn"><i class="ri-add-line"></i> Schedule Match</button>
+        <div class="schedule-subtabs" role="tablist" aria-label="Scheduling views">
+          <button type="button" class="schedule-subtab-btn active" id="scheduleMainTabBtn" onclick="setSchedulingSubtab('schedule')">
+            <i class="ri-list-check-2"></i> Schedule
+          </button>
+          <button type="button" class="schedule-subtab-btn" id="schedulePlannerTabBtn" onclick="setSchedulingSubtab('planner')">
+            <i class="ri-calendar-schedule-line"></i> Planner
+          </button>
+        </div>
+
+        <div class="schedule-subtab-panel active" id="scheduleMainPanel">
+          <div class="section-card">
+            <div class="section-header">
+              <h3>Match Schedule & Fixtures</h3>
+              <button type="button" class="btn" id="openNewMatchModalBtn">
+                <i class="ri-add-line"></i> Schedule Match
+              </button>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sport</th>
+                    <th>Matchup</th>
+                    <th>Venue</th>
+                    <th>Date & Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminScheduleMatchesList"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Sport</th>
-                  <th>Matchup</th>
-                  <th>Venue</th>
-                  <th>Date & Time</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="scheduleMatchesList">
-                <!-- Matches list loaded dynamically -->
-              </tbody>
-            </table>
+        </div>
+
+        <div class="schedule-subtab-panel" id="schedulePlannerPanel">
+          <div class="planner-stats" id="scheduleStatsGrid"></div>
+
+          <div class="planner-shell planner-readonly">
+          <div>
+            <div class="planner-panel">
+              <div class="planner-panel-title">
+                <h3>Schedule Overview</h3>
+              </div>
+
+              <div class="planner-toolbar">
+                <div class="planner-toolbar-left">
+                  <div class="segmented">
+                    <button type="button" class="active" id="calendarViewBtn" onclick="setScheduleView('calendar')"><i class="ri-calendar-event-line"></i> Calendar View</button>
+                    <button type="button" id="listViewBtn" onclick="setScheduleView('list')"><i class="ri-list-check"></i> List View</button>
+                  </div>
+                </div>
+                <div class="planner-toolbar-right">
+                  <select class="planner-select" id="scheduleSportFilter" onchange="renderSchedulingList()" style="width: 160px;"><option value="">All Sports</option></select>
+                  <select class="planner-select" id="scheduleVenueFilter" onchange="renderSchedulingList()" style="width: 160px;"><option value="">All Venues</option></select>
+                  <div class="calendar-nav">
+                    <button type="button" onclick="changeScheduleMonth(-1)" title="Previous month"><i class="ri-arrow-left-s-line"></i></button>
+                    <span class="calendar-month-label" id="scheduleMonthLabel">Month 2026</span>
+                    <button type="button" onclick="changeScheduleMonth(1)" title="Next month"><i class="ri-arrow-right-s-line"></i></button>
+                  </div>
+                  <button type="button" class="btn btn-secondary" onclick="goScheduleToday()" style="margin-top: 0;">Today</button>
+                </div>
+              </div>
+
+              <div class="planner-calendar-view active" id="scheduleCalendarView">
+                <div class="schedule-calendar">
+                  <div class="calendar-weekdays">
+                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                  </div>
+                  <div class="calendar-grid" id="scheduleCalendarGrid"></div>
+                </div>
+                <div class="sport-legend" id="scheduleLegend"></div>
+              </div>
+
+              <div class="planner-list-view" id="scheduleListView">
+                <div class="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date & Time</th>
+                        <th>Sport</th>
+                        <th>Matchup / Round</th>
+                        <th>Venue</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="scheduleMatchesList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="planner-panel">
+              <div class="planner-panel-title">
+                <h3>Upcoming Matches</h3>
+              </div>
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date & Time</th>
+                      <th>Sport</th>
+                      <th>Matchup / Round</th>
+                      <th>Venue</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="upcomingScheduleMatchesList"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
 
       <!-- ── TAB: TEAMS ── -->
+      </div>
+
       <div class="tab-content" id="tab-teams">
         <div class="section-card">
           <div class="section-header">

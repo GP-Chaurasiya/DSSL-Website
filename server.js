@@ -241,6 +241,8 @@ const serializeMatch = (m) => {
     timerStartedAt: m.timerStartedAt ? m.timerStartedAt.getTime() : null,
     dalA: formatLogo(m.dalA),
     dalB: formatLogo(m.dalB),
+    matchRound: m.matchRound || "",
+    description: m.description || ""
   };
 };
 
@@ -455,7 +457,7 @@ app.get("/api/matches/:id", async (req, res) => {
 
 // Create Match
 app.post("/api/matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
-  const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, isLive } = req.body;
+  const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, isLive, startTime, endTime, description, matchRound } = req.body;
   if (!sportId || !dalAId || !dalBId || !venue) {
     return res.status(400).json({ error: "Missing required match parameters" });
   }
@@ -470,9 +472,13 @@ app.post("/api/matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANIS
         dalBId: parseInt(dalBId),
         durationMinutes: durationMinutes ? parseInt(durationMinutes) : 60,
         status: isLive ? "live" : "scheduled",
-        startTime: isLive ? new Date() : null,
+        startTime: isLive ? new Date() : (startTime ? new Date(startTime) : null),
+        endTime: endTime ? new Date(endTime) : null,
         timerRunning: isLive,
-        timerStartedAt: isLive ? new Date() : null
+        timerStartedAt: isLive ? new Date() : null,
+        result: "",
+        matchRound: matchRound || "",
+        description: description || ""
       },
       include: { dalA: true, dalB: true }
     });
