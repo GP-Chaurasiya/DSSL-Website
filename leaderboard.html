@@ -285,13 +285,38 @@
     // Socket Connection
     const socket = io();
 
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
     async function loadLeaderboardData() {
       try {
         const dalsRes = await fetch("/api/mandals");
-        allDals = await dalsRes.json();
+        allDals = (await dalsRes.json()).map((team, index) => ({
+          ...team,
+          name: `Team ${index + 1}`,
+          abbreviation: `T${index + 1}`,
+          logoUrl: team.logoUrl || "DSSL_LOGO.png",
+          logo: team.logoUrl || "DSSL_LOGO.png"
+        }));
         
         const matchesRes = await fetch("/api/matches");
-        allMatches = await matchesRes.json();
+        allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
         
         computeLeaderboard();
       } catch (err) {
@@ -353,7 +378,7 @@
           <td><span class="${rankClass}">${rank}</span></td>
           <td>
             <div class="team-td">
-              <img src="${d.logo}" onerror="this.src='Vashishta Mandal.png'">
+              <img src="${d.logo}" onerror="this.src='DSSL_LOGO.png'">
               <span>${d.name}</span>
             </div>
           </td>
@@ -379,9 +404,9 @@
     socket.on("matchUpdate", (match) => {
       const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
       if (idx !== -1) {
-        allMatches[idx] = match;
+        allMatches[idx] = normalizeMatchData(match) || match;
       } else {
-        allMatches.unshift(match);
+        allMatches.unshift(normalizeMatchData(match) || match);
       }
       computeLeaderboard();
     });

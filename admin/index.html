@@ -1709,7 +1709,7 @@
                 <div class="form-grid">
                   <div class="form-group" style="grid-column: span 2">
                     <label for="matchResult">Match Result Description</label>
-                    <input type="text" id="matchResult" placeholder="Chanakya Mandal won by 5 runs">
+                    <input type="text" id="matchResult" placeholder="Team A won by 5 runs">
                   </div>
                   <div class="form-group" style="grid-column: span 1">
                     <label for="matchBannerFile">Match Banner Image</label>
@@ -1853,8 +1853,29 @@
       <div class="tab-content" id="tab-teams">
         <div class="section-card">
           <div class="section-header">
-            <h3>Registered Mandals (Teams)</h3>
+            <h3>Registered Teams</h3>
           </div>
+          <form id="addMandalForm" style="margin-bottom: 1.25rem;">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="mandalName">Team Name</label>
+                <input type="text" id="mandalName" placeholder="e.g. Team Alpha" required>
+              </div>
+              <div class="form-group">
+                <label for="mandalAbbreviation">Abbreviation</label>
+                <input type="text" id="mandalAbbreviation" placeholder="e.g. CK" required>
+              </div>
+              <div class="form-group">
+                <label for="mandalColor">Team Color</label>
+                <input type="color" id="mandalColor" value="#3b82f6">
+              </div>
+              <div class="form-group">
+                <label for="mandalLogoUrl">Logo File</label>
+                <input type="text" id="mandalLogoUrl" placeholder="Optional logo filename">
+              </div>
+            </div>
+            <button type="submit" class="btn"><i class="ri-add-line"></i> Add Team</button>
+          </form>
           <div class="table-container">
             <table>
               <thead>
@@ -2270,7 +2291,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="admin.js?v=20260809_v4"></script>
+  <script src="admin.js?v=20260811_v5"></script>
   <script src="../notifications.js"></script>
 </body>
 </html>

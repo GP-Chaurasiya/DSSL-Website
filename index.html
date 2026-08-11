@@ -709,6 +709,26 @@
     let plannedMatches = [];
     let allDals = [];
 
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B"),
+        matchupText: match.matchRound || match.description || `${match.sportName || "Scheduled"} Match`
+      };
+    }
+
     // Format milliseconds timer
     function formatMatchTime(seconds) {
       const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -720,14 +740,20 @@
       try {
         // Fetch Mandals
         const dalsRes = await fetch("/api/mandals");
-        allDals = await dalsRes.json();
+        allDals = (await dalsRes.json()).map((team, index) => ({
+          ...team,
+          name: `Team ${index + 1}`,
+          abbreviation: `T${index + 1}`,
+          logoUrl: team.logoUrl || "DSSL_LOGO.png",
+          logo: team.logoUrl || "DSSL_LOGO.png"
+        }));
 
         // Fetch Matches
         const matchesRes = await fetch("/api/matches");
-        allMatches = await matchesRes.json();
+        allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
 
         const plannedRes = await fetch("/api/planned-matches");
-        plannedMatches = plannedRes.ok ? await plannedRes.json() : [];
+        plannedMatches = (plannedRes.ok ? await plannedRes.json() : []).map(normalizeMatchData).filter(Boolean);
 
         renderRealtimeSections();
       } catch (error) {
@@ -763,14 +789,14 @@
         </div>
         <div class="live-score-area">
             <div class="team">
-                <img src="${m.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <p>${m.dalA.name}</p>
             </div>
             <div class="score">
                 ${m.scoreA} : ${m.scoreB}
             </div>
             <div class="team">
-                <img src="${m.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <p>${m.dalB.name}</p>
             </div>
         </div>
@@ -831,12 +857,12 @@
         </div>
         <div class="teams">
             <div class="team">
-                <img src="${m.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <p>${m.dalA.name}</p>
             </div>
             <div class="vs">VS</div>
             <div class="team">
-                <img src="${m.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <p>${m.dalB.name}</p>
             </div>
         </div>

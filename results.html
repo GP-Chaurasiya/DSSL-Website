@@ -332,10 +332,29 @@
     // Socket Setup
     const socket = io();
 
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
     async function loadMatches() {
       try {
         const response = await fetch("/api/matches");
-        allMatches = await response.json();
+        allMatches = (await response.json()).map(normalizeMatchData).filter(Boolean);
         renderMatches();
       } catch (err) {
         document.getElementById("matchesContainer").innerHTML = `<div style="text-align: center; grid-column: 1 / -1; color: var(--danger); padding: 40px;">Failed to connect to score server.</div>`;
@@ -387,7 +406,7 @@
             
             <div class="matchup-row">
               <div class="team-block">
-                <img src="${m.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <p>${m.dalA.name}</p>
               </div>
               
@@ -396,7 +415,7 @@
               </div>
               
               <div class="team-block">
-                <img src="${m.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <p>${m.dalB.name}</p>
               </div>
             </div>
@@ -430,9 +449,9 @@
     socket.on("matchUpdate", (match) => {
       const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
       if (idx !== -1) {
-        allMatches[idx] = match;
+        allMatches[idx] = normalizeMatchData(match) || match;
       } else {
-        allMatches.unshift(match);
+        allMatches.unshift(normalizeMatchData(match) || match);
       }
       renderMatches();
     });
@@ -449,7 +468,7 @@
       try {
         const res = await fetch("/api/matches");
         if (res.ok) {
-          allMatches = await res.json();
+          allMatches = (await res.json()).map(normalizeMatchData).filter(Boolean);
           renderMatches();
         }
       } catch (e) {}

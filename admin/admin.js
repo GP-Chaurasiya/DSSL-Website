@@ -238,7 +238,7 @@ async function loadPlannedMatches() {
 }
 
 async function loadDals() {
-  allDals = await apiCall("/api/mandals");
+  allDals = await apiCall("/api/mandals?includeSeeded=false");
 }
 
 async function loadNews() {
@@ -650,7 +650,7 @@ async function renderDashboard() {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td><strong>${m.sportName}</strong></td>
-            <td>${m.dalA.name} VS ${m.dalB.name}</td>
+            <td>Team A vs Team B</td>
             <td>${m.venue}</td>
             <td><span style="font-weight: 700; color: var(--accent); font-size: 16px;">${m.scoreA} : ${m.scoreB}</span></td>
             <td><span class="badge badge-live">Live</span></td>
@@ -700,7 +700,9 @@ function getSportColor(sportName) {
 }
 
 function getMatchupText(match) {
-  return match.matchRound || match.round || `${match.dalA?.name || "Team A"} VS ${match.dalB?.name || "Team B"}`;
+  if (match.matchRound) return match.matchRound;
+  if (match.sportName) return `${match.sportName} Match`;
+  return "Scheduled Match";
 }
 
 function formatScheduleDateTime(match) {
@@ -934,7 +936,13 @@ window.setSchedulingSubtab = function(tab) {
 
 function renderTeamsList() {
   const tbody = document.getElementById("teamsList");
+  if (!tbody) return;
   tbody.innerHTML = "";
+
+  if (!allDals.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted); padding: 2rem;">No teams added yet. Add one above to start scheduling matches.</td></tr>`;
+    return;
+  }
 
   allDals.forEach((mandal) => {
     const tr = document.createElement("tr");
@@ -946,6 +954,38 @@ function renderTeamsList() {
     `;
     tbody.appendChild(tr);
   });
+}
+
+async function addMandal(event) {
+  event.preventDefault();
+  const name = document.getElementById("mandalName")?.value?.trim();
+  const abbreviation = document.getElementById("mandalAbbreviation")?.value?.trim();
+  const color = document.getElementById("mandalColor")?.value || "#3b82f6";
+  const logoUrl = document.getElementById("mandalLogoUrl")?.value?.trim() || "";
+
+  if (!name || !abbreviation) {
+    alert("Please enter both team name and abbreviation.");
+    return;
+  }
+
+  try {
+    await apiCall("/api/mandals", {
+      method: "POST",
+      body: JSON.stringify({ name, color, abbreviation, logoUrl })
+    });
+    document.getElementById("addMandalForm")?.reset();
+    document.getElementById("mandalColor").value = "#3b82f6";
+    await loadDals();
+    renderTeamsList();
+    alert("Team added successfully.");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+const addMandalForm = document.getElementById("addMandalForm");
+if (addMandalForm) {
+  addMandalForm.addEventListener("submit", addMandal);
 }
 
 // ── Scorer Panel Logic ────────────────────────────────────────────────────────
@@ -960,7 +1000,7 @@ function populateScorerSelect() {
   allMatches.filter(m => m.status !== "completed").forEach((m) => {
     const option = document.createElement("option");
     option.value = m.id;
-    option.textContent = `${m.sportName}: ${m.dalA.name} vs ${m.dalB.name} (${m.status})`;
+    option.textContent = `${m.sportName} (${m.status})`;
     scorerMatchSelect.appendChild(option);
   });
 
@@ -990,8 +1030,8 @@ scorerMatchSelect.addEventListener("change", async (e) => {
 function renderScorerPanel() {
   if (!activeMatch) return;
   
-  document.getElementById("scorerTeamAName").textContent = activeMatch.dalA.name;
-  document.getElementById("scorerTeamBName").textContent = activeMatch.dalB.name;
+  document.getElementById("scorerTeamAName").textContent = "Team A";
+  document.getElementById("scorerTeamBName").textContent = "Team B";
   document.getElementById("scorerTeamAScore").textContent = activeMatch.scoreA;
   document.getElementById("scorerTeamBScore").textContent = activeMatch.scoreB;
 
@@ -1280,8 +1320,6 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const sportId = document.getElementById("matchSport").value;
   const sport = SPORTS.find(s => s.id == sportId);
   const venue = document.getElementById("matchVenue").value;
-  const dalAId = allDals[0]?.id ?? null;
-  const dalBId = allDals[1]?.id ?? allDals[0]?.id ?? null;
   const isLive = newMatchMode === "schedule";
   const matchDate = document.getElementById("matchDate")?.value || "";
   const startClock = document.getElementById("matchStartTime")?.value || "";
@@ -1290,19 +1328,12 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const startTime = newMatchMode === "planner" && matchDate && startClock ? new Date(`${matchDate}T${startClock}`).toISOString() : null;
   const endTime = newMatchMode === "planner" && matchDate && endClock ? new Date(`${matchDate}T${endClock}`).toISOString() : null;
 
-  if (!dalAId || !dalBId || dalAId === dalBId) {
-    alert("Mandals must be unique teams!");
-    return;
-  }
-
   try {
     const endpoint = newMatchMode === "planner" ? "/api/planned-matches" : "/api/matches";
     const payload = {
       sportId,
       sportName: sport.name,
       venue,
-      dalAId,
-      dalBId,
       startTime,
       endTime,
       description: matchDescription

@@ -334,11 +334,30 @@
       loadMatchDetails();
     }
 
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
     async function loadMatchDetails() {
       try {
         const res = await fetch(`/api/matches/${matchId}`);
         if (!res.ok) throw new Error("Match not found");
-        matchData = await res.ok ? await res.json() : null;
+        matchData = normalizeMatchData(await res.json());
         renderDetails();
       } catch (err) {
         document.getElementById("matchDetailsContainer").innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px; font-weight: 600;">Match details could not be loaded.</div>`;
@@ -389,7 +408,7 @@
             
             <div class="matchup-grid">
               <div class="matchup-team">
-                <img src="${matchData.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
+                <img src="${matchData.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <h3>${matchData.dalA.name}</h3>
               </div>
               
@@ -403,7 +422,7 @@
               </div>
               
               <div class="matchup-team">
-                <img src="${matchData.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
+                <img src="${matchData.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
                 <h3>${matchData.dalB.name}</h3>
               </div>
             </div>
@@ -473,7 +492,7 @@
     socket.on("matchUpdate", (match) => {
       if (match.id.toString() == matchId) {
         console.log("Realtime score update received for active match:", match);
-        matchData = match;
+        matchData = normalizeMatchData(match) || match;
         renderDetails();
       }
     });

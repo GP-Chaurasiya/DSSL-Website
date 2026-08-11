@@ -31,6 +31,15 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const JWT_SECRET = process.env.JWT_SECRET || "DSSL_super_secret_jwt_key_2026_DSSL";
+const SEEDED_MANDAL_NAMES = new Set([
+  "Vashishta Mandal",
+  "Vishwamitra Mandal",
+  "Atrey Mandal",
+  "Gautam Mandal",
+  "Bharadwaj Mandal",
+  "Jamdagni Mandal",
+  "Kashyap Mandal"
+]);
 
 // Ensure upload directory exists
 const uploadDir = path.join(ROOT, "uploads");
@@ -93,7 +102,7 @@ async function saveUploadedFile(file, title) {
       type: isVideo ? "VIDEO" : "IMAGE",
       url: "pending",
       title: title || file.originalname,
-      mimeType: mimeType,
+      mimeType,
       data: isVideo ? null : fileBuffer
     }
   });
@@ -106,7 +115,7 @@ async function saveUploadedFile(file, title) {
   const updated = await prisma.media.update({
     where: { id: media.id },
     data: { url: persistentUrl },
-    select: { id: true, type: true, url: true, title: true, mimeType: true, createdAt: true }
+    select: { id: true, type: true, url: true, title: true, createdAt: true }
   });
 
   return updated;
@@ -193,10 +202,22 @@ app.get("/api/mandals", async (req, res) => {
     const mandals = await prisma.mandal.findMany({
       orderBy: { id: "asc" }
     });
-    // Add logo mapping for scoreboard React client
-    const mapped = mandals.map(d => ({
+
+    const fallbackMandals = [
+      { id: 1, name: "Vashishta Mandal", abbreviation: "VSM", color: "#1d4ed8", logoUrl: "DSSL_LOGO.png" },
+      { id: 2, name: "Vishwamitra Mandal", abbreviation: "VWM", color: "#dc2626", logoUrl: "DSSL_LOGO.png" },
+      { id: 3, name: "Atrey Mandal", abbreviation: "ATM", color: "#16a34a", logoUrl: "DSSL_LOGO.png" },
+      { id: 4, name: "Gautam Mandal", abbreviation: "GTM", color: "#7c3aed", logoUrl: "DSSL_LOGO.png" },
+      { id: 5, name: "Bharadwaj Mandal", abbreviation: "BHM", color: "#f59e0b", logoUrl: "DSSL_LOGO.png" },
+      { id: 6, name: "Jamdagni Mandal", abbreviation: "JDM", color: "#0f766e", logoUrl: "DSSL_LOGO.png" },
+      { id: 7, name: "Kashyap Mandal", abbreviation: "KSM", color: "#be185d", logoUrl: "DSSL_LOGO.png" }
+    ];
+
+    const sourceMandals = mandals.length > 0 ? mandals : fallbackMandals;
+    const mapped = sourceMandals.map(d => ({
       ...d,
-      logo: d.logoUrl ? (d.logoUrl.startsWith('/') ? d.logoUrl : `/${d.logoUrl}`) : '/Vashishta Mandal.png'
+      logoUrl: d.logoUrl ? (d.logoUrl.startsWith('/') ? d.logoUrl : `/${d.logoUrl}`) : d.logoUrl,
+      logo: d.logo ? (d.logo.startsWith('/') ? d.logo : `/${d.logo}`) : d.logo
     }));
     res.json(mapped);
   } catch (error) {
@@ -208,7 +229,7 @@ app.post("/api/mandals", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANIS
   const { name, color, abbreviation, logoUrl } = req.body;
   try {
     const mandal = await prisma.mandal.create({
-      data: { name, color, abbreviation, logoUrl: logoUrl || "Vashishta Mandal.png" }
+      data: { name, color, abbreviation, logoUrl: logoUrl || "DSSL_LOGO.png" }
     });
     res.status(201).json({
       ...mandal,
@@ -222,16 +243,28 @@ app.post("/api/mandals", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANIS
 // ── Matches APIs ──────────────────────────────────────────────────────────────
 
 // Helper to convert Match data fields for Client
+const serializeTeam = (team, fallbackLabel = "Team") => {
+  if (!team) {
+    return {
+      id: null,
+      name: fallbackLabel,
+      abbreviation: fallbackLabel,
+      logoUrl: "",
+      logo: ""
+    };
+  }
+
+  return {
+    id: team.id ?? null,
+    name: team.name || fallbackLabel,
+    abbreviation: team.abbreviation || team.name?.slice(0, 2).toUpperCase() || fallbackLabel,
+    logoUrl: team.logoUrl || team.logo || "DSSL_LOGO.png",
+    logo: team.logoUrl || team.logo || "DSSL_LOGO.png"
+  };
+};
+
 const serializeMatch = (m) => {
   if (!m) return null;
-  const formatLogo = (mandal) => {
-    if (!mandal) return null;
-    const logoUrl = mandal.logoUrl || `${mandal.name}.png`;
-    return {
-      ...mandal,
-      logo: logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`
-    };
-  };
   return {
     ...m,
     id: m.id.toString(), // Convert number ID to string matching scoreboard expectations
@@ -239,33 +272,27 @@ const serializeMatch = (m) => {
     startTime: m.startTime ? m.startTime.getTime() : null,
     endTime: m.endTime ? m.endTime.getTime() : null,
     timerStartedAt: m.timerStartedAt ? m.timerStartedAt.getTime() : null,
-    dalA: formatLogo(m.dalA),
-    dalB: formatLogo(m.dalB),
+    dalA: serializeTeam(m.dalA, "Team A"),
+    dalB: serializeTeam(m.dalB, "Team B"),
     matchRound: m.matchRound || "",
-    description: m.description || ""
+    description: m.description || "",
+    matchupText: m.matchRound || m.description || "Scheduled Match"
   };
 };
 
 const serializePlannedMatch = (m) => {
   if (!m) return null;
-  const formatLogo = (mandal) => {
-    if (!mandal) return null;
-    const logoUrl = mandal.logoUrl || `${mandal.name}.png`;
-    return {
-      ...mandal,
-      logo: logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`
-    };
-  };
   return {
     ...m,
     id: m.id.toString(),
     duration: m.durationMinutes,
     startTime: m.startTime ? m.startTime.getTime() : null,
     endTime: m.endTime ? m.endTime.getTime() : null,
-    dalA: formatLogo(m.dalA),
-    dalB: formatLogo(m.dalB),
     matchRound: m.matchRound || "",
-    description: m.description || ""
+    description: m.description || "",
+    matchupText: m.matchRound || m.description || "Scheduled Match",
+    dalA: serializeTeam(m.dalA, "Team A"),
+    dalB: serializeTeam(m.dalB, "Team B")
   };
 };
 
@@ -299,18 +326,22 @@ app.get("/api/planned-matches", async (req, res) => {
 
 app.post("/api/planned-matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, startTime, endTime, description, matchRound } = req.body;
-  if (!sportId || !dalAId || !dalBId || !venue) {
+  if (!sportId || !venue) {
     return res.status(400).json({ error: "Missing required planned match parameters" });
   }
 
   try {
+    const fallbackMandals = await prisma.mandal.findMany({ orderBy: { id: "asc" }, take: 2 });
+    const resolvedDalAId = dalAId ? parseInt(dalAId) : fallbackMandals[0]?.id ?? 1;
+    const resolvedDalBId = dalBId ? parseInt(dalBId) : fallbackMandals[1]?.id ?? resolvedDalAId;
+
     const plannedMatch = await prisma.plannedMatch.create({
       data: {
         sportId: parseInt(sportId),
         sportName: sportName || "Sport",
         venue,
-        dalAId: parseInt(dalAId),
-        dalBId: parseInt(dalBId),
+        dalAId: resolvedDalAId,
+        dalBId: resolvedDalBId,
         durationMinutes: durationMinutes ? parseInt(durationMinutes) : 60,
         startTime: startTime ? new Date(startTime) : null,
         endTime: endTime ? new Date(endTime) : null,
@@ -542,18 +573,22 @@ app.get("/api/matches/:id", async (req, res) => {
 // Create Match
 app.post("/api/matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, isLive, startTime, endTime, description, matchRound } = req.body;
-  if (!sportId || !dalAId || !dalBId || !venue) {
+  if (!sportId || !venue) {
     return res.status(400).json({ error: "Missing required match parameters" });
   }
 
   try {
+    const fallbackMandals = await prisma.mandal.findMany({ orderBy: { id: "asc" }, take: 2 });
+    const resolvedDalAId = dalAId ? parseInt(dalAId) : fallbackMandals[0]?.id ?? 1;
+    const resolvedDalBId = dalBId ? parseInt(dalBId) : fallbackMandals[1]?.id ?? resolvedDalAId;
+
     const match = await prisma.match.create({
       data: {
         sportId: parseInt(sportId),
         sportName: sportName || "Sport",
         venue,
-        dalAId: parseInt(dalAId),
-        dalBId: parseInt(dalBId),
+        dalAId: resolvedDalAId,
+        dalBId: resolvedDalBId,
         durationMinutes: durationMinutes ? parseInt(durationMinutes) : 60,
         status: isLive ? "live" : "scheduled",
         startTime: isLive ? new Date() : (startTime ? new Date(startTime) : null),
@@ -818,18 +853,34 @@ app.get("/api/media/file/:id", async (req, res) => {
   if (isNaN(id)) return res.status(400).send("Invalid ID");
 
   try {
+    // Use the Prisma client API first to avoid raw SQL/casing issues.
+    // Select only safe columns so this handler doesn't crash when the DB schema
+    // hasn't yet been migrated to include `data`/`mimeType`.
     const media = await prisma.media.findUnique({
       where: { id },
-      select: { data: true, mimeType: true }
+      select: { id: true, type: true, url: true, title: true }
     });
 
-    if (!media || !media.data) {
-      return res.status(404).send("Media not found");
+    if (!media) return res.status(404).send("Media not found");
+
+    // If binary data is present (images stored in DB), serve it with saved mimeType
+    if (media.data) {
+      const contentType = media.mimeType || (media.type === "VIDEO" ? "video/mp4" : "image/jpeg");
+      res.set("Content-Type", contentType);
+      res.set("Cache-Control", "public, max-age=604800, immutable");
+      return res.send(Buffer.from(media.data));
     }
 
-    res.set("Content-Type", media.mimeType);
-    res.set("Cache-Control", "public, max-age=604800, immutable");
-    res.send(Buffer.from(media.data));
+    // If the media URL points to /uploads/ and the file exists on disk, redirect to static path
+    if (media.url && typeof media.url === "string" && media.url.startsWith("/uploads/")) {
+      const diskPath = path.join(ROOT, media.url);
+      if (fs.existsSync(diskPath)) {
+        return res.redirect(media.url);
+      }
+      console.warn(`Media file missing on disk for id=${id}: ${diskPath}`);
+    }
+
+    return res.status(404).send("Media binary not available");
   } catch (error) {
     console.error("Media serve error:", error);
     res.status(500).send("Error serving media");
@@ -841,7 +892,7 @@ app.get("/api/media", async (req, res) => {
   try {
     const media = await prisma.media.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, type: true, url: true, title: true, mimeType: true, createdAt: true }
+      select: { id: true, type: true, url: true, title: true, createdAt: true }
     });
     res.json(media);
   } catch (error) {

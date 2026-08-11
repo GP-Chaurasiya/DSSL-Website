@@ -516,13 +516,13 @@
 
     async function loadData() {
       try {
-        // Fetch Mandals
         const dalsRes = await fetch("/api/mandals");
-        allDals = await dalsRes.json();
+        const mandalsData = await dalsRes.json();
+        allDals = Array.isArray(mandalsData) ? mandalsData : [];
 
-        // Fetch Matches
         const matchesRes = await fetch("/api/matches");
-        allMatches = await matchesRes.json();
+        const matchesData = await matchesRes.json();
+        allMatches = Array.isArray(matchesData) ? matchesData : [];
 
         renderDals();
         renderMatches();
@@ -559,25 +559,29 @@
 
       allDals.forEach(mandal => {
         const stats = dalStats[mandal.id] || { played: 0, wins: 0, losses: 0, draws: 0, points: 0 };
-        const key = mandal.name.toLowerCase().replace(" mandal", "").replace(" dal", "").trim();
+        const safeName = mandal.name || "Mandal";
+        const safeAbbreviation = mandal.abbreviation || safeName.slice(0, 3).toUpperCase();
+        const safeColor = mandal.color || "#0f172a";
+        const safeLogo = mandal.logoUrl || mandal.logo || "DSSL_LOGO.png";
+        const key = safeName.toLowerCase().replace(" mandal", "").replace(" dal", "").trim();
         const counts = window.dsslPlayerCounts || {};
         const pCount = counts[key] !== undefined ? counts[key] : (playerCounts[key] || 0);
 
         const card = document.createElement("div");
         card.className = "mandal-card";
-        card.style.color = mandal.color; // Allows logo border to change color on hover
+        card.style.color = safeColor;
 
-        const departments = getDepartments(mandal.name);
+        const departments = getDepartments(safeName);
         const deptsList = departments.map(d => `<li>${d}</li>`).join('');
         
         card.innerHTML = `
-          <div class="mandal-card-header" style="background-color: ${mandal.color};"></div>
+          <div class="mandal-card-header" style="background-color: ${safeColor};"></div>
           <div class="mandal-card-body">
-            <div class="mandal-logo-wrapper" style="color: ${mandal.color}">
-              <img src="${mandal.logoUrl}" alt="${mandal.name}" onerror="this.src='Vashishta Mandal.png'">
+            <div class="mandal-logo-wrapper" style="color: ${safeColor}">
+              <img src="${safeLogo}" alt="${safeName}" onerror="this.src='DSSL_LOGO.png'">
             </div>
-            <h3 class="mandal-name">${mandal.name}</h3>
-            <span class="mandal-abbrev" style="color: ${mandal.color}; background-color: ${mandal.color}15">${mandal.abbreviation}</span>
+            <h3 class="mandal-name">${safeName}</h3>
+            <span class="mandal-abbrev" style="color: ${safeColor}; background-color: ${safeColor}15">${safeAbbreviation}</span>
             
             <div class="mandal-departments">
               <div class="departments-title">Departments</div>
