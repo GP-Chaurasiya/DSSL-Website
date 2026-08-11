@@ -405,9 +405,6 @@
 
     <!-- Mandal Fixtures and Matches List -->
     <div class="fixtures-section">
-      <h3 class="section-title" id="fixturesTitle">
-        <i class="ri-broadcast-line"></i> Recent & Scheduled Matches
-      </h3>
       <div class="matches-grid" id="matchesContainer">
         <!-- Matches will load here dynamically -->
       </div>
@@ -675,7 +672,8 @@
       
       document.getElementById("filterBannerLogo").src = logo;
       document.getElementById("filterBannerName").textContent = name;
-      document.getElementById("fixturesTitle").innerHTML = `<i class="ri-focus-3-line"></i> Fixtures & Results for ${name}`;
+      const titleEl = document.getElementById("fixturesTitle");
+      if (titleEl) titleEl.innerHTML = `<i class="ri-focus-3-line"></i> Fixtures & Results for ${name}`;
 
       // Smooth scroll to fixtures
       banner.scrollIntoView({ behavior: 'smooth' });
@@ -686,7 +684,8 @@
     function clearDalFilter() {
       selectedDalId = null;
       document.getElementById("activeFilterBanner").style.display = "none";
-      document.getElementById("fixturesTitle").innerHTML = `<i class="ri-broadcast-line"></i> Recent & Scheduled Matches`;
+      const titleEl = document.getElementById("fixturesTitle");
+      if (titleEl) titleEl.innerHTML = "";
       renderMatches();
     }
 
