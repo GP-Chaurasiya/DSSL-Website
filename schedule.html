@@ -79,38 +79,6 @@
       background: linear-gradient(90deg, rgba(34, 197, 94, 0.12), rgba(255, 255, 255, 0.02));
     }
 
-    .fixture-pagination {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-top: 1.5rem;
-      flex-wrap: wrap;
-      color: var(--text-muted);
-    }
-
-    .page-buttons {
-      display: flex;
-      gap: 8px;
-    }
-
-    .page-btn {
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      background: var(--surface-color);
-      color: var(--text-color);
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .page-btn.active {
-      background: var(--accent-blue);
-      color: #fff;
-    }
-
     .empty-fixtures {
       text-align: center;
       color: var(--text-muted);
@@ -245,15 +213,41 @@
 
     const socket = io();
 
+    function normalizeTeamData(team) {
+      return {
+        ...(team || {}),
+        name: team?.name || "Unknown Team",
+        abbreviation: team?.abbreviation || "UT",
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA),
+        dalB: normalizeTeamData(match.dalB),
+        matchupText: match.matchRound || match.description || `${match.sportName || "Scheduled"} Match`
+      };
+    }
+
     async function loadData() {
       try {
         // Load Mandals
         const dalsRes = await fetch("/api/mandals");
-        allDals = await dalsRes.json();
+        allDals = (await dalsRes.json()).map((team, index) => ({
+          ...team,
+          name: `Team ${index + 1}`,
+          abbreviation: `T${index + 1}`,
+          logoUrl: team.logoUrl || "DSSL_LOGO.png",
+          logo: team.logoUrl || "DSSL_LOGO.png"
+        }));
         
         // Load planned fixtures only. Live/on-spot matches are managed separately.
         const matchesRes = await fetch("/api/planned-matches");
-        allMatches = await matchesRes.json();
+        allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
 
         renderSchedule();
       } catch (err) {
@@ -294,7 +288,7 @@
           const startText = start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
           const endText = end ? end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
           const timeText = endText ? `${startText} - ${endText}` : startText;
-          const matchupText = m.matchRound ? `${m.matchRound}` : `${m.sportName} - ${m.dalA.name} VS ${m.dalB.name}`;
+          const matchupText = m.matchRound || m.sportName || "Scheduled Match";
           rows.push(`
             <tr>
               <td>${index++}</td>
@@ -322,15 +316,6 @@
           </thead>
           <tbody>${rows.join("")}</tbody>
         </table>
-        <div class="fixture-pagination">
-          <span>Show <strong>${filtered.length}</strong> entries</span>
-          <div class="page-buttons">
-            <button type="button" class="page-btn active">1</button>
-            <button type="button" class="page-btn">2</button>
-            <button type="button" class="page-btn">3</button>
-            <button type="button" class="page-btn"><i class="ri-arrow-right-s-line"></i></button>
-          </div>
-        </div>
       `;
     }
 
