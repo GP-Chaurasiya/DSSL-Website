@@ -930,6 +930,8 @@ app.delete("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CRE
   }
 });
 
+require("./analytics-routes")({ app, prisma, authenticateToken, requireRole });
+
 // ── Registration Settings APIs ────────────────────────────────────────────────
 const settingsFilePath = path.join(ROOT, "registration_settings.json");
 
@@ -1001,6 +1003,7 @@ const staticCacheOptions = {
 app.use("/uploads", express.static(uploadDir, { maxAge: "7d", acceptRanges: true }));
 app.use("/admin", express.static(path.join(ROOT, "admin"), staticCacheOptions));
 app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
+app.use("/analytics", express.static(path.join(ROOT, "analytics"), staticCacheOptions));
 app.use(express.static(ROOT, staticCacheOptions));
 
 // Default home route serving index.html
@@ -1011,6 +1014,11 @@ app.get("/", (req, res) => {
 // Scoreboard SPA direct links fallback
 app.get("/scoreboard/*", (req, res) => {
   res.sendFile(path.join(ROOT, "scoreboard", "index.html"));
+});
+
+// Analytics SPA direct links fallback
+app.get("/analytics/*", (req, res) => {
+  res.sendFile(path.join(ROOT, "analytics", "index.html"));
 });
 
 // Catch-all route to serve index.html for main pages if direct links entered
@@ -1031,7 +1039,24 @@ io.on("connection", (socket) => {
   });
 });
 
+// Global error safety handlers
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
 // Start Server
 server.listen(PORT, () => {
   console.log(`DSSL Server running at http://localhost:${PORT}`);
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use by another process.`);
+  } else {
+    console.error("Server error:", err);
+  }
 });

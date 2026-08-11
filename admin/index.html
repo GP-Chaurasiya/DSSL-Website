@@ -1523,6 +1523,12 @@
         </button>
       </li>
       <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="analytics">
+          <i class="ri-bar-chart-box-line"></i>
+          <span>Analytics</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
         <button class="menu-btn" data-tab="match-control">
           <i class="ri-broadcast-line"></i>
           <span>Match Control</span>
@@ -1586,6 +1592,17 @@
           <h2 id="viewTitle">Dashboard Overview</h2>
         </div>
       </div>
+
+      <!-- Analytics-specific action buttons (shown only on Analytics tab) -->
+      <div id="analytics-header-actions" style="display:none; align-items:center; gap:10px; margin-right:auto; margin-left:16px;">
+        <button class="btn" id="admin-sync-btn" onclick="callAnalyticsSync()" style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 14px;">
+          <i class="ri-refresh-line"></i> Sync Google Sheets
+        </button>
+        <button class="btn" id="admin-export-btn" onclick="callAnalyticsExport()" style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 14px;background:var(--primary);color:#000;font-weight:700;">
+          <i class="ri-download-2-line"></i> Export CSV
+        </button>
+      </div>
+
       <div class="header-right">
         <button class="theme-toggle" id="themeToggleBtn" aria-label="Toggle Theme">
           <i class="ri-sun-line"></i>
@@ -2100,6 +2117,11 @@
       <!-- ── TAB: LIVE SCOREBOARD ── -->
       <div class="tab-content" id="tab-scoreboard" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
         <iframe src="/scoreboard/" style="width: 100%; height: 100%; border: none;" id="scoreboardIframe"></iframe>
+      </div>
+
+      <!-- ── TAB: ANALYTICS (DSSL Analytics Dashboard) ── -->
+      <div class="tab-content" id="tab-analytics" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
+        <iframe src="/analytics/" style="width: 100%; height: 100%; border: none;" id="analyticsIframe"></iframe>
       </div>
 
       <!-- ── TAB: REGISTRATION CONTROL ── -->

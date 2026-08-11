@@ -111,6 +111,8 @@ const tabContents = document.querySelectorAll(".tab-content");
 const viewTitle = document.getElementById("viewTitle");
 const sidebar = document.getElementById("sidebar");
 
+const analyticsHeaderActions = document.getElementById("analytics-header-actions");
+
 tabButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     // Mobile side-bar collapse on select
@@ -129,6 +131,11 @@ tabButtons.forEach((btn) => {
 
     // Update Header Title
     viewTitle.textContent = btn.querySelector("span").textContent;
+
+    // Show/hide analytics action buttons in the top header
+    if (analyticsHeaderActions) {
+      analyticsHeaderActions.style.display = tab === "analytics" ? "flex" : "none";
+    }
 
     // Load data for selected view
     loadTabData(tab);
@@ -218,13 +225,43 @@ async function loadTabData(tab) {
         break;
       case "scoreboard":
         const iframe = document.getElementById("scoreboardIframe");
-        if (iframe) {
+        if (iframe && !iframe.dataset.loaded) {
           iframe.src = iframe.src;
+          iframe.dataset.loaded = "1";
+        }
+        break;
+      case "analytics":
+        const analyticsIframe = document.getElementById("analyticsIframe");
+        if (analyticsIframe && !analyticsIframe.dataset.loaded) {
+          analyticsIframe.src = analyticsIframe.src;
+          analyticsIframe.dataset.loaded = "1";
+        } else if (analyticsIframe && analyticsIframe.contentWindow) {
+          // Reload analytics data without full page reload
+          try { analyticsIframe.contentWindow.loadAllAnalytics && analyticsIframe.contentWindow.loadAllAnalytics(); } catch(e) {}
         }
         break;
     }
   } catch (error) {
     console.error("Tab load error:", error);
+  }
+}
+
+// Bridge functions — call analytics iframe functions from admin header
+function callAnalyticsSync() {
+  const iframe = document.getElementById("analyticsIframe");
+  if (iframe && iframe.contentWindow && typeof iframe.contentWindow.syncGoogleSheets === "function") {
+    iframe.contentWindow.syncGoogleSheets();
+  } else {
+    alert("Analytics dashboard is not loaded yet. Please wait a moment and try again.");
+  }
+}
+
+function callAnalyticsExport() {
+  const iframe = document.getElementById("analyticsIframe");
+  if (iframe && iframe.contentWindow && typeof iframe.contentWindow.exportPlayers === "function") {
+    iframe.contentWindow.exportPlayers();
+  } else {
+    alert("Analytics dashboard is not loaded yet. Please wait a moment and try again.");
   }
 }
 
