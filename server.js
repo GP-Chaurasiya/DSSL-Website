@@ -853,31 +853,42 @@ app.get("/api/media/file/:id", async (req, res) => {
   if (isNaN(id)) return res.status(400).send("Invalid ID");
 
   try {
-    // Use the Prisma client API first to avoid raw SQL/casing issues.
-    // Select only safe columns so this handler doesn't crash when the DB schema
-    // hasn't yet been migrated to include `data`/`mimeType`.
     const media = await prisma.media.findUnique({
       where: { id },
-      select: { id: true, type: true, url: true, title: true }
+      select: { id: true, type: true, url: true, title: true, mimeType: true, data: true }
     });
 
-    if (!media) return res.status(404).send("Media not found");
+    if (!media) {
+      const fallbackLogo = path.join(ROOT, "DSSL_LOGO.png");
+      if (fs.existsSync(fallbackLogo)) return res.sendFile(fallbackLogo);
+      return res.status(404).send("Media not found");
+    }
 
     // If binary data is present (images stored in DB), serve it with saved mimeType
-    if (media.data) {
+    if (media.data && media.data.length > 0) {
       const contentType = media.mimeType || (media.type === "VIDEO" ? "video/mp4" : "image/jpeg");
       res.set("Content-Type", contentType);
       res.set("Cache-Control", "public, max-age=604800, immutable");
       return res.send(Buffer.from(media.data));
     }
 
-    // If the media URL points to /uploads/ and the file exists on disk, redirect to static path
+    // If the media URL points to /uploads/ and the file exists on disk, redirect or send file
     if (media.url && typeof media.url === "string" && media.url.startsWith("/uploads/")) {
       const diskPath = path.join(ROOT, media.url);
       if (fs.existsSync(diskPath)) {
-        return res.redirect(media.url);
+        return res.sendFile(diskPath);
       }
       console.warn(`Media file missing on disk for id=${id}: ${diskPath}`);
+    }
+
+    // Graceful fallback image instead of breaking with 404
+    const fallbackImage = path.join(ROOT, "dssl_banner.jpg");
+    if (fs.existsSync(fallbackImage)) {
+      return res.sendFile(fallbackImage);
+    }
+    const fallbackLogo = path.join(ROOT, "DSSL_LOGO.png");
+    if (fs.existsSync(fallbackLogo)) {
+      return res.sendFile(fallbackLogo);
     }
 
     return res.status(404).send("Media binary not available");

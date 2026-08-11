@@ -476,18 +476,18 @@
         if (isVideo) {
           card.innerHTML = `
             <div class="video-play-indicator"><i class="ri-play-circle-fill"></i></div>
-            <video src="${item.url}" style="width:100%;height:100%;object-fit:cover;" muted preload="metadata"></video>
+            <video src="${item.url}#t=0.5" style="width:100%;height:100%;object-fit:cover;" muted preload="metadata" playsinline></video>
             <div class="media-overlay">
               <span class="media-title">${item.title || 'Video highlights'}</span>
-              <span class="media-type-tag">Video</span>
+              <span class="media-type-tag"><i class="ri-video-line"></i> Video</span>
             </div>
           `;
         } else {
           card.innerHTML = `
-            <img src="${item.url}" onerror="this.src='DSSL_LOGO.png'">
+            <img src="${item.url}" loading="lazy" onerror="this.onerror=null; this.src='dssl_banner.jpg';">
             <div class="media-overlay">
               <span class="media-title">${item.title || 'Match highlights'}</span>
-              <span class="media-type-tag">Photo</span>
+              <span class="media-type-tag"><i class="ri-image-line"></i> Photo</span>
             </div>
           `;
         }
@@ -528,9 +528,11 @@
         img.style.display = "none";
         video.style.display = "block";
         video.src = url;
-        video.play();
+        video.load();
+        video.play().catch(() => {});
       } else {
         video.style.display = "none";
+        video.pause();
         video.src = "";
         img.style.display = "block";
         img.src = url;
@@ -546,6 +548,14 @@
       }
       modal.style.display = "none";
     }
+
+    // Close lightbox on Escape key or backdrop click
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeLightbox();
+    });
+    document.getElementById("lightboxModal").addEventListener("click", (e) => {
+      if (e.target.id === "lightboxModal") closeLightbox();
+    });
 
     // Socket realtime integrations
     socket.on("mediaUpdate", (media) => {
