@@ -1425,9 +1425,131 @@ window.deleteNews = async function(id) {
   }
 };
 
+// ── XHR Progress Upload Helper ───────────────────────────────────────────────
+
+function uploadWithProgress(url, formData, containerPrefix = "upload") {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const token = localStorage.getItem("DSSL_token");
+
+    const progressCard = document.getElementById(`${containerPrefix}ProgressCard`);
+    const progressBar = document.getElementById(`${containerPrefix}ProgressBar`);
+    const percentText = document.getElementById(`${containerPrefix}PercentText`);
+    const statusText = document.getElementById(`${containerPrefix}StatusText`);
+    const bytesText = document.getElementById(`${containerPrefix}BytesText`);
+    const speedText = document.getElementById(`${containerPrefix}SpeedText`);
+    const etaText = document.getElementById(`${containerPrefix}EtaText`);
+    const fileIcon = document.getElementById(`${containerPrefix}FileIcon`);
+    const fileName = document.getElementById(`${containerPrefix}FileName`);
+
+    const file = formData.get("file");
+    if (file) {
+      if (fileName) fileName.textContent = file.name;
+      const isVid = file.type.startsWith("video/") || [".mp4", ".mov", ".webm", ".avi", ".mkv"].some(ext => file.name.toLowerCase().endsWith(ext));
+      if (fileIcon) fileIcon.className = isVid ? "ri-film-line" : "ri-image-line";
+    }
+
+    if (progressCard) progressCard.style.display = "block";
+    if (progressBar) progressBar.style.width = "0%";
+    if (percentText) percentText.textContent = "0%";
+    if (statusText) {
+      statusText.textContent = "Uploading asset...";
+      statusText.style.color = "var(--text-muted)";
+    }
+
+    const startTime = Date.now();
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        const elapsedSec = (Date.now() - startTime) / 1000;
+        const speedBps = elapsedSec > 0 ? (e.loaded / elapsedSec) : 0;
+        const speedMBps = (speedBps / (1024 * 1024)).toFixed(1);
+
+        const loadedMB = (e.loaded / (1024 * 1024)).toFixed(1);
+        const totalMB = (e.total / (1024 * 1024)).toFixed(1);
+
+        const remainingBytes = e.total - e.loaded;
+        const remainingSec = speedBps > 0 ? Math.ceil(remainingBytes / speedBps) : 0;
+        const remMin = Math.floor(remainingSec / 60);
+        const remSec = remainingSec % 60;
+        const etaStr = remainingSec > 60 ? `${remMin}m ${remSec}s remaining` : `${remainingSec}s remaining`;
+
+        if (progressBar) progressBar.style.width = `${percent}%`;
+        if (percentText) percentText.textContent = `${percent}%`;
+        if (bytesText) bytesText.textContent = `${loadedMB} MB / ${totalMB} MB`;
+        if (speedText) speedText.textContent = `${speedMBps} MB/s`;
+
+        if (percent < 100) {
+          if (statusText) statusText.textContent = `Uploading asset (${speedMBps} MB/s)...`;
+          if (etaText) etaText.textContent = etaStr;
+        } else {
+          if (statusText) statusText.textContent = `Upload complete. Processing asset on server...`;
+          if (etaText) etaText.textContent = `Optimizing & saving...`;
+          if (speedText) speedText.textContent = `Processing`;
+        }
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status === 401 || xhr.status === 403) {
+        logout();
+        reject(new Error("Unauthorized session"));
+        return;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        let resData;
+        try { resData = JSON.parse(xhr.responseText); } catch(e) { resData = xhr.responseText; }
+
+        if (progressBar) progressBar.style.width = "100%";
+        if (percentText) percentText.textContent = "100%";
+        if (statusText) {
+          statusText.textContent = "✓ Media asset uploaded successfully!";
+          statusText.style.color = "var(--success)";
+        }
+        if (etaText) etaText.textContent = "Complete!";
+
+        setTimeout(() => {
+          if (progressCard) progressCard.style.display = "none";
+          if (statusText) statusText.style.color = "var(--text-muted)";
+        }, 2500);
+
+        resolve(resData);
+      } else {
+        let errMsg = "Upload failed";
+        try {
+          const errObj = JSON.parse(xhr.responseText);
+          if (errObj.error) errMsg = errObj.error;
+        } catch(e) {}
+
+        if (statusText) {
+          statusText.textContent = `❌ ${errMsg}`;
+          statusText.style.color = "var(--danger)";
+        }
+        reject(new Error(errMsg));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      if (statusText) {
+        statusText.textContent = "❌ Upload failed due to network error";
+        statusText.style.color = "var(--danger)";
+      }
+      reject(new Error("Network error during upload"));
+    });
+
+    xhr.open("POST", url);
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+    xhr.send(formData);
+  });
+}
+
 // ── Media Upload Actions ───────────────────────────────────────────────────────
 
-document.getElementById("mediaForm").addEventListener("submit", async (e) => {
+document.getElementById("mediaForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const fileInput = document.getElementById("mediaFile");
   const titleInput = document.getElementById("mediaTitle");
@@ -1455,15 +1577,11 @@ document.getElementById("mediaForm").addEventListener("submit", async (e) => {
   formData.append("title", titleInput.value);
 
   try {
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading Asset...`; }
-    await apiCall("/api/media/upload", {
-      method: "POST",
-      body: formData
-    });
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading...`; }
+    await uploadWithProgress("/api/media/upload", formData, "upload");
     fileInput.value = "";
     titleInput.value = "";
     await loadMedia();
-    alert("Media asset uploaded successfully.");
   } catch (error) {
     alert(error.message);
   } finally {
