@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Media Gallery</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .gallery-viewport {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 70vh;
+    }
+
+    .viewport-header {
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+
+    .viewport-header h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      margin-bottom: 8px;
+    }
+
+    .viewport-header p {
+      color: var(--text-muted, #64748b);
+      font-size: 16px;
+    }
+
+    /* Filter Tabs */
+    .filter-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 10px 22px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 50px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main, #0f172a);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-btn:hover {
+      background-color: rgba(255, 188, 1, 0.1);
+    }
+
+    .filter-btn.active {
+      background-color: #ffbc01;
+      color: #000;
+      border-color: #ffbc01;
+    }
+
+    /* Media custom layout grid */
+    .gallery-grid-custom {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .gallery-card-custom {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      position: relative;
+      aspect-ratio: 4 / 3;
+      transition: var(--transition);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .gallery-card-custom:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--card-shadow);
+    }
+
+    .gallery-card-custom img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: var(--transition);
+    }
+
+    .gallery-card-custom:hover img {
+      transform: scale(1.05);
+    }
+
+    .media-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent 70%);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 1.25rem;
+      opacity: 0;
+      transition: var(--transition);
+      z-index: 2;
+    }
+
+    .gallery-card-custom:hover .media-overlay {
+      opacity: 1;
+    }
+
+    .media-title {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .media-type-tag {
+      align-self: flex-start;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background-color: var(--primary-color);
+      color: #000;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* Video thumbnail play button icon overlay */
+    .video-play-indicator {
+      position: absolute;
+      font-size: 48px;
+      color: rgba(255, 255, 255, 0.9);
+      z-index: 1;
+      text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      transition: var(--transition);
+    }
+
+    .gallery-card-custom:hover .video-play-indicator {
+      transform: scale(1.1);
+      color: var(--primary-color);
+    }
+
+    /* Lightbox Modal */
+    .lightbox-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.95);
+      backdrop-filter: blur(8px);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .lightbox-content {
+      position: relative;
+      max-width: 90%;
+      max-height: 85vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .lightbox-content img, .lightbox-content video {
+      max-width: 100%;
+      max-height: 80vh;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 30px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .lightbox-close:hover {
+      color: var(--primary-color);
+    }
+
+    .lightbox-caption {
+      position: absolute;
+      bottom: -40px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    /* Responsive Gallery & Lightbox Styles */
+    @media (max-width: 768px) {
+      .gallery-viewport {
+        margin: 1rem auto;
+        padding: 0 1rem;
+      }
+
+      .viewport-header {
+        margin-bottom: 1.5rem;
+      }
+
+      .viewport-header h2 {
+        font-size: 24px;
+      }
+
+      .viewport-header p {
+        font-size: 14px;
+      }
+
+      .filter-tabs {
+        gap: 8px;
+        margin-bottom: 1.5rem;
+      }
+
+      .filter-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+      }
+
+      .gallery-grid-custom {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 2rem;
+      }
+
+      .media-overlay {
+        opacity: 1;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent 75%);
+        padding: 0.75rem;
+      }
+
+      .media-title {
+        font-size: 13px;
+      }
+
+      .video-play-indicator {
+        font-size: 36px;
+      }
+
+      .lightbox-modal {
+        padding: 1rem;
+      }
+
+      .lightbox-content {
+        max-width: 95%;
+        max-height: 85vh;
+        flex-direction: column;
+      }
+
+      .lightbox-content img, .lightbox-content video {
+        max-height: 65vh;
+        border-radius: 8px;
+      }
+
+      .lightbox-close {
+        top: -45px;
+        right: 0;
+        font-size: 30px;
+        background: rgba(0, 0, 0, 0.6);
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .lightbox-caption {
+        position: relative;
+        bottom: 0;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .gallery-grid-custom {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .gallery-card-custom {
+        border-radius: 12px;
+      }
+
+      .filter-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html" class="active"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="gallery-viewport">
+    <div class="viewport-header">
+      <h2>Tournament Gallery</h2>
+      <p>Relive tournament matches, opening highlights, celebrations, and key moments.</p>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="filter-tabs">
+      <button class="filter-btn active" onclick="setFilter('ALL')">All Media</button>
+      <button class="filter-btn" onclick="setFilter('IMAGE')"><i class="ri-image-line"></i> Photos</button>
+      <button class="filter-btn" onclick="setFilter('VIDEO')"><i class="ri-video-line"></i> Videos</button>
+    </div>
+
+    <!-- Gallery Grid -->
+    <div class="gallery-grid-custom" id="galleryContainer">
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px;">
+        <i class="ri-loader-3-line" style="font-size: 36px; display: inline-block; animation: spin 1s infinite linear;"></i>
+        <p style="margin-top: 10px;">Loading media assets...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox Modal -->
+  <div class="lightbox-modal" id="lightboxModal">
+    <div class="lightbox-content">
+      <button class="lightbox-close" onclick="closeLightbox()"><i class="ri-close-line"></i></button>
+      <img id="lightboxImg" src="" style="display: none;">
+      <video id="lightboxVideo" src="" controls style="display: none;"></video>
+      <div class="lightbox-caption" id="lightboxCaption">Media Asset</div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let mediaAssets = [];
+    let currentFilter = "ALL";
+
+    // Theme Switch
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    const socket = io();
+
+    async function loadMedia() {
+      try {
+        const res = await fetch("/api/media");
+        mediaAssets = await res.json();
+        renderGallery();
+      } catch (err) {
+        document.getElementById("galleryContainer").innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--danger); padding: 40px; font-weight: 600;">Failed to connect to gallery servers.</div>`;
+      }
+    }
+
+    function renderGallery() {
+      const container = document.getElementById("galleryContainer");
+      container.innerHTML = "";
+
+      const filtered = mediaAssets.filter(item => {
+        if (currentFilter === "ALL") return true;
+        return item.type === currentFilter;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 60px;">No media items loaded in this category.</div>`;
+        return;
+      }
+
+      filtered.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "gallery-card-custom";
+        card.onclick = () => openLightbox(item.url, item.type, item.title);
+
+        const isVideo = item.type === "VIDEO";
+
+        if (isVideo) {
+          card.innerHTML = `
+            <div class="video-play-indicator"><i class="ri-play-circle-fill"></i></div>
+            <video src="${item.url}#t=0.5" style="width:100%;height:100%;object-fit:cover;" muted preload="metadata" playsinline></video>
+            <div class="media-overlay">
+              <span class="media-title">${item.title || 'Video highlights'}</span>
+              <span class="media-type-tag"><i class="ri-video-line"></i> Video</span>
+            </div>
+          `;
+        } else {
+          card.innerHTML = `
+            <img src="${item.url}" loading="lazy" onerror="this.onerror=null; this.src='dssl_banner.jpg';">
+            <div class="media-overlay">
+              <span class="media-title">${item.title || 'Match highlights'}</span>
+              <span class="media-type-tag"><i class="ri-image-line"></i> Photo</span>
+            </div>
+          `;
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    function setFilter(filterVal) {
+      currentFilter = filterVal;
+      // Highlight active button
+      const buttons = document.querySelectorAll(".filter-btn");
+      buttons.forEach(btn => {
+        const lowerText = btn.textContent.toLowerCase();
+        if (filterVal === "ALL" && lowerText.includes("all")) {
+          btn.classList.add("active");
+        } else if (filterVal === "IMAGE" && lowerText.includes("photo")) {
+          btn.classList.add("active");
+        } else if (filterVal === "VIDEO" && lowerText.includes("video")) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+      renderGallery();
+    }
+
+    function openLightbox(url, type, caption) {
+      const modal = document.getElementById("lightboxModal");
+      const img = document.getElementById("lightboxImg");
+      const video = document.getElementById("lightboxVideo");
+      const cap = document.getElementById("lightboxCaption");
+
+      modal.style.display = "flex";
+      cap.textContent = caption || "Tournament highlights";
+
+      if (type === "VIDEO") {
+        img.style.display = "none";
+        video.style.display = "block";
+        video.src = url;
+        video.load();
+        video.play().catch(() => {});
+      } else {
+        video.style.display = "none";
+        video.pause();
+        video.src = "";
+        img.style.display = "block";
+        img.src = url;
+      }
+    }
+
+    function closeLightbox() {
+      const modal = document.getElementById("lightboxModal");
+      const video = document.getElementById("lightboxVideo");
+      if (video) {
+        video.pause();
+        video.src = "";
+      }
+      modal.style.display = "none";
+    }
+
+    // Close lightbox on Escape key or backdrop click
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeLightbox();
+    });
+    document.getElementById("lightboxModal").addEventListener("click", (e) => {
+      if (e.target.id === "lightboxModal") closeLightbox();
+    });
+
+    // Socket realtime integrations
+    socket.on("mediaUpdate", (media) => {
+      const idx = mediaAssets.findIndex(m => m.id == media.id);
+      if (idx === -1) {
+        mediaAssets.unshift(media);
+      } else {
+        mediaAssets[idx] = media;
+      }
+      renderGallery();
+    });
+
+    loadMedia();
+  </script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="notifications.js"></script>
+</body>
+</html>

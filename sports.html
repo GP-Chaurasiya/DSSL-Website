@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Sports Categories</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .sports-viewport {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 70vh;
+    }
+
+    .viewport-header {
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+
+    .viewport-header h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      margin-bottom: 8px;
+    }
+
+    .viewport-header p {
+      color: var(--text-muted, #64748b);
+      font-size: 16px;
+    }
+
+    /* Sports Grid */
+    .sports-grid-custom {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .sport-card-custom {
+      background-color: var(--surface-color, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 20px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .sport-card-custom::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .sport-card-custom:hover::before {
+      opacity: 1;
+    }
+
+    .sport-card-custom:hover, .sport-card-custom.active {
+      transform: translateY(-5px);
+      border-color: var(--primary-color);
+      box-shadow: var(--card-shadow);
+      background-color: var(--surface-hover);
+    }
+
+    .sport-icon-wrapper {
+      font-size: 40px;
+      transition: var(--transition);
+    }
+
+    .sport-card-custom:hover .sport-icon-wrapper {
+      transform: scale(1.15) rotate(5deg);
+    }
+
+    .sport-card-custom h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--heading-color);
+    }
+
+    .sport-match-count {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background-color: var(--bg-color);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .sport-card-custom.active .sport-match-count {
+      background-color: var(--primary-color);
+      color: #000;
+    }
+
+    /* Drawer Section */
+    .matches-drawer {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      display: none;
+      animation: slideDown 0.4s ease;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 1rem;
+    }
+
+    .drawer-title {
+      font-size: 22px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .drawer-close {
+      background: none;
+      border: 1px solid var(--border-color);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      color: var(--text-color);
+      transition: var(--transition);
+    }
+
+    .drawer-close:hover {
+      background-color: var(--border-light);
+      border-color: var(--text-muted);
+    }
+
+    .matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html" class="active"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="sports-viewport">
+    <div class="viewport-header">
+      <h2>Sports Categories</h2>
+      <p>Select a sport below to view active matches, upcoming schedules, and completed game scores.</p>
+    </div>
+
+    <!-- Sports custom grid -->
+    <div class="sports-grid-custom" id="sportsContainer">
+      <!-- Loaded dynamically -->
+    </div>
+
+    <!-- Matches drawer panel -->
+    <div class="matches-drawer" id="matchesDrawer">
+      <div class="drawer-header">
+        <div class="drawer-title" id="drawerTitle">
+          <span id="drawerIcon">🏀</span>
+          <span id="drawerSportName">Basketball Matches</span>
+        </div>
+        <button class="drawer-close" onclick="closeDrawer()"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="matches-grid" id="drawerMatchesList">
+        <!-- Dynamic matches layout list -->
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const SPORTS = [
+      { id: 1, name: "Basketball", icon: "🏀" },
+      { id: 2, name: "Football", icon: "⚽" },
+      { id: 3, name: "Cricket", icon: "🏏" },
+      { id: 4, name: "Volleyball", icon: "🏐" },
+      { id: 5, name: "Badminton (Doubles)", icon: "🏸" },
+      { id: 6, name: "Table Tennis", icon: "🏓" },
+      { id: 7, name: "Athletics (100m)", icon: "🏃" },
+      { id: 8, name: "Athletics (400m)", icon: "🏃" },
+      { id: 9, name: "Athletics (Relay)", icon: "🔁" },
+      { id: 10, name: "Kho-Kho", icon: "🤸" },
+      { id: 11, name: "Chess", icon: "♟️" },
+      { id: 12, name: "High Jump", icon: "🏋️" },
+      { id: 13, name: "Tug of War", icon: "💪" },
+      { id: 14, name: "Long Jump", icon: "🦘" },
+      { id: 15, name: "Javelin Throw", icon: "🎿" },
+      { id: 16, name: "Discus Throw", icon: "🥏" },
+      { id: 17, name: "Shot Put", icon: "⚫" },
+      { id: 18, name: "Athletics (200m)", icon: "🏃" },
+      { id: 19, name: "7 Stones", icon: "🪨" },
+      { id: 20, name: "Kabaddi", icon: "🤼" }
+    ];
+
+    let allMatches = [];
+    let selectedSportId = null;
+
+    // Theme Switch
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    const socket = io();
+
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
+    async function loadMatches() {
+      try {
+        const response = await fetch("/api/matches");
+        allMatches = (await response.json()).map(normalizeMatchData).filter(Boolean);
+        renderSportsList();
+        if (selectedSportId !== null) {
+          renderMatchesForSport();
+        }
+      } catch (err) {
+        console.error("Failed to load matches list", err);
+      }
+    }
+
+    function renderSportsList() {
+      const container = document.getElementById("sportsContainer");
+      container.innerHTML = "";
+
+      SPORTS.forEach((sport) => {
+        const matchesCount = allMatches.filter(m => m.sportId == sport.id).length;
+
+        const card = document.createElement("div");
+        card.className = `sport-card-custom ${selectedSportId == sport.id ? 'active' : ''}`;
+        card.onclick = () => selectSport(sport.id, sport.name, sport.icon);
+
+        card.innerHTML = `
+          <div class="sport-icon-wrapper">${sport.icon}</div>
+          <h3>${sport.name}</h3>
+          <div class="sport-match-count">${matchesCount} Matches</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function selectSport(id, name, icon) {
+      if (selectedSportId === id) {
+        closeDrawer();
+        return;
+      }
+
+      selectedSportId = id;
+      renderSportsList(); // Update active highlights
+
+      const drawer = document.getElementById("matchesDrawer");
+      drawer.style.display = "block";
+      document.getElementById("drawerIcon").textContent = icon;
+      document.getElementById("drawerSportName").textContent = `${name} Matches`;
+
+      renderMatchesForSport();
+
+      drawer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closeDrawer() {
+      selectedSportId = null;
+      document.getElementById("matchesDrawer").style.display = "none";
+      renderSportsList();
+    }
+
+    function renderMatchesForSport() {
+      const container = document.getElementById("drawerMatchesList");
+      container.innerHTML = "";
+
+      const filtered = allMatches.filter(m => m.sportId == selectedSportId);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">No match fixtures scheduled for this category yet.</div>`;
+        return;
+      }
+
+      filtered.forEach(m => {
+        const card = document.createElement("div");
+        card.className = "match-card-item";
+
+        let statusText = m.status;
+        if (m.status === "live") statusText = "Live";
+        if (m.status === "completed") statusText = "Finished";
+        if (m.status === "scheduled") statusText = "Upcoming";
+
+        let footerText = `<i class="ri-map-pin-line"></i> ${m.venue}`;
+        if (m.status === "live") {
+          let sec = m.elapsedSeconds;
+          if (m.timerRunning && m.timerStartedAt) {
+            sec += Math.max(0, Math.floor((Date.now() - new Date(m.timerStartedAt).getTime()) / 1000));
+          }
+          const min = Math.floor(sec / 60).toString().padStart(2, "0");
+          const s = (sec % 60).toString().padStart(2, "0");
+          footerText = `<i class="ri-time-line"></i> In Progress: ${min}:${s} (${m.venue})`;
+        } else if (m.status === "scheduled") {
+          footerText = `<i class="ri-calendar-line"></i> Scheduled (${m.venue})`;
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="card-top-row">
+              <span class="sport-tag">${m.sportName}</span>
+              <span class="status-badge status-${m.status}">${statusText}</span>
+            </div>
+            
+            <div class="matchup-row">
+              <div class="team-block">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
+                <p>${m.dalA.name}</p>
+              </div>
+              
+              <div class="score-block">
+                ${m.status === "scheduled" ? "VS" : `${m.scoreA} - ${m.scoreB}`}
+              </div>
+              
+              <div class="team-block">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
+                <p>${m.dalB.name}</p>
+              </div>
+            </div>
+            ${m.sportName.toLowerCase().includes("cricket") && m.overs && m.status === "live" ? `
+            <div style="text-align: center; font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 10px;">
+              Overs: ${m.overs} | Wickets: ${m.wickets}
+            </div>
+            ` : ""}
+          </div>
+          
+          <div class="card-footer-row">
+            <span>${footerText}</span>
+            <a href="match-details.html?id=${m.id}" class="btn-action">Scorecard</a>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Socket listeners
+    socket.on("matchUpdate", (match) => {
+      const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
+      if (idx !== -1) {
+        allMatches[idx] = normalizeMatchData(match) || match;
+      } else {
+        allMatches.unshift(normalizeMatchData(match) || match);
+      }
+      renderSportsList();
+      if (selectedSportId == match.sportId) {
+        renderMatchesForSport();
+      }
+    });
+
+    socket.on("matchDelete", (matchId) => {
+      allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
+      renderSportsList();
+      if (selectedSportId) {
+        renderMatchesForSport();
+      }
+    });
+
+    loadMatches();
+    // 5-second match auto-polling fallback
+    setInterval(async () => {
+      try {
+        const matchesRes = await fetch("/api/matches");
+        if (matchesRes.ok) {
+          allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
+          renderSportsList();
+          if (selectedSportId) renderMatchesForSport();
+        }
+      } catch (e) {}
+    }, 5000);
+  </script>
+<script src="sheet-sync.js?v=20260809_dssl"></script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+

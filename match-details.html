@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Match Scorecard</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .details-viewport {
+      max-width: 900px;
+      margin: 3rem auto;
+      padding: 0 1.5rem;
+      min-height: 65vh;
+    }
+
+    .back-nav {
+      margin-bottom: 1.5rem;
+    }
+
+    .back-nav a {
+      color: #64748b;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s;
+    }
+
+    .back-nav a:hover {
+      color: #ffbc01;
+    }
+
+    /* Scoreboard Banner */
+    .scoreboard-banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-radius: 24px;
+      padding: 2.5rem;
+      color: #fff;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .banner-overlay {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0.05;
+      z-index: 1;
+    }
+
+    .banner-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .banner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .banner-header .tournament-info {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #ffbc01;
+    }
+
+    .banner-header .live-badge {
+      background-color: #ef4444;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .banner-header .status-badge {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .matchup-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .matchup-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .matchup-team img {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      background-color: #1e293b;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    .matchup-team h3 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .matchup-score-block {
+      text-align: center;
+    }
+
+    .matchup-score {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #ffbc01;
+      margin-bottom: 8px;
+    }
+
+    .matchup-timer {
+      font-size: 16px;
+      font-weight: 600;
+      color: #94a3b8;
+      background-color: rgba(0, 0, 0, 0.2);
+      padding: 6px 16px;
+      border-radius: 50px;
+      display: inline-block;
+    }
+
+    .banner-footer {
+      text-align: center;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    /* Detailed scoring card */
+    .detail-card {
+      background-color: var(--bg-secondary, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      margin-bottom: 2rem;
+    }
+
+    .detail-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color, #e2e8f0);
+      padding-bottom: 0.5rem;
+    }
+
+    .cricket-details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .detail-item span.label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+
+    .detail-item span.val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main, #0f172a);
+    }
+
+    .result-alert {
+      background-color: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      padding: 15px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 15px;
+      text-align: center;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html" class="active"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="details-viewport">
+    <div class="back-nav">
+      <a href="results.html"><i class="ri-arrow-left-line"></i> Back to Live Scores</a>
+    </div>
+
+    <div id="matchDetailsContainer">
+      <!-- Loading indicator -->
+      <div style="text-align: center; color: var(--text-muted); padding: 60px;">
+        <i class="ri-loader-3-line" style="font-size: 36px; display: inline-block; animation: spin 1s infinite linear;"></i>
+        <p style="margin-top: 10px;">Retrieving detailed scorecard...</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Extract match ID from query
+    const params = new URLSearchParams(window.location.search);
+    const matchId = params.get("id");
+
+    let matchData = null;
+    let timerInterval = null;
+
+    // Theme switch
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    if (!matchId) {
+      document.getElementById("matchDetailsContainer").innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px; font-weight: 600;">Invalid Match ID.</div>`;
+    } else {
+      loadMatchDetails();
+    }
+
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
+    async function loadMatchDetails() {
+      try {
+        const res = await fetch(`/api/matches/${matchId}`);
+        if (!res.ok) throw new Error("Match not found");
+        matchData = normalizeMatchData(await res.json());
+        renderDetails();
+      } catch (err) {
+        document.getElementById("matchDetailsContainer").innerHTML = `<div style="text-align: center; color: var(--danger); padding: 40px; font-weight: 600;">Match details could not be loaded.</div>`;
+      }
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+      const s = (seconds % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function renderDetails() {
+      if (!matchData) return;
+      const container = document.getElementById("matchDetailsContainer");
+      container.innerHTML = "";
+
+      const getLiveTimerValue = () => {
+        let sec = matchData.elapsedSeconds;
+        if (matchData.timerRunning && matchData.timerStartedAt) {
+          sec += Math.max(0, Math.floor((Date.now() - matchData.timerStartedAt) / 1000));
+        }
+        return formatTime(sec);
+      };
+
+      let statusBadge = `<span class="status-badge">${matchData.status}</span>`;
+      if (matchData.status === "live") {
+        statusBadge = `<span class="live-badge" style="animation: pulse-badge 2s infinite;">● LIVE</span>`;
+      } else if (matchData.status === "completed") {
+        statusBadge = `<span class="status-badge" style="background-color: rgba(16, 185, 129, 0.15); color: #10b981;">Completed</span>`;
+      }
+
+      container.innerHTML = `
+        ${matchData.status === "completed" && matchData.result ? `
+          <div class="result-alert">
+            <i class="ri-trophy-line"></i>
+            <span>${matchData.result}</span>
+          </div>
+        ` : ""}
+
+        <div class="scoreboard-banner">
+          <div class="banner-overlay" style="background-image: url('${matchData.matchBanner || ''}');"></div>
+          <div class="banner-content">
+            <div class="banner-header">
+              <span class="tournament-info">${matchData.tournamentName || 'DSSL 2026'} • ${matchData.sportName}</span>
+              ${statusBadge}
+            </div>
+            
+            <div class="matchup-grid">
+              <div class="matchup-team">
+                <img src="${matchData.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
+                <h3>${matchData.dalA.name}</h3>
+              </div>
+              
+              <div class="matchup-score-block">
+                <div class="matchup-score">
+                  ${matchData.status === "scheduled" ? "VS" : `${matchData.scoreA} - ${matchData.scoreB}`}
+                </div>
+                ${matchData.status === "live" ? `
+                  <div class="matchup-timer" id="detailsTimerDisplay">${getLiveTimerValue()}</div>
+                ` : ""}
+              </div>
+              
+              <div class="matchup-team">
+                <img src="${matchData.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
+                <h3>${matchData.dalB.name}</h3>
+              </div>
+            </div>
+            
+            <div class="banner-footer">
+              <i class="ri-map-pin-line"></i> Played at: <strong>${matchData.venue}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <h3>Match Analytics & Live Details</h3>
+          <div class="cricket-details-grid">
+            <div class="detail-item">
+              <span class="label">Venue Location</span>
+              <span class="val">${matchData.venue}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Match Status</span>
+              <span class="val" style="text-transform: capitalize;">${matchData.status}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Scheduled Length</span>
+              <span class="val">${matchData.durationMinutes} Minutes</span>
+            </div>
+            
+            ${matchData.sportName.toLowerCase().includes("cricket") ? `
+              <div class="detail-item">
+                <span class="label">Overs Bowled</span>
+                <span class="val">${matchData.overs || "0.0"}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Wickets Down</span>
+                <span class="val">${matchData.wickets || 0} wickets</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Current Run Rate (CRR)</span>
+                <span class="val">${matchData.runRate || "0.00"}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Batsman at Crease</span>
+                <span class="val">${matchData.currentBatsman || "--"}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Bowler at Crease</span>
+                <span class="val">${matchData.currentBowler || "--"}</span>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+
+      // Tick timer locally
+      if (timerInterval) clearInterval(timerInterval);
+      if (matchData.status === "live") {
+        timerInterval = setInterval(() => {
+          const display = document.getElementById("detailsTimerDisplay");
+          if (display) {
+            display.textContent = getLiveTimerValue();
+          }
+        }, 1000);
+      }
+    }
+
+    // Socket Setup
+    const socket = io();
+    socket.on("matchUpdate", (match) => {
+      if (match.id.toString() == matchId) {
+        console.log("Realtime score update received for active match:", match);
+        matchData = normalizeMatchData(match) || match;
+        renderDetails();
+      }
+    });
+
+    socket.on("matchDelete", (deletedId) => {
+      if (deletedId == matchId) {
+        alert("This match has been deleted by an administrator.");
+        window.location.href = "results.html";
+      }
+    });
+  </script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+

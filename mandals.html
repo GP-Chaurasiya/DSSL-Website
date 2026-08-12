@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Mandals (Teams) Overview</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .mandals-viewport {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 70vh;
+    }
+
+    .viewport-header {
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+
+    .viewport-header h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      margin-bottom: 8px;
+    }
+
+    .viewport-header p {
+      color: var(--text-muted, #64748b);
+      font-size: 16px;
+    }
+
+    /* Mandal Grid */
+    .mandals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .mandal-card {
+      background-color: var(--surface-color, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .mandal-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--card-shadow);
+    }
+
+    .mandal-card-header {
+      height: 12px;
+      width: 100%;
+    }
+
+    .mandal-card-body {
+      padding: 1.5rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .mandal-logo-wrapper {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background-color: var(--bg-color);
+      border: 3px solid var(--border-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      margin-top: -10px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      transition: var(--transition);
+    }
+
+    .mandal-card:hover .mandal-logo-wrapper {
+      transform: scale(1.08);
+      border-color: currentColor;
+    }
+
+    .mandal-logo-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .mandal-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--heading-color);
+      margin-bottom: 4px;
+    }
+
+    .mandal-abbrev {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background-color: var(--bg-color);
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-bottom: 1rem;
+    }
+
+    .mandal-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+      margin: 1rem 0;
+      background-color: var(--surface-alt);
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border-light);
+    }
+
+    .mandal-stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mandal-stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-color);
+    }
+
+    .mandal-stat-lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .mandal-meta {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border-light);
+    }
+
+    .mandal-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .mandal-meta-item i {
+      color: var(--primary-color);
+    }
+
+    /* Departments box: use left-aligned lists inside centered card body */
+    .mandal-departments {
+      width: 100%;
+      margin-top: 1.2rem;
+      padding: 16px 14px;
+      background: linear-gradient(135deg, var(--bg-color) 0%, rgba(255, 188, 1, 0.03) 100%);
+      border-radius: 14px;
+      border: 1.5px solid var(--border-light);
+      text-align: left; /* keep department names left-aligned for readability */
+    }
+
+    .departments-title {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-main);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-start;
+    }
+
+    .departments-title:before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .departments-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* Make list items use flex so the bullet can align to the top for multiline names */
+    .departments-list li {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-color);
+      padding: 6px 0;
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .departments-list li:before {
+      content: "";
+      margin-top: 6px; /* nudge bullet toward first line for multiline entries */
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .mandal-action-btn {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background-color: transparent;
+      color: var(--text-color);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mandal-action-btn:hover {
+      background-color: var(--primary-color);
+      color: #000;
+      border-color: var(--primary-color);
+    }
+
+    /* Active Filter Header */
+    .filter-header-section {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .filter-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .filter-info img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      object-fit: cover;
+    }
+
+    .filter-info-text h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .filter-info-text p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .clear-filter-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 50px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-color);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .clear-filter-btn:hover {
+      background-color: var(--border-light);
+      border-color: var(--text-muted);
+    }
+
+    /* Match Results List */
+    .section-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      color: var(--heading-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html" class="active"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="mandals-viewport">
+    <div class="viewport-header">
+      <h2>Tournament Mandals (Teams)</h2>
+      <p>Explore the 7 foundational Mandals competing in the tournament. View statistics, player registries, and custom fixtures.</p>
+    </div>
+
+    <!-- Mandals Grid -->
+    <div class="mandals-grid" id="dalsContainer">
+      <!-- Loader -->
+      <div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 50px;">
+        <i class="ri-loader-3-line" style="font-size: 36px; display: inline-block; animation: spin 1s infinite linear;"></i>
+        <p style="margin-top: 10px;">Loading Mandals directory...</p>
+      </div>
+    </div>
+
+    <!-- Dynamic Filter indicator -->
+    <div class="filter-header-section" id="activeFilterBanner">
+      <div class="filter-info">
+        <img id="filterBannerLogo" src="Vashishta Mandal.png" alt="Logo">
+        <div class="filter-info-text">
+          <h3 id="filterBannerName">Vashishta Mandal</h3>
+          <p id="filterBannerStat">Filtered fixtures and scores</p>
+        </div>
+      </div>
+      <button class="clear-filter-btn" onclick="clearDalFilter()">Show All Teams</button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Department Mapping for Each Mandal
+    const mandalsDeptsMap = {
+      "Vashishta Mandal": [
+        "Department of Computer Science"
+      ],
+      "Vishwamitra Mandal": [
+        "B.Voc Animation",
+        "BBA - TTM",
+        "BA English"
+      ],
+      "Atrey Mandal": [
+        "Department of Mathematics",
+        "Department of Journalism",
+        "Department of Education",
+        "Department of Philosophy, Religious Studies, and Divinity"
+      ],
+      "Gautam Mandal": [
+        "Department of Hindi",
+        "Department of History & Indian Culture",
+        "Department of Vedic Studies & Sanskrit",
+        "Department of Indian Classical Music"
+      ],
+      "Bharadwaj Mandal": [
+        "Department of Psychology",
+        "Department of Medicinal Plant Sciences",
+        "Department of Rural Studies & Sustainability"
+      ],
+      "Jamdagni Mandal": [
+        "All Undergraduate (UG) students of the Faculty of Yoga and Health"
+      ],
+      "Kashyap Mandal": [
+        "All Post-Graduate (PG) students of the Faculty of Yoga and Health"
+      ]
+    };
+
+    function getDepartments(mandalName) {
+      return mandalsDeptsMap[mandalName] || [];
+    }
+
+    let allDals = [];
+    let allMatches = [];
+    let playerCounts = {};
+    let selectedDalId = null;
+
+    // Theme switcher
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    const socket = io();
+
+    // Listen for live Google Sheet player count updates
+    window.addEventListener("dsslPlayerCountsUpdated", () => {
+      renderDals();
+    });
+
+    async function loadData() {
+      try {
+        const dalsRes = await fetch("/api/mandals");
+        const mandalsData = await dalsRes.json();
+        allDals = Array.isArray(mandalsData) ? mandalsData : [];
+
+        const matchesRes = await fetch("/api/matches");
+        const matchesData = await matchesRes.json();
+        allMatches = Array.isArray(matchesData) ? matchesData : [];
+
+        renderDals();
+        renderMatches();
+      } catch (err) {
+        document.getElementById("dalsContainer").innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--danger);padding:40px;font-weight:600;">Failed to load mandals information.</div>`;
+      }
+    }
+
+    function renderDals() {
+      const container = document.getElementById("dalsContainer");
+      container.innerHTML = "";
+
+      // Compute stats for each mandal from completed matches
+      const dalStats = {};
+      allDals.forEach(d => {
+        dalStats[d.id] = { played: 0, wins: 0, losses: 0, draws: 0, points: 0 };
+      });
+
+      allMatches.filter(m => m.status === "completed").forEach(m => {
+        if (dalStats[m.dalAId]) dalStats[m.dalAId].played++;
+        if (dalStats[m.dalBId]) dalStats[m.dalBId].played++;
+
+        if (m.scoreA > m.scoreB) {
+          if (dalStats[m.dalAId]) { dalStats[m.dalAId].wins++; dalStats[m.dalAId].points += 3; }
+          if (dalStats[m.dalBId]) dalStats[m.dalBId].losses++;
+        } else if (m.scoreB > m.scoreA) {
+          if (dalStats[m.dalBId]) { dalStats[m.dalBId].wins++; dalStats[m.dalBId].points += 3; }
+          if (dalStats[m.dalAId]) dalStats[m.dalAId].losses++;
+        } else {
+          if (dalStats[m.dalAId]) { dalStats[m.dalAId].draws++; dalStats[m.dalAId].points += 1; }
+          if (dalStats[m.dalBId]) { dalStats[m.dalBId].draws++; dalStats[m.dalBId].points += 1; }
+        }
+      });
+
+      allDals.forEach(mandal => {
+        const stats = dalStats[mandal.id] || { played: 0, wins: 0, losses: 0, draws: 0, points: 0 };
+        const safeName = mandal.name || "Mandal";
+        const safeAbbreviation = mandal.abbreviation || safeName.slice(0, 3).toUpperCase();
+        const safeColor = mandal.color || "#0f172a";
+        const safeLogo = mandal.logoUrl || mandal.logo || "DSSL_LOGO.png";
+        const key = safeName.toLowerCase().replace(" mandal", "").replace(" dal", "").trim();
+        const counts = window.dsslPlayerCounts || {};
+        const pCount = counts[key] !== undefined ? counts[key] : (playerCounts[key] || 0);
+
+        const card = document.createElement("div");
+        card.className = "mandal-card";
+        card.style.color = safeColor;
+
+        const departments = getDepartments(safeName);
+        const deptsList = departments.map(d => `<li>${d}</li>`).join('');
+        
+        card.innerHTML = `
+          <div class="mandal-card-header" style="background-color: ${safeColor};"></div>
+          <div class="mandal-card-body">
+            <div class="mandal-logo-wrapper" style="color: ${safeColor}">
+              <img src="${safeLogo}" alt="${safeName}" onerror="this.src='DSSL_LOGO.png'">
+            </div>
+            <h3 class="mandal-name">${safeName}</h3>
+            <span class="mandal-abbrev" style="color: ${safeColor}; background-color: ${safeColor}15">${safeAbbreviation}</span>
+            
+            <div class="mandal-departments">
+              <div class="departments-title">Departments</div>
+              <ul class="departments-list">${deptsList}</ul>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderMatches() {
+      const container = document.getElementById("matchesContainer");
+      container.innerHTML = "";
+
+      let filtered = allMatches;
+      if (selectedDalId) {
+        filtered = allMatches.filter(m => m.dalAId == selectedDalId || m.dalBId == selectedDalId);
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">No match fixtures scheduled yet.</div>`;
+        return;
+      }
+
+      filtered.forEach(m => {
+        const card = document.createElement("div");
+        card.className = "match-card-item";
+
+        let statusText = m.status;
+        if (m.status === "live") statusText = "Live";
+        if (m.status === "completed") statusText = "Finished";
+        if (m.status === "scheduled") statusText = "Upcoming";
+
+        let footerText = `<i class="ri-map-pin-line"></i> ${m.venue}`;
+        if (m.status === "live") {
+          let sec = m.elapsedSeconds;
+          if (m.timerRunning && m.timerStartedAt) {
+            sec += Math.max(0, Math.floor((Date.now() - new Date(m.timerStartedAt).getTime()) / 1000));
+          }
+          const min = Math.floor(sec / 60).toString().padStart(2, "0");
+          const s = (sec % 60).toString().padStart(2, "0");
+          footerText = `<i class="ri-time-line"></i> In Progress: ${min}:${s} (${m.venue})`;
+        } else if (m.status === "scheduled") {
+          footerText = `<i class="ri-calendar-line"></i> Scheduled (${m.venue})`;
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="card-top-row">
+              <span class="sport-tag">${m.sportName}</span>
+              <span class="status-badge status-${m.status}">${statusText}</span>
+            </div>
+            
+            <div class="matchup-row">
+              <div class="team-block">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='Vashishta Mandal.png'">
+                <p>${m.dalA.name}</p>
+              </div>
+              
+              <div class="score-block">
+                ${m.status === "scheduled" ? "VS" : `${m.scoreA} - ${m.scoreB}`}
+              </div>
+              
+              <div class="team-block">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='Vishwamitra Mandal.png'">
+                <p>${m.dalB.name}</p>
+              </div>
+            </div>
+            ${m.sportName.toLowerCase().includes("cricket") && m.overs && m.status === "live" ? `
+            <div style="text-align: center; font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 10px;">
+              Overs: ${m.overs} | Wickets: ${m.wickets}
+            </div>
+            ` : ""}
+          </div>
+          
+          <div class="card-footer-row">
+            <span>${footerText}</span>
+            <a href="match-details.html?id=${m.id}" class="btn-action">Scorecard</a>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterDalMatches(dalId, name, logo) {
+      selectedDalId = dalId;
+      
+      const banner = document.getElementById("activeFilterBanner");
+      banner.style.display = "flex";
+      
+      document.getElementById("filterBannerLogo").src = logo;
+      document.getElementById("filterBannerName").textContent = name;
+      const titleEl = document.getElementById("fixturesTitle");
+      if (titleEl) titleEl.innerHTML = `<i class="ri-focus-3-line"></i> Fixtures & Results for ${name}`;
+
+      // Smooth scroll to fixtures
+      banner.scrollIntoView({ behavior: 'smooth' });
+
+      renderMatches();
+    }
+
+    function clearDalFilter() {
+      selectedDalId = null;
+      document.getElementById("activeFilterBanner").style.display = "none";
+      const titleEl = document.getElementById("fixturesTitle");
+      if (titleEl) titleEl.innerHTML = "";
+      renderMatches();
+    }
+
+    // Socket.io updates
+    socket.on("matchUpdate", (match) => {
+      const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
+      if (idx !== -1) {
+        allMatches[idx] = match;
+      } else {
+        allMatches.unshift(match);
+      }
+      renderDals();
+      renderMatches();
+    });
+
+    socket.on("matchDelete", (matchId) => {
+      allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
+      renderDals();
+      renderMatches();
+    });
+
+    loadData();
+    // Auto-poll matches every 10 seconds for real-time fallback
+    setInterval(async () => {
+      try {
+        const matchesRes = await fetch("/api/matches");
+        if (matchesRes.ok) {
+          allMatches = await matchesRes.json();
+          renderDals();
+          renderMatches();
+        }
+      } catch (e) {}
+    }, 10000);
+  </script>
+<script src="sheet-sync.js?v=20260809_dssl"></script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+

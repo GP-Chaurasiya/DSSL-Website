@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Tournament Schedule & Fixtures</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .schedule-viewport {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 70vh;
+    }
+
+    .viewport-header {
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+
+    .viewport-header h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      margin-bottom: 8px;
+    }
+
+    .viewport-header p {
+      color: var(--text-muted, #64748b);
+      font-size: 16px;
+    }
+
+    .fixtures-table-card {
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+
+    .fixtures-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+      text-align: center;
+    }
+
+    .fixtures-table th,
+    .fixtures-table td {
+      padding: 12px 14px;
+      border: 1px solid var(--border-light);
+      font-size: 14px;
+    }
+
+    .fixtures-table thead th {
+      font-weight: 800;
+      color: var(--heading-color);
+      background: var(--surface-color);
+    }
+
+    .month-row td {
+      text-align: left;
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--heading-color);
+      background: linear-gradient(90deg, rgba(0, 62, 138, 0.08), rgba(255, 188, 1, 0.06));
+    }
+
+    .month-row:nth-of-type(odd) td {
+      background: linear-gradient(90deg, rgba(34, 197, 94, 0.12), rgba(255, 255, 255, 0.02));
+    }
+
+    .empty-fixtures {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 3rem 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html" class="active"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="schedule-viewport">
+    <div class="viewport-header">
+      <h2>Fixtures & Schedules</h2>
+      <p>Browse full tournament fixtures. Filter matches by sports categories or specific Mandals to find schedules.</p>
+    </div>
+
+    <div class="fixtures-table-card" id="scheduleContainer">
+      <div class="empty-fixtures">
+        <i class="ri-loader-3-line" style="font-size: 30px; display: inline-block; animation: spin 1s infinite linear;"></i>
+        <p style="margin-top: 10px;">Loading fixtures schedule...</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const SPORTS = [
+      { id: 1, name: "Basketball", icon: "🏀" },
+      { id: 2, name: "Football", icon: "⚽" },
+      { id: 3, name: "Cricket", icon: "🏏" },
+      { id: 4, name: "Volleyball", icon: "🏐" },
+      { id: 5, name: "Badminton (Doubles)", icon: "🏸" },
+      { id: 6, name: "Table Tennis", icon: "🏓" },
+      { id: 7, name: "Athletics (100m)", icon: "🏃" },
+      { id: 8, name: "Athletics (400m)", icon: "🏃" },
+      { id: 9, name: "Athletics (Relay)", icon: "🔁" },
+      { id: 10, name: "Kho-Kho", icon: "🤸" },
+      { id: 11, name: "Chess", icon: "♟️" },
+      { id: 12, name: "High Jump", icon: "🏋️" },
+      { id: 13, name: "Tug of War", icon: "💪" },
+      { id: 14, name: "Long Jump", icon: "🦘" },
+      { id: 15, name: "Javelin Throw", icon: "🎿" },
+      { id: 16, name: "Discus Throw", icon: "🥏" },
+      { id: 17, name: "Shot Put", icon: "⚫" },
+      { id: 18, name: "Athletics (200m)", icon: "🏃" },
+      { id: 19, name: "7 Stones", icon: "🪨" },
+      { id: 20, name: "Kabaddi", icon: "🤼" }
+    ];
+
+    let allMatches = [];
+    let allDals = [];
+
+    // Theme Switch
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    const socket = io();
+
+    function normalizeTeamData(team) {
+      return {
+        ...(team || {}),
+        name: team?.name || "Unknown Team",
+        abbreviation: team?.abbreviation || "UT",
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA),
+        dalB: normalizeTeamData(match.dalB),
+        matchupText: match.matchRound || match.description || `${match.sportName || "Scheduled"} Match`
+      };
+    }
+
+    async function loadData() {
+      try {
+        // Load Mandals
+        const dalsRes = await fetch("/api/mandals");
+        allDals = (await dalsRes.json()).map((team, index) => ({
+          ...team,
+          name: `Team ${index + 1}`,
+          abbreviation: `T${index + 1}`,
+          logoUrl: team.logoUrl || "DSSL_LOGO.png",
+          logo: team.logoUrl || "DSSL_LOGO.png"
+        }));
+        
+        // Load planned fixtures only. Live/on-spot matches are managed separately.
+        const matchesRes = await fetch("/api/planned-matches");
+        allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
+
+        renderSchedule();
+      } catch (err) {
+        document.getElementById("scheduleContainer").innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--danger); padding: 40px; font-weight: 600;">Failed to load schedule database.</div>`;
+      }
+    }
+
+    function renderSchedule() {
+      const container = document.getElementById("scheduleContainer");
+      container.innerHTML = "";
+
+      const getMatchDate = (m) => new Date(m.startTime || m.createdAt || Date.now());
+      const getEndDate = (m) => m.endTime ? new Date(m.endTime) : null;
+      const filtered = [...allMatches].sort((a, b) => getMatchDate(a) - getMatchDate(b));
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-fixtures">No scheduled fixtures available yet.</div>`;
+        return;
+      }
+
+      const grouped = new Map();
+      filtered.forEach((m) => {
+        const date = getMatchDate(m);
+        const key = date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(m);
+      });
+
+      let index = 1;
+      const rows = [];
+      grouped.forEach((matches, monthLabel) => {
+        rows.push(`<tr class="month-row"><td colspan="6">${monthLabel}</td></tr>`);
+        matches.forEach((m) => {
+          const start = getMatchDate(m);
+          const end = getEndDate(m);
+          const dateText = start.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
+          const dayText = start.toLocaleDateString("en-IN", { weekday: "short" });
+          const startText = start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+          const endText = end ? end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
+          const timeText = endText ? `${startText} - ${endText}` : startText;
+          const matchupText = m.matchRound || m.sportName || "Scheduled Match";
+          rows.push(`
+            <tr>
+              <td>${index++}</td>
+              <td>${dateText}</td>
+              <td>${dayText}</td>
+              <td>${timeText}</td>
+              <td>${matchupText}</td>
+              <td>${m.venue}</td>
+            </tr>
+          `);
+        });
+      });
+
+      container.innerHTML = `
+        <table class="fixtures-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Day</th>
+              <th>Time</th>
+              <th>Event / Round</th>
+              <th>Venue</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+      `;
+    }
+
+    // Socket listeners
+    socket.on("plannedMatchUpdate", (match) => {
+      const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
+      if (idx !== -1) {
+        allMatches[idx] = match;
+      } else {
+        allMatches.unshift(match);
+      }
+      renderSchedule();
+    });
+
+    socket.on("plannedMatchDelete", (matchId) => {
+      allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
+      renderSchedule();
+    });
+
+    loadData();
+  </script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+

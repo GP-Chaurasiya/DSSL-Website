@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Live Scores & Schedules</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .results-viewport {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 60vh;
+    }
+
+    .viewport-header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .viewport-header h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      margin-bottom: 8px;
+    }
+
+    .viewport-header p {
+      color: #64748b;
+      font-size: 16px;
+    }
+
+    /* Filter Tabs */
+    .filter-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 10px 22px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 50px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main, #0f172a);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-btn:hover {
+      background-color: rgba(255, 188, 1, 0.1);
+    }
+
+    .filter-btn.active {
+      background-color: #ffbc01;
+      color: #000;
+      border-color: #ffbc01;
+    }
+
+    /* Card List Grid */
+    .matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .match-card-item {
+      background-color: var(--bg-secondary, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .match-card-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+      border-color: rgba(255, 188, 1, 0.3);
+    }
+
+    .card-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .sport-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background-color: rgba(255, 188, 1, 0.1);
+      color: #b58000;
+      padding: 4px 10px;
+      border-radius: 50px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 50px;
+    }
+
+    .status-live {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      animation: pulse-live 2s infinite;
+    }
+
+    .status-scheduled {
+      background-color: rgba(100, 116, 139, 0.1);
+      color: #64748b;
+    }
+
+    .status-completed {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+
+    @keyframes pulse-live {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+
+    .matchup-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 1.5rem 0;
+    }
+
+    .team-block {
+      flex: 1;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .team-block img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #e2e8f0;
+    }
+
+    .team-block p {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    .score-block {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      padding: 0 15px;
+    }
+
+    .card-footer-row {
+      border-top: 1px solid var(--border-color, #e2e8f0);
+      padding-top: 1rem;
+      margin-top: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .card-footer-row i {
+      margin-right: 4px;
+    }
+
+    .btn-action {
+      background-color: #ffbc01;
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+    }
+
+    .btn-action:hover {
+      background-color: #e0a500;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html" class="active"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="results-viewport">
+    <div class="viewport-header">
+      <h2>Live Scores & Schedules</h2>
+      <p>Follow matches in real-time or browse upcoming tournament schedules.</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-tabs">
+      <button class="filter-btn active" data-filter="all">All Matches</button>
+      <button class="filter-btn" data-filter="live"><i class="ri-broadcast-line"></i> Live</button>
+      <button class="filter-btn" data-filter="scheduled">Upcoming</button>
+      <button class="filter-btn" data-filter="completed">Finished</button>
+    </div>
+
+    <!-- Grid List -->
+    <div class="matches-grid" id="matchesContainer">
+      <!-- Loading indicator -->
+      <div style="text-align: center; grid-column: 1 / -1; color: var(--text-muted); padding: 40px;">
+        <i class="ri-loader-3-line" style="font-size: 30px; display: inline-block; animation: spin 1s infinite linear;"></i>
+        <p style="margin-top: 10px;">Loading matches database...</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let currentFilter = "all";
+    let allMatches = [];
+
+    // Theme Switch
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    // Socket Setup
+    const socket = io();
+
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
+    async function loadMatches() {
+      try {
+        const response = await fetch("/api/matches");
+        allMatches = (await response.json()).map(normalizeMatchData).filter(Boolean);
+        renderMatches();
+      } catch (err) {
+        document.getElementById("matchesContainer").innerHTML = `<div style="text-align: center; grid-column: 1 / -1; color: var(--danger); padding: 40px;">Failed to connect to score server.</div>`;
+      }
+    }
+
+    function renderMatches() {
+      const container = document.getElementById("matchesContainer");
+      container.innerHTML = "";
+
+      const filtered = allMatches.filter((m) => {
+        if (currentFilter === "all") return true;
+        return m.status === currentFilter;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align: center; grid-column: 1 / -1; color: #64748b; padding: 60px;">No matches found matching the criteria.</div>`;
+        return;
+      }
+
+      filtered.forEach((m) => {
+        const card = document.createElement("div");
+        card.className = "match-card-item";
+        
+        let statusText = m.status;
+        if (m.status === "live") statusText = "Live";
+        if (m.status === "completed") statusText = "Finished";
+        if (m.status === "scheduled") statusText = "Upcoming";
+
+        let footerText = `<i class="ri-map-pin-line"></i> ${m.venue}`;
+        if (m.status === "live") {
+          let sec = m.elapsedSeconds;
+          if (m.timerRunning && m.timerStartedAt) {
+            sec += Math.max(0, Math.floor((Date.now() - m.timerStartedAt) / 1000));
+          }
+          const min = Math.floor(sec / 60).toString().padStart(2, "0");
+          const s = (sec % 60).toString().padStart(2, "0");
+          footerText = `<i class="ri-time-line"></i> In Progress: ${min}:${s} (${m.venue})`;
+        } else if (m.status === "scheduled") {
+          footerText = `<i class="ri-calendar-line"></i> Scheduled (${m.venue})`;
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="card-top-row">
+              <span class="sport-tag">${m.sportName}</span>
+              <span class="status-badge status-${m.status}">${statusText}</span>
+            </div>
+            
+            <div class="matchup-row">
+              <div class="team-block">
+                <img src="${m.dalA.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
+                <p>${m.dalA.name}</p>
+              </div>
+              
+              <div class="score-block">
+                ${m.status === "scheduled" ? "VS" : `${m.scoreA} - ${m.scoreB}`}
+              </div>
+              
+              <div class="team-block">
+                <img src="${m.dalB.logoUrl}" onerror="this.src='DSSL_LOGO.png'">
+                <p>${m.dalB.name}</p>
+              </div>
+            </div>
+            ${m.sportName.toLowerCase().includes("cricket") && m.overs && m.status === "live" ? `
+            <div style="text-align: center; font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 10px;">
+              Overs: ${m.overs} | Wickets: ${m.wickets}
+            </div>
+            ` : ""}
+          </div>
+          
+          <div class="card-footer-row">
+            <span id="timer-${m.id}">${footerText}</span>
+            <a href="match-details.html?id=${m.id}" class="btn-action">Scorecard</a>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Filter Trigger Setup
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.getAttribute("data-filter");
+        renderMatches();
+      });
+    });
+
+    // Realtime listeners
+    socket.on("matchUpdate", (match) => {
+      const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
+      if (idx !== -1) {
+        allMatches[idx] = normalizeMatchData(match) || match;
+      } else {
+        allMatches.unshift(normalizeMatchData(match) || match);
+      }
+      renderMatches();
+    });
+
+    socket.on("matchDelete", (matchId) => {
+      allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
+      renderMatches();
+    });
+
+    // Run
+    loadMatches();
+    // 5-second match auto-polling fallback
+    setInterval(async () => {
+      try {
+        const res = await fetch("/api/matches");
+        if (res.ok) {
+          allMatches = (await res.json()).map(normalizeMatchData).filter(Boolean);
+          renderMatches();
+        }
+      } catch (e) {}
+    }, 5000);
+  </script>
+<script src="sheet-sync.js?v=20260809_dssl"></script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime   @default(now())
+  posts        NewsPost[]
+}
+
+model Mandal {
+  id              Int            @id @default(autoincrement())
+  name            String         @unique
+  color           String
+  abbreviation    String
+  logoUrl         String
+  matchesA        Match[]        @relation("DalA")
+  matchesB        Match[]        @relation("DalB")
+  plannedMatchesA PlannedMatch[] @relation("PlannedDalA")
+  plannedMatchesB PlannedMatch[] @relation("PlannedDalB")
+  players         Player[]
+}
+
+model Player {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  dalId              Int?
+  createdAt          DateTime @default(now())
+  course             String   @default("")
+  email              String   @default("")
+  gender             String   @default("")
+  mandalName         String   @default("")
+  phone              String   @default("")
+  registrationDate   DateTime @default(now())
+  scholarNo          String   @unique
+  semester           String   @default("")
+  sport              String   @default("")
+  teamRegistrationId String   @default("")
+  teamRole           String   @default("")
+  mandal             Mandal?  @relation(fields: [dalId], references: [id])
+}
+
+model Match {
+  id              Int       @id @default(autoincrement())
+  sportId         Int
+  sportName       String
+  status          String    @default("scheduled")
+  venue           String
+  startTime       DateTime?
+  endTime         DateTime?
+  durationMinutes Int       @default(60)
+  elapsedSeconds  Int       @default(0)
+  timerRunning    Boolean   @default(false)
+  timerStartedAt  DateTime?
+  scoreA          Int       @default(0)
+  scoreB          Int       @default(0)
+  dalAId          Int
+  dalBId          Int
+  overs           Float     @default(0.0)
+  wickets         Int       @default(0)
+  currentBatsman  String    @default("")
+  currentBowler   String    @default("")
+  runRate         Float     @default(0.0)
+  tournamentName  String    @default("DSSPL 2026")
+  result          String    @default("")
+  matchBanner     String    @default("")
+  createdAt       DateTime  @default(now())
+  matchRound      String    @default("")
+  description     String    @default("")
+  dalA            Mandal    @relation("DalA", fields: [dalAId], references: [id])
+  dalB            Mandal    @relation("DalB", fields: [dalBId], references: [id])
+}
+
+model PlannedMatch {
+  id              Int       @id @default(autoincrement())
+  sportId         Int
+  sportName       String
+  status          String    @default("scheduled")
+  venue           String
+  startTime       DateTime?
+  endTime         DateTime?
+  durationMinutes Int       @default(60)
+  dalAId          Int
+  dalBId          Int
+  matchRound      String    @default("")
+  description     String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+  dalA            Mandal    @relation("PlannedDalA", fields: [dalAId], references: [id])
+  dalB            Mandal    @relation("PlannedDalB", fields: [dalBId], references: [id])
+}
+
+model Media {
+  id        Int      @id @default(autoincrement())
+  type      String
+  url       String
+  title     String?
+  mimeType  String   @default("image/png")
+  data      Bytes?
+  createdAt DateTime @default(now())
+}
+
+model NewsPost {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  authorId  Int
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model RegistrationSettings {
+  id            Int      @id @default(autoincrement())
+  masterEnabled Boolean  @default(true)
+  sportsConfig  String   @default("{}")
+  updatedAt     DateTime
+}

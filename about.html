@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - About the Tournament</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .about-viewport {
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 70vh;
+    }
+
+    /* Hero Banner */
+    .about-hero {
+      background: linear-gradient(135deg, #003e8a, #001233);
+      color: #fff;
+      border-radius: 30px;
+      padding: 3rem 2rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .about-hero h2 {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .about-hero p {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.8);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .green-theme-tag {
+      background-color: #10b981;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 50px;
+      display: inline-block;
+      margin-top: 1.5rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Tab switcher layout */
+    .about-tabs-nav {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tab-nav-btn {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      position: relative;
+      transition: var(--transition);
+    }
+
+    .tab-nav-btn:hover {
+      color: var(--text-color);
+    }
+
+    .tab-nav-btn.active {
+      color: var(--primary-color);
+    }
+
+    .tab-nav-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -11px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: var(--primary-color);
+      border-radius: 3px;
+    }
+
+    .about-tab-panel {
+      display: none;
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: var(--shadow);
+      line-height: 1.7;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .about-tab-panel.active {
+      display: block;
+    }
+
+    .about-tab-panel h3 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--heading-color);
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .about-tab-panel h3 i {
+      color: var(--primary-color);
+    }
+
+    .about-tab-panel p {
+      margin-bottom: 1.25rem;
+      color: var(--text-color);
+    }
+
+    .about-tab-panel ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .about-tab-panel li {
+      margin-bottom: 8px;
+    }
+
+    /* Grid boxes */
+    .about-grid-box {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .about-feature-card {
+      background-color: var(--surface-alt);
+      border: 1px solid var(--border-light);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .about-feature-card i {
+      font-size: 32px;
+      color: var(--primary-color);
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+
+    .about-feature-card h4 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--heading-color);
+    }
+
+    .about-feature-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html" class="active"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="about-viewport">
+    <!-- Hero Banner -->
+    <div class="about-hero">
+      <h2>About DSSL</h2>
+      <p>Dev Sanskriti Sports League — The annual sports tournament of Dev Sanskriti Vishwavidyalaya, Haridwar.</p>
+      <span class="green-theme-tag"><i class="ri-leaf-line"></i> Screen Nahi Green</span>
+    </div>
+
+    <!-- Tabs Nav -->
+    <div class="about-tabs-nav">
+      <button class="tab-nav-btn active" onclick="showTab('vision')">Vision & Objectives</button>
+      <button class="tab-nav-btn" onclick="showTab('guidelines')">Guidelines & Rules</button>
+      <button class="tab-nav-btn" onclick="showTab('organizers')">Organizers & Teams</button>
+      <button class="tab-nav-btn" onclick="showTab('contact')">Location & Contact</button>
+    </div>
+
+    <!-- Tab 1: Vision -->
+    <div class="about-tab-panel active" id="tab-vision">
+      <h3><i class="ri-compass-line"></i> Vision & Objectives</h3>
+      <p>DSSL (Dev Sanskriti Sports League) is established with a unique initiative: <strong>"Screen Nahi Green"</strong>. Our goal is to steer youth away from mobile and computer screens towards the active, physical sports field, encouraging healthy team play, strong social bonds, and dynamic athletic development.</p>
+      <p>By engaging in rigorous inter-mandal matches, students learn the fundamentals of leadership, sportsmanship, and mental resilience. We are building a vibrant, healthy, and screen-free student community.</p>
+      
+      <div class="about-grid-box">
+        <div class="about-feature-card">
+          <i class="ri-football-line"></i>
+          <h4>Physical fitness</h4>
+          <p>Inspiring students to prioritize daily active exercises and sports training.</p>
+        </div>
+        <div class="about-feature-card">
+          <i class="ri-group-line"></i>
+          <h4>Team Spirit</h4>
+          <p>Nurturing values of group coordination, empathy, and collective triumph.</p>
+        </div>
+        <div class="about-feature-card">
+          <i class="ri-shield-star-line"></i>
+          <h4>Screen-Free Life</h4>
+          <p>Promoting a balanced lifestyle reducing unnecessary digital screen dependance.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Guidelines -->
+    <div class="about-tab-panel" id="tab-guidelines">
+      <h3><i class="ri-article-line"></i> Tournament Rules & Guidelines</h3>
+      <p>To ensure decorum, equality, and high sportsmanship, all participants must comply with the following tournament rules:</p>
+      <ul>
+        <li><strong>Eligibility:</strong> Only registered students of Dev Sanskriti Vishwavidyalaya, Haridwar can compete representing their designated Mandal.</li>
+        <li><strong>Conduct:</strong> Any form of verbal abuse, aggressive misconduct, or unsportsmanlike behavior on the field will result in immediate disqualification.</li>
+        <li><strong>Scoring:</strong>
+          <ul>
+            <li>Win: 3 Points</li>
+            <li>Draw: 1 Point</li>
+            <li>Loss: 0 Points</li>
+          </ul>
+        </li>
+        <li><strong>Punctuality:</strong> Teams must report to their assigned venue (e.g. Main Ground, Vidyapeeth, Shriram ground) at least 15 minutes before the scheduled time. Delay of more than 10 minutes leads to a walkover (win awarded to opponent).</li>
+      </ul>
+    </div>
+
+    <!-- Tab 3: Organizers -->
+    <div class="about-tab-panel" id="tab-organizers">
+      <h3><i class="ri-team-line"></i> Tournament Administration</h3>
+      <p>The tournament is organized and managed by the Sports Council of Dev Sanskriti Vishwavidyalaya, Haridwar. Dedicated committees monitor operations:</p>
+      <ul>
+        <li><strong>Organizing Team:</strong> Oversees scheduling, score management, referee assignments, and mandal points calculations.</li>
+        <li><strong>Media & Content Team:</strong> Manages website articles, highlights, announcement alerts, and news.</li>
+        <li><strong>Gallery & Creative Team:</strong> Records match videos, captures premium graphics, and publishes media assets.</li>
+      </ul>
+      <p>The competition involves 7 dedicated Mandals: Vashishta Mandal, Vishwamitra Mandal, Atrey Mandal, Gautam Mandal, Bharadwaj Mandal, Jamdagni Mandal, and Kashyap Mandal.</p>
+    </div>
+
+    <!-- Tab 4: Contact -->
+    <div class="about-tab-panel" id="tab-contact">
+      <h3><i class="ri-map-pin-line"></i> Location & Reach Us</h3>
+      <p>Dev Sanskriti Vishwavidyalaya, Haridwar is a campus dedicated to scientific spiritualism, value education, and comprehensive student growth.</p>
+      <p><strong>Address:</strong> Dev Sanskriti Vishwavidyalaya, Haridwar - 249411, Uttarakhand, India</p>
+      <p><strong>Email:</strong> sports@dsvv.ac.in | DSSL-help@dsvv.ac.in</p>
+      <p><strong>Phone:</strong> +91 1334 261367</p>
+      
+      <!-- Styled Inquiry Form -->
+      <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-light);">
+        <h4 style="margin-bottom: 1rem;"><i class="ri-mail-send-line"></i> Send an Inquiry</h4>
+        <form onsubmit="event.preventDefault(); alert('Thank you! Your inquiry has been sent to the DSSL Organizing Team.'); this.reset();" style="display:flex; flex-direction:column; gap:12px; max-width: 500px;">
+          <input type="text" placeholder="Your Name" required style="padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-color); color:var(--text-color); font-family:inherit;">
+          <input type="email" placeholder="Your Email Address" required style="padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-color); color:var(--text-color); font-family:inherit;">
+          <textarea placeholder="Your Message or Query" rows="4" required style="padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-color); color:var(--text-color); font-family:inherit; resize:vertical;"></textarea>
+          <button type="submit" class="register-btn" style="align-self:flex-start;">Submit Query</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script>
+    // Theme Switch
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    function showTab(tabId) {
+      // Hide all panels
+      document.querySelectorAll(".about-tab-panel").forEach(p => p.classList.remove("active"));
+      // Deactivate all buttons
+      document.querySelectorAll(".tab-nav-btn").forEach(btn => btn.classList.remove("active"));
+
+      // Activate selected
+      document.getElementById(`tab-${tabId}`).classList.add("active");
+      // Find matching button
+      const btn = Array.from(document.querySelectorAll(".tab-nav-btn")).find(b => b.getAttribute("onclick").includes(tabId));
+      if (btn) btn.classList.add("active");
+    }
+  </script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+

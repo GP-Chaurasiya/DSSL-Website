@@ -1,0 +1,2348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL Admin Dashboard</title>
+  <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="../notifications.css?v=20260809_dssl">
+  <style>
+    :root {
+      /* Light mode palette */
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #ffbc01;
+      --primary-rgb: 255, 188, 1;
+      --primary-hover: #e0a500;
+      --accent: #003e8a;
+      --success: #10b981;
+      --danger: #ef4444;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      --sidebar-width: 260px;
+    }
+
+    [data-theme="dark"] {
+      /* Dark mode palette */
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #ffbc01;
+      --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar Layout */
+    aside {
+      width: var(--sidebar-width);
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      z-index: 10;
+      transition: transform 0.3s ease-in-out, width 0.3s;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-b: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--text-main);
+      text-decoration: none;
+    }
+
+    .sidebar-brand img {
+      height: 40px;
+    }
+
+    .sidebar-menu {
+      flex: 1;
+      padding: 1.5rem 1rem;
+      overflow-y: auto;
+      list-style: none;
+    }
+
+    .menu-item {
+      margin-bottom: 0.5rem;
+    }
+
+    .menu-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .menu-btn:hover {
+      background-color: rgba(var(--primary-rgb), 0.08);
+      color: var(--text-main);
+    }
+
+    .menu-btn.active {
+      background-color: var(--primary);
+      color: #000;
+      font-weight: 600;
+    }
+
+    .sidebar-footer {
+      padding: 1.5rem 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .user-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .btn-logout {
+      width: 100%;
+      padding: 10px;
+      background: none;
+      border: 1px solid var(--danger);
+      border-radius: 8px;
+      color: var(--danger);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+    }
+
+    .btn-logout:hover {
+      background-color: var(--danger);
+      color: #fff;
+    }
+
+    /* Main Area */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Header */
+    header {
+      height: 70px;
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .header-title h2 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: var(--text-main);
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .theme-toggle:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Content Area */
+    .content-viewport {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stat-card-left h3 {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .stat-card-left .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      background-color: rgba(var(--primary-rgb), 0.1);
+      color: var(--accent);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+    }
+
+    /* Tables & Lists */
+    .section-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .section-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-muted);
+      background-color: rgba(255, 255, 255, 0.01);
+    }
+
+    tr:hover td {
+      background-color: rgba(255, 255, 255, 0.01);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 50px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-live {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      animation: pulse 2s infinite;
+    }
+
+    .badge-scheduled {
+      background-color: rgba(255, 188, 1, 0.1);
+      color: #d69e2e;
+    }
+
+    .badge-completed {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .badge-paused {
+      background-color: rgba(100, 116, 139, 0.1);
+      color: var(--text-muted);
+    }
+
+    .badge-success {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-danger {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-secondary {
+      background-color: rgba(100, 116, 139, 0.15);
+      color: #64748b;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 18px;
+      background-color: var(--primary);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .btn-icon:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Forms */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 10px 14px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Generic input class used in dynamic tables */
+    .input {
+      padding: 8px 10px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      color-scheme: dark;
+    }
+    .input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Modal dialog */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .modal-content {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 600px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      position: relative;
+      animation: modalSlide 0.3s ease;
+    }
+
+    @keyframes modalSlide {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Live Score Control Hub styling */
+    .live-control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .live-team-control {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      background-color: rgba(255, 255, 255, 0.01);
+    }
+
+    .live-team-control h4 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .live-score-display {
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--accent);
+      margin: 15px 0;
+    }
+
+    .live-score-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-score-adjust {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .btn-score-adjust:hover {
+      background-color: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+
+    /* ── FIXTURES MODULE STYLES ── */
+    .breadcrumb-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .breadcrumb-container a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .breadcrumb-container a:hover {
+      color: var(--primary);
+    }
+    .breadcrumb-container span.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .subtitle-text {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Top Toolbar */
+    .fixtures-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding: 1.25rem;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+    .fixtures-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .filter-item label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .filter-item select, .filter-item input {
+      padding: 8px 12px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .filter-item select:focus, .filter-item input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .fixtures-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* Summary Grid Cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+    }
+    .summary-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(var(--primary-rgb), 0.4);
+    }
+    .summary-card-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .summary-card-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .summary-card-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Format Selector Cards */
+    .format-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .format-card {
+      cursor: pointer;
+      background-color: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      user-select: none;
+    }
+    .format-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+    .format-card.active {
+      border-color: var(--primary);
+      background-color: rgba(var(--primary-rgb), 0.08);
+      box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.15);
+    }
+    .format-icon {
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background-color: rgba(var(--primary-rgb), 0.1);
+      flex-shrink: 0;
+    }
+    .format-info {
+      min-width: 0;
+    }
+    .format-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+    .format-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Main Content Layout (65% / 35%) */
+    .fixtures-main-layout {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+    .fixtures-left-col {
+      flex: 0 0 65%;
+      max-width: 65%;
+      min-width: 0;
+    }
+    .fixtures-right-col {
+      flex: 0 0 35%;
+      max-width: 35%;
+      min-width: 0;
+    }
+    @media (max-width: 1100px) {
+      .fixtures-main-layout {
+        flex-direction: column;
+      }
+      .fixtures-left-col, .fixtures-right-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+    }
+
+    /* Bracket Viewport & Controls */
+    .bracket-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.5rem;
+    }
+    .bracket-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 1rem;
+      padding: 10px 14px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+    }
+    .bracket-controls {
+      display: flex;
+      gap: 6px;
+    }
+    .bracket-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .bracket-viewport {
+      position: relative;
+      overflow: hidden;
+      min-height: 540px;
+      height: 600px;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      background-color: var(--bg-primary);
+      user-select: none;
+      cursor: grab;
+    }
+    .bracket-viewport:active {
+      cursor: grabbing;
+    }
+    .bracket-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      transition: transform 0.08s ease-out;
+      display: flex;
+      gap: 60px;
+      padding: 30px;
+      align-items: center;
+      min-width: max-content;
+      min-height: 100%;
+    }
+    .svg-connector-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Round Column & Match Cards */
+    .round-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      gap: 32px;
+      min-width: 230px;
+      position: relative;
+      z-index: 2;
+    }
+    .round-title {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 15px;
+      padding: 6px 12px;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .match-card-node {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      width: 230px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      transition: all 0.25s ease;
+      position: relative;
+      z-index: 2;
+    }
+    .match-card-node.blank-style {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 2px !important;
+      width: 210px !important;
+    }
+    .match-card-node.blank-style .match-card-header {
+      justify-content: center !important;
+      font-weight: 800 !important;
+      font-size: 13px !important;
+      letter-spacing: 0.5px !important;
+      margin-bottom: 6px !important;
+      border-bottom: none !important;
+      padding-bottom: 0 !important;
+      color: var(--text-main) !important;
+    }
+    .match-card-node:hover {
+      border-color: var(--primary);
+      transform: scale(1.03);
+      z-index: 10;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+    .match-card-node.blank-style:hover {
+      transform: scale(1.02);
+      box-shadow: none;
+    }
+    .match-card-node.winner-highlight {
+      border-color: var(--primary);
+      box-shadow: 0 0 14px rgba(var(--primary-rgb), 0.3);
+    }
+    .match-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .match-team-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      background-color: rgba(255, 255, 255, 0.01);
+      transition: all 0.2s;
+    }
+    .match-team-row.blank-slot {
+      background: #ffffff !important;
+      border: 2px solid rgba(255, 255, 255, 0.8) !important;
+      border-radius: 24px !important;
+      padding: 0 !important;
+      margin-bottom: 8px !important;
+      height: 38px !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+    .blank-team-input {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      border: none !important;
+      outline: none !important;
+      padding: 0 12px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      color: #111827;
+      text-align: center;
+    }
+    .blank-team-input:focus {
+      background: rgba(214, 158, 46, 0.15) !important;
+    }
+    .match-team-row.is-winner {
+      background-color: rgba(var(--primary-rgb), 0.15);
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .team-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      min-width: 0;
+    }
+    .team-logo-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .seed-tag {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.06);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .bye-badge {
+      font-size: 10px;
+      background-color: rgba(100, 116, 139, 0.15);
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .champion-card {
+      background: linear-gradient(135deg, rgba(255, 188, 1, 0.15), rgba(0, 62, 138, 0.15)), var(--bg-secondary);
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 24px rgba(var(--primary-rgb), 0.35);
+      text-align: center;
+      padding: 24px;
+      border-radius: 20px;
+      min-width: 230px;
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.25); }
+      50% { box-shadow: 0 0 30px rgba(var(--primary-rgb), 0.5); }
+    }
+
+    /* Right Section Table Header & Search */
+    .fixtures-table-search {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .fixtures-table-search input {
+      padding: 8px 12px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-size: 13px;
+      width: 180px;
+    }
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .pagination-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* Group Stage Grid */
+    .groups-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .group-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .group-card h4 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+    }
+
+    /* Double Elimination Layout */
+    .double-elimination-container {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    .de-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Empty State & Skeleton Loaders */
+    .empty-state-box {
+      text-align: center;
+      padding: 4rem 2rem;
+      background-color: var(--bg-secondary);
+      border: 2px dashed var(--border-color);
+      border-radius: 20px;
+      margin: 1.5rem 0;
+    }
+    .empty-state-icon {
+      font-size: 64px;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      opacity: 0.8;
+    }
+    .skeleton-box {
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+      background-size: 200% 100%;
+      animation: skeletonPulse 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes skeletonPulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── PRINT: Single Page Landscape ── */
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 6mm 8mm;
+      }
+
+      /* Hide ALL body children, then show only printContainer */
+      body > * { display: none !important; }
+      #printContainer { display: flex !important; }
+
+      body {
+        background: #fff !important;
+        margin: 0 !important; padding: 0 !important;
+      }
+
+      /* Full-page flex column */
+      #printContainer {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        flex-direction: column !important;
+        padding: 6mm 8mm !important;
+        box-sizing: border-box !important;
+        background: #fff !important;
+        color: #000 !important;
+        font-family: 'Outfit', Arial, sans-serif !important;
+      }
+
+      /* ── Header ── */
+      .print-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        border-bottom: 2px solid #000 !important;
+        padding-bottom: 5px !important;
+        margin-bottom: 5px !important;
+        flex-shrink: 0 !important;
+      }
+      .print-header-brand {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+      .print-header-brand img { height: 36px !important; }
+      .print-header-brand h2 { font-size: 13px !important; margin: 0 !important; font-weight: 800 !important; }
+      .print-header-brand p  { font-size: 9px  !important; margin: 0 !important; color: #555 !important; }
+      .print-header-info { text-align: right !important; font-size: 9px !important; line-height: 1.6 !important; }
+
+      /* ── Meta strip ── */
+      .print-meta-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4,1fr) !important;
+        border: 1px solid #ddd !important;
+        border-radius: 3px !important;
+        padding: 3px 8px !important;
+        font-size: 9px !important;
+        margin-bottom: 5px !important;
+        flex-shrink: 0 !important;
+        background: #f8fafc !important;
+      }
+
+      /* ── Bracket body: fill remaining height ── */
+      #printBodyContent {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+        width: 100% !important;
+        position: relative !important;
+      }
+
+      /* The cloned bracketCanvas div */
+      #printBodyContent > div {
+        transform: none !important;
+        position: relative !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        width: 100% !important;
+        height: 100% !important;
+        padding: 2px 0 !important;
+        gap: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Each round column */
+      #printBodyContent .round-column {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: space-evenly !important;
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        height: 100% !important;
+        padding: 0 3px !important;
+        box-sizing: border-box !important;
+        gap: 0 !important;
+      }
+
+      /* Round title pill */
+      #printBodyContent .round-title {
+        font-size: 8px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.4px !important;
+        color: #000 !important;
+        background: #f1f5f9 !important;
+        border: 1px solid #94a3b8 !important;
+        border-radius: 4px !important;
+        padding: 2px 6px !important;
+        margin-bottom: 4px !important;
+        white-space: nowrap !important;
+        align-self: center !important;
+      }
+
+      /* Match card: no background, no border */
+      #printBodyContent .match-card-node.blank-style {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 175px !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+      }
+
+      /* Game label above slots */
+      #printBodyContent .match-card-header {
+        display: flex !important;
+        justify-content: center !important;
+        font-size: 8px !important;
+        font-weight: 800 !important;
+        color: #374151 !important;
+        border: none !important;
+        padding-bottom: 2px !important;
+        margin-bottom: 3px !important;
+      }
+
+      /* Team pill slots */
+      #printBodyContent .match-team-row.blank-slot {
+        display: flex !important;
+        align-items: center !important;
+        background: #fff !important;
+        border: 1.5px solid #1f2937 !important;
+        border-radius: 18px !important;
+        height: 24px !important;
+        margin-bottom: 4px !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      /* Input inside each pill */
+      #printBodyContent .blank-team-input {
+        width: 100% !important;
+        border: none !important;
+        outline: none !important;
+        background: transparent !important;
+        font-size: 9px !important;
+        font-weight: 700 !important;
+        color: #000 !important;
+        text-align: center !important;
+        padding: 0 5px !important;
+      }
+
+      /* SVG connector lines */
+      #printBodyContent .svg-connector-layer {
+        position: absolute !important;
+        top: 0 !important; left: 0 !important;
+        width: 100% !important; height: 100% !important;
+        z-index: 1 !important;
+        overflow: visible !important;
+        pointer-events: none !important;
+      }
+      #printBodyContent .svg-connector-layer path {
+        stroke: #000 !important;
+        stroke-width: 1.5px !important;
+        opacity: 1 !important;
+        fill: none !important;
+      }
+
+      /* ── Footer ── */
+      .print-footer {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-end !important;
+        border-top: 1px solid #bbb !important;
+        padding-top: 4px !important;
+        margin-top: 3px !important;
+        flex-shrink: 0 !important;
+      }
+      .signature-block { text-align: center !important; width: 130px !important; }
+      .signature-line  { border-bottom: 1px solid #000 !important; height: 20px !important; margin-bottom: 2px !important; }
+      .signature-block div { font-size: 8px !important; }
+    }
+    #printContainer {
+      display: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      aside {
+        position: absolute;
+        transform: translateX(-100%);
+      }
+      aside.open {
+        transform: translateX(0);
+      }
+      .menu-toggle {
+        display: block;
+      }
+    }
+    /* Scheduling Planner */
+    .planner-shell { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; }
+    .planner-stats { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+    .planner-stat-card, .planner-panel { background: linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.92)); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow); }
+    [data-theme="light"] .planner-stat-card, [data-theme="light"] .planner-panel { background: #ffffff; }
+    .planner-stat-card { display: flex; align-items: center; gap: 1rem; padding: 1.1rem; min-width: 0; }
+    .planner-stat-icon { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 21px; }
+    .planner-stat-label { color: var(--text-muted); font-size: 12px; line-height: 1.2; }
+    .planner-stat-value { font-size: 24px; font-weight: 800; line-height: 1.1; margin-top: 2px; }
+    .planner-stat-note { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+    .planner-panel { padding: 1.1rem; margin-bottom: 1rem; }
+    .planner-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .planner-panel-title h3, .planner-panel-title h4 { font-size: 17px; font-weight: 800; }
+    .planner-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .planner-toolbar-left, .planner-toolbar-right, .calendar-nav { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+    .segmented { display: inline-flex; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.02); }
+    .segmented button { border: 0; background: transparent; color: var(--text-muted); padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .segmented button.active { background: var(--primary); color: #05070d; }
+    .planner-select, .planner-input { width: 100%; min-height: 38px; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(255, 255, 255, 0.02); color: var(--text-main); font: inherit; font-size: 13px; color-scheme: dark; }
+    [data-theme="light"] .planner-select, [data-theme="light"] .planner-input { background: #f8fafc; color-scheme: light; }
+    .calendar-nav { padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px; }
+    .calendar-nav button { width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent; color: var(--text-main); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .calendar-month-label { min-width: 112px; text-align: center; font-size: 13px; font-weight: 700; }
+    .schedule-calendar { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+    .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .calendar-weekdays div { padding: 10px 8px; color: var(--text-muted); font-size: 12px; font-weight: 700; text-align: center; border-bottom: 1px solid var(--border-color); }
+    .calendar-day { min-height: 96px; padding: 8px; border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.01); cursor: pointer; }
+    .calendar-day:nth-child(7n) { border-right: 0; }
+    .day-number { font-size: 13px; font-weight: 800; margin-bottom: 7px; }
+    .muted-day .day-number { color: var(--text-muted); opacity: 0.65; }
+    .calendar-event { display: block; width: 100%; border: 0; border-left: 3px solid currentColor; border-radius: 6px; padding: 4px 6px; margin-bottom: 5px; background: rgba(59, 130, 246, 0.12); color: var(--sport-color, #3b82f6); font: inherit; font-size: 11px; font-weight: 800; line-height: 1.2; text-align: left; cursor: pointer; }
+    .calendar-event span { display: block; color: var(--text-main); font-size: 10px; font-weight: 600; margin-top: 2px; }
+    .sport-legend { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.9rem; color: var(--text-main); font-size: 12px; }
+    .legend-chip { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sport-color, #3b82f6); }
+    .planner-list-view { display: none; }
+    .planner-list-view.active, .planner-calendar-view.active { display: block; }
+    .planner-calendar-view { display: none; }
+    .planner-form { display: grid; gap: 0.9rem; }
+    .planner-form .form-group { gap: 7px; }
+    .planner-form textarea { resize: vertical; min-height: 74px; }
+    .planner-form-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.2rem; }
+    .quick-tips { color: var(--text-muted); font-size: 13px; line-height: 1.7; padding-left: 1rem; }
+    .planner-shell.planner-readonly { grid-template-columns: 1fr; }
+    .schedule-subtabs { display: inline-flex; gap: 0.5rem; padding: 5px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(255, 255, 255, 0.02); margin-bottom: 1.25rem; }
+    .schedule-subtab-btn { border: 0; background: transparent; color: var(--text-muted); border-radius: 8px; padding: 9px 14px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+    .schedule-subtab-btn.active { background: var(--primary); color: #05070d; }
+    .schedule-subtab-panel { display: none; }
+    .schedule-subtab-panel.active { display: block; }
+    @media (max-width: 1200px) { .planner-shell { grid-template-columns: 1fr; } .planner-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 720px) { .planner-stats { grid-template-columns: 1fr; } .calendar-weekdays { display: none; } .calendar-grid { grid-template-columns: 1fr; } .calendar-day { min-height: auto; border-right: 0; } }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <a href="#" class="sidebar-brand">
+        <img src="../DSSL_LOGO.png" alt="DSSL Logo">
+        <span>DSSL Admin</span>
+      </a>
+      <button class="menu-toggle" id="closeSidebarBtn">
+        <i class="ri-close-line"></i>
+      </button>
+    </div>
+    
+    <ul class="sidebar-menu">
+      <li class="menu-item" data-access="ALL">
+        <button class="menu-btn active" data-tab="dashboard">
+          <i class="ri-dashboard-line"></i>
+          <span>Dashboard</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="CREATOR">
+        <button class="menu-btn" data-tab="media">
+          <i class="ri-image-line"></i>
+          <span>Media Gallery</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="MEDIA">
+        <button class="menu-btn" data-tab="news">
+          <i class="ri-news-line"></i>
+          <span>News & Posts</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="scoreboard">
+          <i class="ri-dashboard-2-line"></i>
+          <span>Live Scoreboard</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="analytics">
+          <i class="ri-bar-chart-box-line"></i>
+          <span>Analytics</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="match-control">
+          <i class="ri-broadcast-line"></i>
+          <span>Match Control</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="scheduling">
+          <i class="ri-calendar-event-line"></i>
+          <span>Scheduling</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="fixtures">
+          <i class="ri-git-branch-line"></i>
+          <span>Fixtures</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="teams">
+          <i class="ri-team-line"></i>
+          <span>Team Management</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="registration-settings">
+          <i class="ri-user-add-line"></i>
+          <span>Registration Control</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="SUPER_ADMIN">
+        <button class="menu-btn" data-tab="users">
+          <i class="ri-user-settings-line"></i>
+          <span>User Accounts</span>
+        </button>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="avatarName">AD</div>
+        <div class="user-info">
+          <div class="user-name" id="profileName">Administrator</div>
+          <div class="user-role" id="profileRole">SUPER ADMIN</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="logoutBtn">
+        <i class="ri-logout-box-r-line"></i>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <main>
+    <header>
+      <div class="header-left">
+        <button class="menu-toggle" id="openSidebarBtn">
+          <i class="ri-menu-line"></i>
+        </button>
+        <div class="header-title">
+          <h2 id="viewTitle">Dashboard Overview</h2>
+        </div>
+      </div>
+
+      <!-- Analytics-specific action buttons (shown only on Analytics tab) -->
+      <div id="analytics-header-actions" style="display:none; align-items:center; gap:10px; margin-right:auto; margin-left:16px;">
+        <button class="btn" id="admin-sync-btn" onclick="callAnalyticsSync()" style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 14px;">
+          <i class="ri-refresh-line"></i> Sync Google Sheets
+        </button>
+        <button class="btn" id="admin-export-btn" onclick="callAnalyticsExport()" style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 14px;background:var(--primary);color:#000;font-weight:700;">
+          <i class="ri-download-2-line"></i> Export CSV
+        </button>
+      </div>
+
+      <div class="header-right">
+        <button class="theme-toggle" id="themeToggleBtn" aria-label="Toggle Theme">
+          <i class="ri-sun-line"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="content-viewport">
+
+      <!-- ── TAB: DASHBOARD ── -->
+      <div class="tab-content active" id="tab-dashboard">
+        <!-- Role Specific Banner -->
+        <div class="role-banner" id="dashboardRoleBanner" style="background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(37, 99, 235, 0.1) 100%); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h3 id="roleBannerTitle" style="font-size: 20px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 10px;">
+              <i class="ri-shield-user-line" style="color: var(--accent);"></i> Welcome to Admin Center
+            </h3>
+            <p id="roleBannerSubtitle" style="color: var(--text-muted); font-size: 14px;">Select modules from the sidebar to begin.</p>
+          </div>
+          <span class="badge badge-live" id="roleBadge">ROLE</span>
+        </div>
+
+        <!-- Dynamic Role Stats Grid -->
+        <div class="dashboard-grid" id="dashboardStatsGrid">
+          <!-- Populated dynamically based on user.role -->
+        </div>
+
+        <!-- Dynamic Role Content View (Forms, Previews, Match Tables) -->
+        <div id="dashboardRoleContent">
+          <!-- Populated dynamically based on user.role -->
+        </div>
+      </div>
+
+      <!-- ── TAB: MATCH CONTROL ── -->
+      <div class="tab-content" id="tab-match-control">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Scorer Interface Selection</h3>
+            <p style="font-size: 14px; color: var(--text-muted)">Select a live match below to control its scoring values in real-time.</p>
+          </div>
+          <div class="form-group" style="max-width: 400px; margin-bottom: 2rem;">
+            <label for="scorerMatchSelect">Choose Active Match</label>
+            <select id="scorerMatchSelect" class="form-control">
+              <option value="">-- No Active Match Selected --</option>
+            </select>
+          </div>
+
+          <!-- Active Scorer Panel -->
+          <div id="scorerPanel" style="display: none;">
+            <div class="live-control-grid" style="margin-bottom: 2rem;">
+              <!-- Team A -->
+              <div class="live-team-control">
+                <h4 id="scorerTeamAName">Team A</h4>
+                <div class="live-score-display" id="scorerTeamAScore">0</div>
+                <div class="live-score-buttons">
+                  <button class="btn-score-adjust" onclick="adjustScore('A', -1)">-</button>
+                  <button class="btn-score-adjust" onclick="adjustScore('A', 1)">+</button>
+                  <button class="btn-score-adjust" onclick="adjustScore('A', 4)">+4</button>
+                  <button class="btn-score-adjust" onclick="adjustScore('A', 6)">+6</button>
+                </div>
+              </div>
+              
+              <!-- Timer / Status Controls -->
+              <div class="live-team-control" style="display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px;">
+                <div style="font-size: 28px; font-weight: 700;" id="scorerTimer">00:00</div>
+                <div class="live-score-buttons">
+                  <button class="btn btn-secondary" id="scorerStartBtn"><i class="ri-play-line"></i> Start</button>
+                  <button class="btn btn-secondary" id="scorerPauseBtn"><i class="ri-pause-line"></i> Pause</button>
+                  <button class="btn btn-secondary" id="scorerResetTimerBtn"><i class="ri-history-line"></i> Reset</button>
+                </div>
+                <div class="live-score-buttons" style="margin-top: 10px;">
+                  <button class="btn btn-danger" id="scorerCompleteBtn"><i class="ri-checkbox-circle-line"></i> Complete Match</button>
+                </div>
+              </div>
+
+              <!-- Team B -->
+              <div class="live-team-control">
+                <h4 id="scorerTeamBName">Team B</h4>
+                <div class="live-score-display" id="scorerTeamBScore">0</div>
+                <div class="live-score-buttons">
+                  <button class="btn-score-adjust" onclick="adjustScore('B', -1)">-</button>
+                  <button class="btn-score-adjust" onclick="adjustScore('B', 1)">+</button>
+                  <button class="btn-score-adjust" onclick="adjustScore('B', 4)">+4</button>
+                  <button class="btn-score-adjust" onclick="adjustScore('B', 6)">+6</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detailed Cricket Scoring fields -->
+            <div class="section-card" style="background-color: rgba(255, 255, 255, 0.005); border-color: var(--border-color);">
+              <div class="section-header">
+                <h3>Cricket & Realtime Detailed Metadata</h3>
+              </div>
+              <form id="cricketDetailsForm">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="cricketOvers">Overs Bowled (e.g. 15.2)</label>
+                    <input type="number" step="0.1" id="cricketOvers" value="0.0">
+                  </div>
+                  <div class="form-group">
+                    <label for="cricketWickets">Wickets Down</label>
+                    <input type="number" id="cricketWickets" value="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="cricketBatsman">Current Batsman</label>
+                    <input type="text" id="cricketBatsman" placeholder="A. Sharma *">
+                  </div>
+                  <div class="form-group">
+                    <label for="cricketBowler">Current Bowler</label>
+                    <input type="text" id="cricketBowler" placeholder="R. Singh">
+                  </div>
+                  <div class="form-group">
+                    <label for="cricketRunRate">Run Rate (CRR)</label>
+                    <input type="number" step="0.01" id="cricketRunRate" value="0.00">
+                  </div>
+                  <div class="form-group">
+                    <label for="matchTournament">Tournament / League Name</label>
+                    <input type="text" id="matchTournament" value="DSSL 2026">
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group" style="grid-column: span 2">
+                    <label for="matchResult">Match Result Description</label>
+                    <input type="text" id="matchResult" placeholder="Team A won by 5 runs">
+                  </div>
+                  <div class="form-group" style="grid-column: span 1">
+                    <label for="matchBannerFile">Match Banner Image</label>
+                    <input type="file" id="matchBannerFile" accept="image/*" style="margin-bottom: 6px;">
+                    <input type="hidden" id="matchBanner">
+                    <div id="matchBannerPreview" style="margin-top: 4px;"></div>
+                    <small style="color: var(--text-muted); font-size: 11px;">Image saved to uploads/ &amp; PostgreSQL</small>
+                  </div>
+                </div>
+                <button type="submit" class="btn"><i class="ri-save-line"></i> Save Match Details</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: SCHEDULING ── -->
+      <div class="tab-content" id="tab-scheduling">
+        <div class="schedule-subtabs" role="tablist" aria-label="Scheduling views">
+          <button type="button" class="schedule-subtab-btn active" id="scheduleMainTabBtn" onclick="setSchedulingSubtab('schedule')">
+            <i class="ri-list-check-2"></i> Schedule
+          </button>
+          <button type="button" class="schedule-subtab-btn" id="schedulePlannerTabBtn" onclick="setSchedulingSubtab('planner')">
+            <i class="ri-calendar-schedule-line"></i> Planner
+          </button>
+        </div>
+
+        <div class="schedule-subtab-panel active" id="scheduleMainPanel">
+          <div class="section-card">
+            <div class="section-header">
+              <h3>Match Schedule & Fixtures</h3>
+              <button type="button" class="btn" id="openNewMatchModalBtn">
+                <i class="ri-add-line"></i> Schedule Match
+              </button>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sport</th>
+                    <th>Matchup</th>
+                    <th>Venue</th>
+                    <th>Date & Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminScheduleMatchesList"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="schedule-subtab-panel" id="schedulePlannerPanel">
+          <div class="planner-stats" id="scheduleStatsGrid"></div>
+
+          <div class="planner-shell planner-readonly">
+          <div>
+            <div class="planner-panel">
+              <div class="planner-panel-title">
+                <h3>Schedule Overview</h3>
+                <button type="button" class="btn" id="openPlannerMatchModalBtn">
+                  <i class="ri-add-line"></i> Add Match
+                </button>
+              </div>
+
+              <div class="planner-toolbar">
+                <div class="planner-toolbar-left">
+                  <div class="segmented">
+                    <button type="button" class="active" id="calendarViewBtn" onclick="setScheduleView('calendar')"><i class="ri-calendar-event-line"></i> Calendar View</button>
+                    <button type="button" id="listViewBtn" onclick="setScheduleView('list')"><i class="ri-list-check"></i> List View</button>
+                  </div>
+                </div>
+                <div class="planner-toolbar-right">
+                  <select class="planner-select" id="scheduleSportFilter" onchange="renderSchedulingList()" style="width: 160px;"><option value="">All Sports</option></select>
+                  <select class="planner-select" id="scheduleVenueFilter" onchange="renderSchedulingList()" style="width: 160px;"><option value="">All Venues</option></select>
+                  <div class="calendar-nav">
+                    <button type="button" onclick="changeScheduleMonth(-1)" title="Previous month"><i class="ri-arrow-left-s-line"></i></button>
+                    <span class="calendar-month-label" id="scheduleMonthLabel">Month 2026</span>
+                    <button type="button" onclick="changeScheduleMonth(1)" title="Next month"><i class="ri-arrow-right-s-line"></i></button>
+                  </div>
+                  <button type="button" class="btn btn-secondary" onclick="goScheduleToday()" style="margin-top: 0;">Today</button>
+                </div>
+              </div>
+
+              <div class="planner-calendar-view active" id="scheduleCalendarView">
+                <div class="schedule-calendar">
+                  <div class="calendar-weekdays">
+                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                  </div>
+                  <div class="calendar-grid" id="scheduleCalendarGrid"></div>
+                </div>
+                <div class="sport-legend" id="scheduleLegend"></div>
+              </div>
+
+              <div class="planner-list-view" id="scheduleListView">
+                <div class="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date & Time</th>
+                        <th>Sport</th>
+                        <th>Venue</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="scheduleMatchesList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="planner-panel">
+              <div class="planner-panel-title">
+                <h3>Upcoming Matches</h3>
+              </div>
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date & Time</th>
+                      <th>Sport</th>
+                      <th>Venue</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="upcomingScheduleMatchesList"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── TAB: TEAMS ── -->
+      </div>
+
+      <div class="tab-content" id="tab-teams">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Registered Teams</h3>
+          </div>
+          <form id="addMandalForm" style="margin-bottom: 1.25rem;">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="mandalName">Team Name</label>
+                <input type="text" id="mandalName" placeholder="e.g. Team Alpha" required>
+              </div>
+              <div class="form-group">
+                <label for="mandalAbbreviation">Abbreviation</label>
+                <input type="text" id="mandalAbbreviation" placeholder="e.g. CK" required>
+              </div>
+              <div class="form-group">
+                <label for="mandalColor">Team Color</label>
+                <input type="color" id="mandalColor" value="#3b82f6">
+              </div>
+              <div class="form-group">
+                <label for="mandalLogoUrl">Logo File</label>
+                <input type="text" id="mandalLogoUrl" placeholder="Optional logo filename">
+              </div>
+            </div>
+            <button type="submit" class="btn"><i class="ri-add-line"></i> Add Team</button>
+          </form>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Abbr</th>
+                  <th>Name</th>
+                  <th>Color Tag</th>
+                  <th>Logo File</th>
+                </tr>
+              </thead>
+              <tbody id="teamsList">
+                <!-- Mandals loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: NEWS & POSTS ── -->
+      <div class="tab-content" id="tab-news">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Create News Post / Announcement</h3>
+          </div>
+          <form id="newsForm">
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+              <label for="newsTitle">Article Title</label>
+              <input type="text" id="newsTitle" placeholder="Enter post title" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+              <label for="newsContent">Content / Description</label>
+              <textarea id="newsContent" rows="6" placeholder="Enter article body content..." required></textarea>
+            </div>
+            <button type="submit" class="btn"><i class="ri-send-plane-line"></i> Publish News</button>
+          </form>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Recent Published Posts</h3>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="newsList">
+                <!-- News loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: MEDIA GALLERY ── -->
+      <div class="tab-content" id="tab-media">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Upload Media Assets (Gallery / Banner)</h3>
+          </div>
+          <form id="mediaForm" enctype="multipart/form-data">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="mediaFile">Choose File (Images up to 150 MB, Videos up to 50 GB)</label>
+                <input type="file" id="mediaFile" accept="image/*,video/*,.mp4,.mov,.webm,.avi,.mkv" required>
+              </div>
+              <div class="form-group">
+                <label for="mediaTitle">Title / Caption</label>
+                <input type="text" id="mediaTitle" placeholder="Main ceremony highlights">
+              </div>
+            </div>
+            <button type="submit" class="btn"><i class="ri-upload-cloud-line"></i> Upload Asset</button>
+          </form>
+
+          <!-- Upload Progress Bar Container -->
+          <div id="uploadProgressCard" style="display: none; margin-top: 1.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div id="uploadIconBox" style="width: 42px; height: 42px; border-radius: 10px; background: rgba(255, 188, 1, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                  <i id="uploadFileIcon" class="ri-file-upload-line"></i>
+                </div>
+                <div>
+                  <div id="uploadFileName" style="font-weight: 600; font-size: 14px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">filename.mp4</div>
+                  <div id="uploadStatusText" style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Uploading asset...</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div id="uploadPercentText" style="font-weight: 800; font-size: 20px; color: var(--accent);">0%</div>
+                <div id="uploadSpeedText" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">0 MB/s</div>
+              </div>
+            </div>
+
+            <!-- Progress Track -->
+            <div style="width: 100%; height: 10px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; position: relative;">
+              <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ffbc01, #10b981); border-radius: 10px; transition: width 0.15s ease-out;"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem; font-size: 12px; color: var(--text-muted);">
+              <span id="uploadBytesText" style="font-weight: 500;">0 MB / 0 MB</span>
+              <span id="uploadEtaText" style="font-weight: 500;">Calculating remaining time...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <h3>Uploaded Media Assets</h3>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>URL Path</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="mediaList">
+                <!-- Media loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: USERS ── -->
+      <div class="tab-content" id="tab-users">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>User Accounts (Super Admin access)</h3>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Role permissions</th>
+                  <th>Created date</th>
+                </tr>
+              </thead>
+              <tbody id="usersList">
+                <!-- Users list loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: FIXTURES ── -->
+      <div class="tab-content" id="tab-fixtures">
+        <!-- Breadcrumb Header -->
+        <div class="breadcrumb-container">
+          <a href="#" onclick="switchAdminTab('dashboard')">Dashboard</a>
+          <i class="ri-arrow-right-s-line"></i>
+          <span>Sports</span>
+          <i class="ri-arrow-right-s-line"></i>
+          <span class="active">Fixtures</span>
+        </div>
+        <div class="subtitle-text">View and print tournament fixtures.</div>
+
+        <!-- Top Toolbar: Sports, Fixture Format, No. of Team/Member, Print -->
+        <div class="fixtures-toolbar">
+          <div class="fixtures-filters">
+            <div class="filter-item">
+              <label for="fixtureFilterSport">Sports</label>
+              <select id="fixtureFilterSport" onchange="onFixtureFilterChange()">
+                <option value="Cricket">Cricket 🏏</option>
+                <option value="Football">Football ⚽</option>
+                <option value="Basketball">Basketball 🏀</option>
+                <option value="Volleyball">Volleyball 🏐</option>
+                <option value="Badminton (Doubles)">Badminton (Doubles) 🏸</option>
+                <option value="Table Tennis">Table Tennis 🏓</option>
+                <option value="Athletics (100m)">Athletics (100m) 🏃</option>
+                <option value="Athletics (400m)">Athletics (400m) 🏃</option>
+                <option value="Athletics (Relay)">Athletics (Relay) 🔁</option>
+                <option value="Kho-Kho">Kho-Kho 🤸</option>
+                <option value="Chess">Chess ♟️</option>
+                <option value="High Jump">High Jump 🏋️</option>
+                <option value="Tug of War">Tug of War 💪</option>
+                <option value="Long Jump">Long Jump 🦘</option>
+                <option value="Javelin Throw">Javelin Throw 🎿</option>
+                <option value="Discus Throw">Discus Throw 🥏</option>
+                <option value="Shot Put">Shot Put ⚫</option>
+                <option value="Athletics (200m)">Athletics (200m) 🏃</option>
+                <option value="7 Stones">7 Stones 🪨</option>
+                <option value="Kabaddi">Kabaddi 🤼</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="fixtureFilterFormat">Fixture Format</label>
+              <select id="fixtureFilterFormat" onchange="onFixtureFormatSelect(this.value)">
+                <option value="single-elimination">Single Elimination (Knockout)</option>
+                <option value="double-elimination">Double Elimination</option>
+                <option value="league">League / Round Robin</option>
+                <option value="group-knockout">Group Stage + Knockout</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label for="fixtureFilterTeamCount">No. of Team/Member</label>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="fixtureFilterTeamCount" min="2" max="64" value="7" style="width: 95px;" onchange="onFixtureFilterChange()" oninput="onFixtureFilterChange()">
+                <span id="fixtureByeBadge" class="badge" style="background: rgba(214, 158, 46, 0.15); color: #d69e2e; border: 1px solid rgba(214, 158, 46, 0.3); font-weight: 700; padding: 5px 10px; border-radius: 6px; font-size: 12px; white-space: nowrap;">⚡ 1 BYE</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="fixtures-actions">
+            <button class="btn" onclick="printBracketAction()">
+              <i class="ri-printer-line"></i> Print
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Bracket Viewport Container (Full Width) -->
+        <div class="bracket-card">
+          <!-- Viewport Controls & Legend -->
+          <div class="bracket-toolbar">
+            <div class="bracket-controls">
+              <button class="btn-icon" onclick="zoomBracket(0.1)" title="Zoom In"><i class="ri-zoom-in-line"></i></button>
+              <button class="btn-icon" onclick="zoomBracket(-0.1)" title="Zoom Out"><i class="ri-zoom-out-line"></i></button>
+              <button class="btn-icon" onclick="resetBracketZoom()" title="Reset Zoom"><i class="ri-restart-line"></i></button>
+              <button class="btn-icon" onclick="fitBracketScreen()" title="Fit Screen"><i class="ri-aspect-ratio-line"></i></button>
+              <button class="btn-icon" onclick="toggleBracketFullscreen()" title="Full Screen"><i class="ri-fullscreen-line"></i></button>
+            </div>
+            <div class="bracket-legend">
+              <div class="legend-item"><span class="legend-dot" style="background-color: #d69e2e;"></span> Scheduled</div>
+              <div class="legend-item"><span class="legend-dot" style="background-color: var(--danger);"></span> Live</div>
+              <div class="legend-item"><span class="legend-dot" style="background-color: var(--success);"></span> Completed</div>
+              <div class="legend-item"><span class="legend-dot" style="background-color: var(--text-muted);"></span> BYE</div>
+              <div class="legend-item"><span class="legend-dot" style="background-color: var(--primary);"></span> Champion</div>
+            </div>
+          </div>
+
+          <!-- Interactive Bracket Viewport Container -->
+          <div class="bracket-viewport" id="bracketViewport" style="min-height: 580px; height: 640px;">
+            <div class="bracket-canvas" id="bracketCanvas">
+              <!-- Generated dynamically via Javascript in clean bracket format -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: LIVE SCOREBOARD ── -->
+      <div class="tab-content" id="tab-scoreboard" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
+        <iframe src="/scoreboard/" style="width: 100%; height: 100%; border: none;" id="scoreboardIframe"></iframe>
+      </div>
+
+      <!-- ── TAB: ANALYTICS (DSSL Analytics Dashboard) ── -->
+      <div class="tab-content" id="tab-analytics" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
+        <iframe src="/analytics/" style="width: 100%; height: 100%; border: none;" id="analyticsIframe"></iframe>
+      </div>
+
+      <!-- ── TAB: REGISTRATION CONTROL ── -->
+      <div class="tab-content" id="tab-registration-settings">
+        <!-- Master Toggle Card -->
+        <div class="section-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 10px;">
+                <i class="ri-toggle-line" style="color: var(--primary);"></i>
+                Master Registration Switch
+              </h3>
+              <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+                Turn the entire registration portal ON or OFF for all users. When closed, participants cannot register for any sport.
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+              <span id="masterStatusBadge" class="badge badge-success" style="font-size: 13px; padding: 6px 14px;">OPEN</span>
+              <button class="btn" id="toggleMasterRegistrationBtn" onclick="toggleMasterRegistration()"
+                style="background-color: var(--danger, #ef4444); color: #fff; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <i class="ri-close-circle-line"></i> Close Master Registration
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-Sport Registration Schedule Card -->
+        <div class="section-card">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 10px;">
+                <i class="ri-calendar-schedule-line" style="color: var(--primary);"></i>
+                Per-Sport Registration Schedule
+              </h3>
+              <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+                Set the registration open/close time window for each sport individually. Leave dates empty for no time restriction.
+              </p>
+            </div>
+            <button class="btn" onclick="saveAllRegistrationSettings()" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+              <i class="ri-save-line"></i> Save All Settings
+            </button>
+          </div>
+
+          <!-- Legend -->
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 1rem; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">STATUS LEGEND:</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-success" style="font-size: 11px; padding: 2px 8px;">Active</span> Open & within window</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-warning" style="font-size: 11px; padding: 2px 8px;">Scheduled</span> Upcoming (start date in future)</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-secondary" style="font-size: 11px; padding: 2px 8px;">Closed</span> End date has passed</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 5px;"><span class="badge badge-danger" style="font-size: 11px; padding: 2px 8px;">Disabled</span> Manually disabled</span>
+          </div>
+
+          <!-- Sports Table -->
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; min-width: 780px;">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">Sport</th>
+                  <th style="width: 12%;">Status</th>
+                  <th style="width: 46%;">Registration Window</th>
+                  <th style="width: 12%;">Enable</th>
+                </tr>
+              </thead>
+              <tbody id="regSportsTableBody">
+                <!-- Rendered dynamically by admin.js renderRegistrationControl() -->
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);">
+                    <i class="ri-loader-2-line" style="font-size: 24px;"></i>
+                    <div style="margin-top: 8px;">Loading registration settings...</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Save Bar -->
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <span style="font-size: 13px; color: var(--text-muted);">Changes are saved to server and broadcast in real-time to all connected users.</span>
+            <button class="btn" onclick="saveAllRegistrationSettings()" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+              <i class="ri-save-line"></i> Save All Settings
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ── MODAL: CREATE MATCH ── -->
+  <div class="modal" id="newMatchModal">
+    <div class="modal-content">
+      <button class="modal-close" id="closeNewMatchModalBtn"><i class="ri-close-line"></i></button>
+      <h3 style="margin-bottom: 1.5rem;" id="newMatchModalTitle"><i class="ri-add-line"></i> Schedule New Match</h3>
+      <form id="newMatchForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="matchSport">Sport Category</label>
+            <select id="matchSport" required>
+              <!-- Sports loaded dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="matchVenue">Venue / Ground</label>
+            <select id="matchVenue" required>
+              <option value="Main Ground">Main Ground</option>
+              <option value="Main Ground A">Main Ground A</option>
+              <option value="Vidyapeeth">Vidyapeeth</option>
+              <option value="Shriram ground">Shriram ground</option>
+              <option value="Gym Hall">Gym Hall</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group" id="matchLiveModeGroup">
+            <label for="matchIsLive">Match Mode</label>
+            <select id="matchIsLive">
+              <option value="true">Yes (Start Live Now)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid" id="matchPlanningTimeFields">
+          <div class="form-group">
+            <label for="matchDate">Match Date</label>
+            <input type="date" id="matchDate">
+          </div>
+          <div class="form-group">
+            <label for="matchStartTime">Start Time</label>
+            <input type="time" id="matchStartTime">
+          </div>
+          <div class="form-group">
+            <label for="matchEndTime">End Time</label>
+            <input type="time" id="matchEndTime">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="matchDescription">Notes</label>
+          <textarea id="matchDescription" rows="3" placeholder="Optional match notes"></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" id="cancelNewMatchBtn">Cancel</button>
+          <button type="submit" class="btn" id="newMatchSubmitBtn">Create Fixture</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── PRINT MODE CONTAINER ── -->
+  <div id="printContainer">
+    <div class="print-header">
+      <div class="print-header-brand">
+        <img src="../DSSL_LOGO.png" alt="DSSL Logo">
+        <div>
+          <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 2px;">Dev Sanskriti Sports League</h2>
+          <p style="font-size: 14px; color: #555;">Official Tournament Fixtures & Schedule</p>
+        </div>
+      </div>
+      <div class="print-header-info">
+        <div style="font-weight: 700; font-size: 14px;" id="printTournamentTitle">DSSL 2026</div>
+        <div id="printSportCat">Cricket - Men's Championship</div>
+        <div id="printFormat">Single Elimination Format</div>
+      </div>
+    </div>
+
+    <div class="print-meta-grid">
+      <div><strong>Total Teams:</strong> <span id="printTotalTeams">7</span></div>
+      <div><strong>Automatic BYEs:</strong> <span id="printByes">1</span></div>
+      <div><strong>Total Matches:</strong> <span id="printTotalMatches">6</span></div>
+      <div><strong>Generated Date:</strong> <span id="printDate">August 4, 2026</span></div>
+    </div>
+
+    <!-- Printable Content Copy -->
+    <div id="printBodyContent" style="margin-bottom: 30px;">
+      <!-- Cloned visual content rendered here for print -->
+    </div>
+
+    <div class="print-footer">
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div style="font-size: 12px; font-weight: 700;">Sports Officer</div>
+        <div style="font-size: 10px; color: #666;">DSSL Tournament Board</div>
+      </div>
+
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div style="font-size: 12px; font-weight: 700;">Tournament Coordinator</div>
+        <div style="font-size: 10px; color: #666;">Organizing Committee</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="admin.js?v=20260811_v5"></script>
+  <script src="../notifications.js"></script>
+</body>
+</html>

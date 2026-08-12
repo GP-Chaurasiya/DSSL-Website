@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSSL - Overall Leaderboard</title>
+  <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
+  <style>
+    .leaderboard-viewport {
+      max-width: 1000px;
+      margin: 2.5rem auto;
+      padding: 0 1.5rem;
+      min-height: 60vh;
+    }
+
+    .viewport-header {
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+
+    .viewport-header h2 {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--text-main, #0f172a);
+      margin-bottom: 8px;
+    }
+
+    .viewport-header p {
+      color: #64748b;
+      font-size: 16px;
+    }
+
+    .leaderboard-container {
+      background-color: var(--bg-secondary, #ffffff);
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 24px;
+      padding: 2rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      position: relative;
+    }
+
+    .live-indicator {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #10b981;
+    }
+
+    .live-indicator span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 1rem;
+    }
+
+    table.standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    table.standings-table th, 
+    table.standings-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color, #e2e8f0);
+      font-size: 15px;
+    }
+
+    table.standings-table th {
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .team-td {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .team-td img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #e2e8f0;
+    }
+
+    .rank-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .rank-1 { background-color: rgba(255, 188, 1, 0.15); color: #c48f00; border: 1px solid rgba(255, 188, 1, 0.3); }
+    .rank-2 { background-color: rgba(100, 116, 139, 0.1); color: #475569; }
+    .rank-3 { background-color: rgba(180, 83, 9, 0.1); color: #b45309; }
+
+    .pts-badge {
+      background-color: rgba(255, 188, 1, 0.1);
+      color: #b58000;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .win-pct-bar {
+      width: 60px;
+      height: 6px;
+      background-color: rgba(0, 0, 0, 0.05);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .win-pct-fill {
+      height: 100%;
+      background-color: #ffbc01;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="DSSL_LOGO.png" alt="DSSL Logo" class="logo">
+      <div class="logo-flip">
+        <div class="logo-inner">
+          <div class="logo-front">
+            <img src="dsvv Logo .png" alt="Front Logo">
+          </div>
+          <div class="logo-back">
+            <img src="DSSL-logo.png" alt="Back Logo">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
+        <i class="ri-moon-line"></i>
+      </button>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+    </div>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="index.html"><i class="ri-home-5-line"></i> Home</a></li>
+      <li><a href="mandals.html"><i class="ri-team-line"></i> Mandals</a></li>
+      <li><a href="sports.html"><i class="ri-football-line"></i> Sports</a></li>
+      <li><a href="schedule.html"><i class="ri-calendar-event-line"></i> Schedule</a></li>
+      <li><a href="results.html"><i class="ri-broadcast-line"></i> Live Score</a></li>
+      <li><a href="leaderboard.html" class="active"><i class="ri-trophy-line"></i> Leaderboard</a></li>
+      <li><a href="gallery.html"><i class="ri-image-line"></i> Gallery</a></li>
+      <li><a href="about.html"><i class="ri-information-line"></i> About</a></li>
+    </ul>
+  </nav>
+
+  <div class="leaderboard-viewport">
+    <div class="viewport-header">
+      <h2>Overall Leaderboard</h2>
+      <p>Current tournament standings, rankings, and win records of the 7 Mandals.</p>
+    </div>
+
+    <div class="leaderboard-container">
+      <div class="live-indicator">
+        <span></span> Live Standings
+      </div>
+
+      <div class="table-responsive">
+        <table class="standings-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Rank</th>
+              <th>Team / Mandal</th>
+              <th style="text-align: center;">Played</th>
+              <th style="text-align: center;">Won</th>
+              <th style="text-align: center;">Lost</th>
+              <th style="text-align: center;">Drawn</th>
+              <th style="text-align: center;">Win %</th>
+              <th style="text-align: center; width: 120px;">Points</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <!-- Dynamic standings rows injected here -->
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                <i class="ri-loader-3-line" style="font-size: 30px; display: inline-block; animation: spin 1s infinite linear;"></i>
+                <p style="margin-top: 10px;">Computing overall rankings...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-box">
+        <h3>About Us</h3>
+        <p>Dev Sanskriti Vishwavidyalaya, Haridwar - 249411</p>
+      </div>
+      <div class="footer-box">
+        <h3>Quick Links</h3>
+        <a href="index.html">Home</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="mandals.html">Mandals</a>
+      </div>
+      <div class="footer-box">
+        <h3>Contact</h3>
+        <p>Email: dsvv.ac.in</p>
+        <p>Phone: +91 00000 00000</p>
+      </div>
+      <div class="footer-box">
+        <h3>Follow Us</h3>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © DSSL-2026 | All Rights Reserved
+    </div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let allMatches = [];
+    let allDals = [];
+
+    // Theme Switcher
+    const themeBtn = document.getElementById("themeBtn");
+    const applyTheme = (theme) => {
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      const icon = themeBtn.querySelector('i');
+      if (icon) icon.className = theme === 'light' ? 'ri-moon-line' : 'ri-sun-line';
+    };
+    applyTheme(localStorage.getItem('theme') || 'light');
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    // Socket Connection
+    const socket = io();
+
+    function normalizeTeamData(team, fallbackName) {
+      return {
+        ...(team || {}),
+        name: fallbackName,
+        abbreviation: fallbackName,
+        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
+        logo: team?.logo || "DSSL_LOGO.png"
+      };
+    }
+
+    function normalizeMatchData(match) {
+      if (!match) return null;
+      return {
+        ...match,
+        dalA: normalizeTeamData(match.dalA, "Team A"),
+        dalB: normalizeTeamData(match.dalB, "Team B")
+      };
+    }
+
+    async function loadLeaderboardData() {
+      try {
+        const dalsRes = await fetch("/api/mandals");
+        allDals = (await dalsRes.json()).map((team, index) => ({
+          ...team,
+          name: `Team ${index + 1}`,
+          abbreviation: `T${index + 1}`,
+          logoUrl: team.logoUrl || "DSSL_LOGO.png",
+          logo: team.logoUrl || "DSSL_LOGO.png"
+        }));
+        
+        const matchesRes = await fetch("/api/matches");
+        allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
+        
+        computeLeaderboard();
+      } catch (err) {
+        document.getElementById("leaderboardBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 40px;">Failed to calculate standings.</td></tr>`;
+      }
+    }
+
+    function computeLeaderboard() {
+      const finishedMatches = allMatches.filter(m => m.status === "completed");
+      const dalMap = new Map();
+
+      allDals.forEach(d => {
+        dalMap.set(d.id, { name: d.name, logo: d.logoUrl, wins: 0, losses: 0, draws: 0, played: 0, points: 0 });
+      });
+
+      finishedMatches.forEach(m => {
+        if (!dalMap.has(m.dalAId)) dalMap.set(m.dalAId, { name: m.dalA.name, logo: m.dalA.logoUrl, wins: 0, losses: 0, draws: 0, played: 0, points: 0 });
+        if (!dalMap.has(m.dalBId)) dalMap.set(m.dalBId, { name: m.dalB.name, logo: m.dalB.logoUrl, wins: 0, losses: 0, draws: 0, played: 0, points: 0 });
+
+        const a = dalMap.get(m.dalAId);
+        const b = dalMap.get(m.dalBId);
+
+        a.played++;
+        b.played++;
+
+        if (m.scoreA > m.scoreB) {
+          a.wins++;
+          a.points += 3;
+          b.losses++;
+        } else if (m.scoreB > m.scoreA) {
+          b.wins++;
+          b.points += 3;
+          a.losses++;
+        } else {
+          a.draws++;
+          a.points += 1;
+          b.draws++;
+          b.points += 1;
+        }
+      });
+
+      const sorted = Array.from(dalMap.entries())
+        .map(([id, stats]) => {
+          const winPercentage = stats.played > 0 ? Math.round((stats.wins / stats.played) * 100) : 0;
+          return { id, winPercentage, ...stats };
+        })
+        .sort((x, y) => y.points - x.points || y.wins - x.wins);
+
+      const tbody = document.getElementById("leaderboardBody");
+      tbody.innerHTML = "";
+
+      sorted.forEach((d, index) => {
+        const rank = index + 1;
+        let rankClass = "rank-num";
+        if (rank <= 3) rankClass += ` rank-${rank}`;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span class="${rankClass}">${rank}</span></td>
+          <td>
+            <div class="team-td">
+              <img src="${d.logo}" onerror="this.src='DSSL_LOGO.png'">
+              <span>${d.name}</span>
+            </div>
+          </td>
+          <td style="text-align: center; font-weight: 500;">${d.played}</td>
+          <td style="text-align: center; color: #10b981; font-weight: 600;">${d.wins}</td>
+          <td style="text-align: center; color: #ef4444; font-weight: 600;">${d.losses}</td>
+          <td style="text-align: center; color: #64748b; font-weight: 600;">${d.draws}</td>
+          <td style="text-align: center;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <span style="font-weight: 600; font-size: 13px;">${d.winPercentage}%</span>
+              <div class="win-pct-bar">
+                <div class="win-pct-fill" style="width: ${d.winPercentage}%"></div>
+              </div>
+            </div>
+          </td>
+          <td style="text-align: center;"><span class="pts-badge">${d.points} Pts</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Realtime listeners
+    socket.on("matchUpdate", (match) => {
+      const idx = allMatches.findIndex(m => m.id.toString() == match.id.toString());
+      if (idx !== -1) {
+        allMatches[idx] = normalizeMatchData(match) || match;
+      } else {
+        allMatches.unshift(normalizeMatchData(match) || match);
+      }
+      computeLeaderboard();
+    });
+
+    socket.on("matchDelete", (matchId) => {
+      allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
+      computeLeaderboard();
+    });
+
+    // Run
+    loadLeaderboardData();
+    // 5-second match auto-polling fallback
+    setInterval(async () => {
+      try {
+        const matchesRes = await fetch("/api/matches");
+        if (matchesRes.ok) {
+          allMatches = await matchesRes.json();
+          computeLeaderboard();
+        }
+      } catch (e) {}
+    }, 5000);
+  </script>
+<script src="sheet-sync.js?v=20260809_dssl"></script>
+<script src="register-popup.js?v=20260809_dssl"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="notifications.js"></script>
+</body>
+</html>
+
