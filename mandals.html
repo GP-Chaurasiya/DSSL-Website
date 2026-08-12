@@ -506,16 +506,35 @@
 
     async function loadData() {
       try {
-        const dalsRes = await fetch("/api/mandals");
-        const mandalsData = await dalsRes.json();
-        allDals = Array.isArray(mandalsData) ? mandalsData : [];
+        // Fetch in parallel for faster loading
+        const [dalsRes, matchesRes] = await Promise.all([
+          fetch("/api/mandals").catch(() => null),
+          fetch("/api/matches").catch(() => null)
+        ]);
 
-        const matchesRes = await fetch("/api/matches");
-        const matchesData = await matchesRes.json();
-        allMatches = Array.isArray(matchesData) ? matchesData : [];
+        if (dalsRes && dalsRes.ok) {
+          try {
+            const mandalsData = await dalsRes.json();
+            allDals = Array.isArray(mandalsData) ? mandalsData : [];
+          } catch(e) { allDals = []; }
+        }
 
-        renderDals();
-        renderMatches();
+        if (matchesRes && matchesRes.ok) {
+          try {
+            const matchesData = await matchesRes.json();
+            allMatches = Array.isArray(matchesData) ? matchesData : [];
+          } catch(e) { allMatches = []; }
+        }
+
+        if (allDals.length > 0) {
+          renderDals();
+        } else {
+          document.getElementById("dalsContainer").innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--danger);padding:40px;font-weight:600;">Failed to load mandals information. Retrying...</div>`;
+        }
+        
+        if (allMatches.length > 0) {
+          renderMatches();
+        }
       } catch (err) {
         document.getElementById("dalsContainer").innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--danger);padding:40px;font-weight:600;">Failed to load mandals information.</div>`;
       }
@@ -704,17 +723,30 @@
     // Auto-poll matches every 10 seconds for real-time fallback
     setInterval(async () => {
       try {
-        const matchesRes = await fetch("/api/matches");
-        if (matchesRes.ok) {
-          allMatches = await matchesRes.json();
-          renderDals();
-          renderMatches();
+        if (allDals.length === 0) {
+          const dalsRes = await fetch("/api/mandals").catch(() => null);
+          if (dalsRes && dalsRes.ok) {
+            try {
+              const mandalsData = await dalsRes.json();
+              allDals = Array.isArray(mandalsData) ? mandalsData : [];
+              if (allDals.length > 0) renderDals();
+            } catch(e) {}
+          }
+        }
+
+        const matchesRes = await fetch("/api/matches").catch(() => null);
+        if (matchesRes && matchesRes.ok) {
+          try {
+            allMatches = await matchesRes.json();
+            if (allDals.length > 0) renderDals();
+            renderMatches();
+          } catch(e) {}
         }
       } catch (e) {}
     }, 10000);
   </script>
 <script src="sheet-sync.js?v=20260809_dssl"></script>
-<script src="register-popup.js?v=20260812_dssl"></script>
+<script src="register-popup.js?v=20260809_dssl"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="notifications.js"></script>
 </body>
