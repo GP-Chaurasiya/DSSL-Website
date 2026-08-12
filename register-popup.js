@@ -8,7 +8,7 @@
         <div class="register-popup-card">
             <button class="popup-close-btn" onclick="closeRegisterPopup()">&times;</button>
             <div class="popup-icon-circle">
-                <i class="ri-trophy-fill"></i>
+                <img src="scoreboard/assets/dssl-logo.png" alt="DSSL logo">
             </div>
             <h2>DSSL 2026</h2>
             <p class="popup-subtitle">Dev Sanskriti Sports League</p>
@@ -18,7 +18,7 @@
                     <i class="ri-calendar-event-fill"></i>
                     <div>
                         <span class="popup-label">Event Date</span>
-                        <span class="popup-value">July - August 2026</span>
+                        <span class="popup-value">August - December 2026</span>
                     </div>
                 </div>
                 <div class="popup-info-item">
@@ -118,10 +118,11 @@
     }
 
     .popup-icon-circle {
-        width: 72px;
-        height: 72px;
+        width: 96px;
+        height: 96px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #ffbc01, #ff8400);
+        background: transparent !important;
+        border: none;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -135,9 +136,13 @@
         50% { box-shadow: 0 8px 35px rgba(255, 132, 0, 0.55); }
     }
 
-    .popup-icon-circle i {
-        font-size: 34px;
-        color: #003E8A;
+    .popup-icon-circle img {
+        width: 96px;
+        height: 96px;
+        object-fit: cover;
+        object-position: center;
+        background: transparent !important;
+        border-radius: 50%;
     }
 
     .register-popup-card h2 {
@@ -271,12 +276,13 @@
         }
 
         .popup-icon-circle {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
         }
 
-        .popup-icon-circle i {
-            font-size: 28px;
+        .popup-icon-circle img {
+            width: 80px;
+            height: 80px;
         }
 
         .register-popup-card h2 {
