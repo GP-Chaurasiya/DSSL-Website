@@ -93,6 +93,7 @@ model PlannedMatch {
   dalBId          Int
   matchRound      String    @default("")
   description     String    @default("")
+  gender          String    @default("Boys")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @default(now()) @updatedAt
   dalA            Mandal    @relation("PlannedDalA", fields: [dalAId], references: [id])

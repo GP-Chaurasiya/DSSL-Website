@@ -7,8 +7,8 @@
     <div class="register-popup-overlay" id="registerPopup">
         <div class="register-popup-card">
             <button class="popup-close-btn" onclick="closeRegisterPopup()">&times;</button>
-            <div class="popup-icon-circle">
-                <img src="scoreboard/assets/dssl-logo.png" alt="DSSL logo">
+            <div class="popup-logo-wrap">
+                <img src="DSSL_new_logo.png" alt="DSSL Logo" class="popup-logo">
             </div>
             <h2>DSSL 2026</h2>
             <p class="popup-subtitle">Dev Sanskriti Sports League</p>
@@ -18,7 +18,7 @@
                     <i class="ri-calendar-event-fill"></i>
                     <div>
                         <span class="popup-label">Event Date</span>
-                        <span class="popup-value">August - December 2026</span>
+                        <span class="popup-value">July - December 2026</span>
                     </div>
                 </div>
                 <div class="popup-info-item">
@@ -117,32 +117,19 @@
         transform: rotate(90deg);
     }
 
-    .popup-icon-circle {
-        width: 96px;
-        height: 96px;
-        border-radius: 50%;
-        background: transparent !important;
-        border: none;
+    .popup-logo-wrap {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 18px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 18px;
-        box-shadow: 0 8px 25px rgba(255, 132, 0, 0.35);
-        animation: popupPulse 2s ease-in-out infinite;
     }
 
-    @keyframes popupPulse {
-        0%, 100% { box-shadow: 0 8px 25px rgba(255, 132, 0, 0.35); }
-        50% { box-shadow: 0 8px 35px rgba(255, 132, 0, 0.55); }
-    }
-
-    .popup-icon-circle img {
-        width: 96px;
-        height: 96px;
-        object-fit: cover;
-        object-position: center;
-        background: transparent !important;
-        border-radius: 50%;
+    .popup-logo {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
 
     .register-popup-card h2 {
@@ -275,14 +262,9 @@
             grid-template-columns: 1fr;
         }
 
-        .popup-icon-circle {
-            width: 80px;
-            height: 80px;
-        }
-
-        .popup-icon-circle img {
-            width: 80px;
-            height: 80px;
+        .popup-logo-wrap {
+            width: 100px;
+            height: 100px;
         }
 
         .register-popup-card h2 {

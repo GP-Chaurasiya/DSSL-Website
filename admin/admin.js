@@ -924,10 +924,13 @@ function renderAdminScheduleTable() {
 }
 
 function renderScheduleRow(m) {
+  const gender = m.gender || "Boys";
+  const isGirls = gender.toLowerCase() === "girls";
   return `
     <tr>
       <td>${formatScheduleDateTime(m)}</td>
       <td><span class="badge" style="background: ${getSportColor(m.sportName)}24; color: ${getSportColor(m.sportName)}; border: 1px solid ${getSportColor(m.sportName)}55;">${m.sportName}</span></td>
+      <td><span class="badge" style="background: ${isGirls ? '#ec489924' : '#3b82f624'}; color: ${isGirls ? '#ec4899' : '#3b82f6'}; border: 1px solid ${isGirls ? '#ec489955' : '#3b82f655'};">${gender}</span></td>
       <td>${m.venue}</td>
       <td><span class="badge badge-${m.status}">${m.status}</span></td>
       <td>
@@ -1357,6 +1360,7 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const sportId = document.getElementById("matchSport").value;
   const sport = SPORTS.find(s => s.id == sportId);
   const venue = document.getElementById("matchVenue").value;
+  const gender = document.getElementById("matchGender")?.value || "Boys";
   const isLive = newMatchMode === "schedule";
   const matchDate = document.getElementById("matchDate")?.value || "";
   const startClock = document.getElementById("matchStartTime")?.value || "";
@@ -1371,6 +1375,7 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
       sportId,
       sportName: sport.name,
       venue,
+      gender,
       startTime,
       endTime,
       description: matchDescription

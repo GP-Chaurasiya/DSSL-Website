@@ -17,7 +17,7 @@ const app = express();
 const server = http.createServer(app);
 
 // Enable HTTP Gzip/Deflate Compression for ultra-fast response loading
-app.use(compression());
+// (Moved below the static uploads to prevent breaking video streaming via HTTP range requests)
 
 // Configure Socket.IO with CORS support and per-message deflate compression for fast realtime events
 const io = new Server(server, {
@@ -47,11 +47,15 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Serve uploaded videos statically with full Range / Seeking support
+// Serve uploaded videos and images statically with full Range / Seeking support
+// MUST be before compression middleware to prevent breaking video streaming
 app.use("/uploads", express.static(uploadDir, {
   acceptRanges: true,
   maxAge: "7d"
 }));
+
+// Apply compression AFTER static uploads
+app.use(compression());
 
 // Multer Storage Configuration (Supports up to 50 GB videos & 150 MB photos)
 const MAX_FILE_SIZE = 50 * 1024 * 1024 * 1024; // 50 GB limit
@@ -70,8 +74,7 @@ const upload = multer({
 });
 
 // ── Shared Upload Helper ─────────────────────────────────────────────────────────
-// Saves media metadata. Images are optimized from disk via sharp into PostgreSQL bytea.
-// Videos stay on disk in /uploads/ and stream directly via HTTP range requests.
+// Saves media metadata. Images and videos are saved to disk in /uploads/
 async function saveUploadedFile(file, title) {
   const ext = path.extname(file.originalname).toLowerCase();
   const isVideoExt = [".mp4", ".mov", ".webm", ".avi", ".mkv", ".m4v", ".3gp", ".flv", ".wmv"].includes(ext);
@@ -82,35 +85,32 @@ async function saveUploadedFile(file, title) {
     mimeType = isVideo ? "video/mp4" : "image/jpeg";
   }
 
-  let fileBuffer = null;
-
   if (!isVideo) {
     // Process image directly from disk path using sharp to prevent RAM memory spikes
     try {
-      fileBuffer = await sharp(file.path)
+      const optimizedBuffer = await sharp(file.path)
         .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
         .toBuffer();
+      // Overwrite the uploaded file with optimized image
+      fs.writeFileSync(file.path, optimizedBuffer);
     } catch (err) {
       console.warn("Image sharp optimization fallback:", err.message);
-      fileBuffer = fs.readFileSync(file.path);
     }
   }
 
-  // Create database record (images store binary data; videos store null data and stay on disk)
+  // Create database record (images and videos both stay on disk, DB data is null)
   const media = await prisma.media.create({
     data: {
       type: isVideo ? "VIDEO" : "IMAGE",
       url: "pending",
       title: title || file.originalname,
       mimeType,
-      data: isVideo ? null : fileBuffer
+      data: null
     }
   });
 
-  // Persistent URL: images served from DB endpoint, videos served statically from disk
-  const persistentUrl = isVideo
-    ? "/uploads/" + file.filename
-    : `/api/media/file/${media.id}`;
+  // Persistent URL: both images and videos served statically from disk
+  const persistentUrl = "/uploads/" + file.filename;
 
   const updated = await prisma.media.update({
     where: { id: media.id },
@@ -290,6 +290,7 @@ const serializePlannedMatch = (m) => {
     endTime: m.endTime ? m.endTime.getTime() : null,
     matchRound: m.matchRound || "",
     description: m.description || "",
+    gender: m.gender || "Boys",
     matchupText: m.matchRound || m.description || "Scheduled Match",
     dalA: serializeTeam(m.dalA, "Team A"),
     dalB: serializeTeam(m.dalB, "Team B")
@@ -325,7 +326,7 @@ app.get("/api/planned-matches", async (req, res) => {
 });
 
 app.post("/api/planned-matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
-  const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, startTime, endTime, description, matchRound } = req.body;
+  const { sportId, sportName, venue, dalAId, dalBId, durationMinutes, startTime, endTime, description, matchRound, gender } = req.body;
   if (!sportId || !venue) {
     return res.status(400).json({ error: "Missing required planned match parameters" });
   }
@@ -346,7 +347,8 @@ app.post("/api/planned-matches", authenticateToken, requireRole(["SUPER_ADMIN", 
         startTime: startTime ? new Date(startTime) : null,
         endTime: endTime ? new Date(endTime) : null,
         matchRound: matchRound || "",
-        description: description || ""
+        description: description || "",
+        gender: gender || "Boys"
       },
       include: { dalA: true, dalB: true }
     });
@@ -1011,7 +1013,7 @@ const staticCacheOptions = {
   }
 };
 
-app.use("/uploads", express.static(uploadDir, { maxAge: "7d", acceptRanges: true }));
+// The /uploads route is already declared at the top of the file to skip compression
 app.use("/admin", express.static(path.join(ROOT, "admin"), staticCacheOptions));
 app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
 app.use("/analytics", express.static(path.join(ROOT, "analytics"), staticCacheOptions));

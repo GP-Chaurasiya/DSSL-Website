@@ -84,6 +84,24 @@
       color: var(--text-muted);
       padding: 3rem 1rem;
     }
+
+    .gender-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .gender-boys {
+      background: rgba(59, 130, 246, 0.15);
+      color: #2563eb;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+    .gender-girls {
+      background: rgba(236, 72, 153, 0.15);
+      color: #db2777;
+      border: 1px solid rgba(236, 72, 153, 0.35);
+    }
   </style>
 </head>
 <body>
@@ -279,7 +297,7 @@
       let index = 1;
       const rows = [];
       grouped.forEach((matches, monthLabel) => {
-        rows.push(`<tr class="month-row"><td colspan="6">${monthLabel}</td></tr>`);
+        rows.push(`<tr class="month-row"><td colspan="7">${monthLabel}</td></tr>`);
         matches.forEach((m) => {
           const start = getMatchDate(m);
           const end = getEndDate(m);
@@ -289,12 +307,15 @@
           const endText = end ? end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
           const timeText = endText ? `${startText} - ${endText}` : startText;
           const matchupText = m.matchRound || m.sportName || "Scheduled Match";
+          const gender = m.gender || "Boys";
+          const genderClass = gender.toLowerCase() === "girls" ? "gender-girls" : "gender-boys";
           rows.push(`
             <tr>
               <td>${index++}</td>
               <td>${dateText}</td>
               <td>${dayText}</td>
               <td>${timeText}</td>
+              <td><span class="gender-badge ${genderClass}">${gender}</span></td>
               <td>${matchupText}</td>
               <td>${m.venue}</td>
             </tr>
@@ -310,6 +331,7 @@
               <th>Date</th>
               <th>Day</th>
               <th>Time</th>
+              <th>Gender</th>
               <th>Event / Round</th>
               <th>Venue</th>
             </tr>

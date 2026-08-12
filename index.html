@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -517,7 +517,7 @@
   </footer>
 
   <script>
-    function openPreview(src, type) {
+    function openPreview(src, type, title) {
 
       const player = document.getElementById("miniPlayer");
       const img = document.getElementById("miniImg");
@@ -528,12 +528,17 @@
       if (type === "video") {
         img.classList.add("hidden");
         video.classList.remove("hidden");
-
+        video.onerror = () => {
+          alert(title ? `"${title}" is unavailable. The video file may need to be re-uploaded.` : "This video is unavailable. The file may need to be re-uploaded.");
+          closePreview();
+        };
         video.src = src;
-        video.play();
+        video.load();
+        video.play().catch(() => {});
       }
       else {
         video.classList.add("hidden");
+        video.onerror = null;
         img.classList.remove("hidden");
 
         img.src = src;
@@ -867,7 +872,7 @@
             </div>
         </div>
         <div class="match-info">
-            ${m.sportName} • Duration: ${m.durationMinutes} Mins
+            ${m.sportName} (${m.gender || "Boys"}) • Duration: ${m.durationMinutes} Mins
         </div>
         <button class="schedule-btn" onclick="window.location.href='schedule.html'">
             View Full Schedule →
@@ -1039,19 +1044,30 @@
           card.className = "gallery-card";
           const isVideo = item.type === "VIDEO";
           const mediaType = isVideo ? "video" : "image";
+          const mediaUrl = item.url || `/api/media/file/${item.id}`;
 
-          card.onclick = () => openPreview(item.url, mediaType);
+          card.onclick = () => openPreview(mediaUrl, mediaType, item.title);
 
           if (isVideo) {
             card.innerHTML = `
-          <video src="${item.url}" muted style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></video>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);color:#fff;font-size:26px;">
+          <video src="${mediaUrl}#t=0.5" muted preload="metadata" playsinline></video>
+          <div class="gallery-video-overlay">
             <i class="ri-play-circle-fill"></i>
           </div>
+          <div class="gallery-video-unavailable hidden">
+            <i class="ri-video-off-line"></i>
+            <span>Video unavailable</span>
+          </div>
         `;
+            const videoEl = card.querySelector("video");
+            videoEl.addEventListener("error", () => {
+              videoEl.classList.add("hidden");
+              card.querySelector(".gallery-video-overlay")?.classList.add("hidden");
+              card.querySelector(".gallery-video-unavailable")?.classList.remove("hidden");
+            });
           } else {
             card.innerHTML = `
-          <img src="${item.url}" alt="${item.title || 'Gallery image'}" onerror="this.src='DSSL_LOGO.png'">
+          <img src="${mediaUrl}" alt="${item.title || 'Gallery image'}" onerror="this.src='DSSL_LOGO.png'">
         `;
           }
           track.appendChild(card);
