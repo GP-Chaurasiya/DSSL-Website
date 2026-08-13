@@ -368,7 +368,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     if (!inputUrl) return "https://docs.google.com/spreadsheets/d/1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU/export?format=csv&gid=0";
     let url = String(inputUrl).trim();
     if (url.includes("/export?format=csv")) return url;
-    
+
     const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
     if (match && match[1]) {
       const spreadsheetId = match[1];
@@ -411,97 +411,372 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
   }
 
   app.post("/api/admin/import-sheets", ...adminAccess, async (req, res) => {
-    const rawUrl = req.body.sheetUrl || "https://docs.google.com/spreadsheets/d/1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU/export?format=csv&gid=0";
-    const sheetUrl = formatGoogleSheetCSVUrl(rawUrl);
+
+    const spreadsheetId =
+      "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
+
+    // These are the actual sport tab names in your Google Sheet.
+    // The tab name itself becomes the player's sport.
+    const sportSheets = [
+      "Chess",
+      "Table Tennis",
+      "Badminton",
+      "Basketball",
+      "Volleyball",
+      "Football",
+      "Cricket",
+      "Kho Kho",
+      "Tug Of War",
+      "Relay Race",
+
+      // Add these if they exist as separate tabs
+      "Athletics (100 m)",
+      "Athletics (200 m)",
+      "Athletics (400 m)",
+      "Long Jump",
+      "High Jump",
+      "Javelin Throw",
+      "Discus Throw",
+      "Shot Put",
+      "7 Stones"
+    ];
 
     try {
-      const response = await fetch(sheetUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
-      });
-      if (!response.ok) throw new Error(`Google Sheet returned status ${response.status}`);
-      const csvData = await response.text();
-      const lines = csvData.split(/\r?\n/).filter(line => line.trim());
-      if (lines.length <= 1) {
-        return res.status(400).json({ error: "No data rows found in Google Sheet." });
-      }
-
-      const headers = parseCSVLine(lines[0]);
-      const colMap = buildHeaderIndexMap(headers);
 
       let importedCount = 0;
       let updatedCount = 0;
+      let skippedCount = 0;
 
-      for (const line of lines.slice(1)) {
-        const row = parseCSVLine(line);
-        
-        const getVal = (colKey, fallbackIdx) => {
-          const idx = colMap[colKey] !== undefined ? colMap[colKey] : fallbackIdx;
-          return idx !== undefined && row[idx] !== undefined ? String(row[idx]).trim() : "";
-        };
+      const errors = [];
+      const sheetResults = [];
 
-        const regId = getVal("teamRegistrationId", 0);
-        const role = getVal("teamRole", 1);
-        const name = getVal("name", 2);
-        const scholarNo = getVal("scholarNo", 3);
-        const course = getVal("course", 4);
-        const semester = getVal("semester", 5);
-        const mandalName = getVal("mandalName", 6);
-        const email = getVal("email", 7);
-        const phone = getVal("phone", 8);
-        const gender = getVal("gender", 9);
-        const sport = getVal("sport", 10);
+      // ---------------------------------------------------------
+      // Helper: convert Google Sheet column data into player data
+      // ---------------------------------------------------------
 
-        if (!scholarNo || !name) continue;
+      async function importSportSheet(sportSheetName) {
 
-        const dalId = await resolveMandalId(mandalName);
-        const existing = await prisma.player.findUnique({ where: { scholarNo } });
+        // Google Visualization endpoint allows us to request
+        // a specific sheet by its tab name.
+        const encodedSheet =
+          encodeURIComponent(sportSheetName);
 
-        await prisma.player.upsert({
-          where: { scholarNo },
-          update: {
-            name,
-            course,
-            semester: String(semester),
-            mandalName,
-            dalId,
-            email,
-            phone,
-            gender,
-            sport: sport || undefined,
-            teamRegistrationId: regId,
-            teamRole: role
-          },
-          create: {
-            name,
-            scholarNo,
-            course,
-            semester: String(semester),
-            mandalName,
-            dalId,
-            email,
-            phone,
-            gender,
-            sport,
-            teamRegistrationId: regId,
-            teamRole: role
+        const sheetUrl =
+          `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodedSheet}`;
+
+        console.log(
+          `Importing sport sheet: ${sportSheetName}`
+        );
+
+        const response = await fetch(sheetUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
           }
         });
 
-        if (existing) updatedCount++;
-        else importedCount++;
+        if (!response.ok) {
+          throw new Error(
+            `Google Sheet returned status ${response.status}`
+          );
+        }
+
+        const csvData = await response.text();
+
+        const lines =
+          csvData
+            .split(/\r?\n/)
+            .filter(line => line.trim());
+
+        if (lines.length <= 1) {
+          return {
+            sport: sportSheetName,
+            imported: 0,
+            updated: 0,
+            skipped: 0,
+            message: "No data rows"
+          };
+        }
+
+        const headers =
+          parseCSVLine(lines[0]);
+
+        const colMap =
+          buildHeaderIndexMap(headers);
+
+        let imported = 0;
+        let updated = 0;
+        let skipped = 0;
+
+        for (const line of lines.slice(1)) {
+
+          const row =
+            parseCSVLine(line);
+
+          const getVal =
+            (colKey, fallbackIdx) => {
+
+              const idx =
+                colMap[colKey] !== undefined
+                  ? colMap[colKey]
+                  : fallbackIdx;
+
+              return (
+                idx !== undefined &&
+                row[idx] !== undefined
+              )
+                ? String(row[idx]).trim()
+                : "";
+            };
+
+          // -----------------------------------------------------
+          // Your Google Sheet structure
+          // -----------------------------------------------------
+
+          const regId =
+            getVal("teamRegistrationId", 0);
+
+          const role =
+            getVal("teamRole", 1);
+
+          const name =
+            getVal("name", 2);
+
+          const scholarNo =
+            getVal("scholarNo", 3);
+
+          const course =
+            getVal("course", 4);
+
+          const semester =
+            getVal("semester", 5);
+
+          const mandalName =
+            getVal("mandalName", 6);
+
+          const email =
+            getVal("email", 7);
+
+          const phone =
+            getVal("phone", 8);
+
+          const gender =
+            getVal("gender", 9);
+
+          // IMPORTANT:
+          // We DO NOT read sport from the row.
+          // We use the Google Sheet TAB NAME.
+          const sport =
+            sportSheetName;
+
+          // -----------------------------------------------------
+          // Validate required fields
+          // -----------------------------------------------------
+
+          if (!scholarNo || !name) {
+            skipped++;
+            continue;
+          }
+
+          try {
+
+            const dalId =
+              await resolveMandalId(mandalName);
+
+            const existing =
+              await prisma.player.findUnique({
+                where: { scholarNo }
+              });
+
+            await prisma.player.upsert({
+
+              where: {
+                scholarNo
+              },
+
+              update: {
+
+                name,
+
+                course,
+
+                semester:
+                  String(semester),
+
+                mandalName,
+
+                dalId,
+
+                email,
+
+                phone,
+
+                gender,
+
+                // THIS IS THE IMPORTANT FIX
+                sport,
+
+                teamRegistrationId:
+                  regId,
+
+                teamRole:
+                  role
+
+              },
+
+              create: {
+
+                name,
+
+                scholarNo,
+
+                course,
+
+                semester:
+                  String(semester),
+
+                mandalName,
+
+                dalId,
+
+                email,
+
+                phone,
+
+                gender,
+
+                // THIS IS THE IMPORTANT FIX
+                sport,
+
+                teamRegistrationId:
+                  regId,
+
+                teamRole:
+                  role
+
+              }
+
+            });
+
+            if (existing) {
+              updated++;
+            } else {
+              imported++;
+            }
+
+          } catch (playerError) {
+
+            console.error(
+              `Error importing ${scholarNo} from ${sportSheetName}:`,
+              playerError
+            );
+
+            errors.push({
+              sport: sportSheetName,
+              scholarNo,
+              error:
+                playerError.message
+            });
+          }
+        }
+
+        return {
+          sport: sportSheetName,
+          imported,
+          updated,
+          skipped
+        };
       }
 
-      const totalProcessed = importedCount + updatedCount;
+      // ---------------------------------------------------------
+      // IMPORT ALL SPORT TABS
+      // ---------------------------------------------------------
+
+      for (const sportSheet of sportSheets) {
+
+        try {
+
+          const result =
+            await importSportSheet(
+              sportSheet
+            );
+
+          sheetResults.push(result);
+
+          importedCount +=
+            result.imported;
+
+          updatedCount +=
+            result.updated;
+
+          skippedCount +=
+            result.skipped;
+
+        } catch (sheetError) {
+
+          console.error(
+            `Could not import ${sportSheet}:`,
+            sheetError
+          );
+
+          errors.push({
+            sport: sportSheet,
+            error:
+              sheetError.message
+          });
+        }
+      }
+
+      // ---------------------------------------------------------
+      // RESPONSE
+      // ---------------------------------------------------------
+
+      const totalProcessed =
+        importedCount +
+        updatedCount;
+
+      console.log(
+        `Google Sheets sync complete: ${totalProcessed} records`
+      );
+
       res.json({
+
         success: true,
-        count: totalProcessed,
+
+        count:
+          totalProcessed,
+
         importedCount,
+
         updatedCount,
-        message: `Successfully synced ${totalProcessed} player records (${importedCount} new, ${updatedCount} updated) from Google Sheet.`
+
+        skippedCount,
+
+        sheets:
+          sheetResults,
+
+        errors,
+
+        message:
+          `Successfully synced ${totalProcessed} player records from ${sportSheets.length} sport sheets.`
+
       });
+
     } catch (error) {
-      console.error("Google Sheet import error:", error);
-      res.status(500).json({ error: "Failed to import data from Google Sheet: " + error.message });
+
+      console.error(
+        "Google Sheet import error:",
+        error
+      );
+
+      res.status(500).json({
+
+        error:
+          "Failed to import Google Sheets data: " +
+          error.message
+
+      });
     }
   });
+
 };

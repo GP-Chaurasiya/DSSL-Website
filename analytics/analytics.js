@@ -3,12 +3,12 @@
  * analytics.js
  */
 
-const MANDALS = ["Vashishta Mandal","Vishwamitra Mandal","Atrey Mandal","Gautam Mandal","Bharadwaj Mandal","Jamdagni Mandal","Kashyap Mandal"];
-const COURSES = ["BA English","BA Hindi","BA History","BA Music","BA Psychology","BA Sanskrit","BAJMC","BBA","BCA","B.Ed","BRS","B.Sc IT","B.Sc Maths","B.Sc Yogic Science","B.Voc","MA English","MA Hindi","MA History","MA Music","MA Psychology","MA Yoga Therapy (MA YT)","MAJMC","MBA","MCA","M.Sc HCYS","PhD"];
-const SEMESTERS = ["1","2","3","4","5","6","7","8"];
-const SPORTS = ["Basketball","Football","Cricket","Volleyball","Badminton","Table Tennis","Athletics (100 m)","Athletics (200 m)","Athletics (400 m)","Athletics (Relay Race)","Kho-Kho","Chess","7 Stones","Tug Of War","Long Jump","High Jump","Javelin Throw","Discus Throw","Shot Put"];
+const MANDALS = ["Vashishta Mandal", "Vishwamitra Mandal", "Atrey Mandal", "Gautam Mandal", "Bharadwaj Mandal", "Jamdagni Mandal", "Kashyap Mandal"];
+const COURSES = ["BA English", "BA Hindi", "BA History", "BA Music", "BA Psychology", "BA Sanskrit", "BAJMC", "BBA", "BCA", "B.Ed", "BRS", "B.Sc IT", "B.Sc Maths", "B.Sc Yogic Science", "B.Voc", "MA English", "MA Hindi", "MA History", "MA Music", "MA Psychology", "MA Yoga Therapy (MA YT)", "MAJMC", "MBA", "MCA", "M.Sc HCYS", "PhD"];
+const SEMESTERS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+const SPORTS = ["Basketball", "Football", "Cricket", "Volleyball", "Badminton", "Table Tennis", "Athletics (100 m)", "Athletics (200 m)", "Athletics (400 m)", "Athletics (Relay Race)", "Kho-Kho", "Chess", "7 Stones", "Tug Of War", "Long Jump", "High Jump", "Javelin Throw", "Discus Throw", "Shot Put"];
 const GENDER_COLORS = { Male: "#3b82f6", Female: "#ec4899", Other: "#8b5cf6", Unknown: "#94a3b8" };
-const MANDAL_COLORS = ["#ffbc01","#003e8a","#10b981","#ef4444","#8b5cf6","#f97316","#06b6d4"];
+const MANDAL_COLORS = ["#ffbc01", "#003e8a", "#10b981", "#ef4444", "#8b5cf6", "#f97316", "#06b6d4"];
 
 let analyticsCharts = {};
 let analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport: "", search: "", page: 1 };
@@ -73,7 +73,7 @@ async function loadTrend(days) {
     const data = await anApiCall(`/api/analytics/registration-trend?days=${days}`);
     const labels = data.map(d => {
       const dt = new Date(d.date);
-      return `${dt.getDate()}/${dt.getMonth()+1}`;
+      return `${dt.getDate()}/${dt.getMonth() + 1}`;
     });
     const counts = data.map(d => d.count);
 
@@ -202,7 +202,7 @@ async function loadSemesterChart() {
         datasets: [{
           label: "Players",
           data: data.map(d => d.count),
-          backgroundColor: data.map((_, i) => `hsl(${120 + i*30},70%,55%)`),
+          backgroundColor: data.map((_, i) => `hsl(${120 + i * 30},70%,55%)`),
           borderRadius: 8,
           borderSkipped: false
         }]
@@ -213,27 +213,386 @@ async function loadSemesterChart() {
 }
 
 async function loadSportChart() {
-  try {
-    const data = await anApiCall("/api/analytics/sport-distribution");
-    destroyChart("an-chart-sport");
-    const ctx = document.getElementById("an-chart-sport");
-    if (!ctx) return;
+  const chartId = "an-chart-sport";
+  const canvas = document.getElementById(chartId);
 
-    analyticsCharts["an-chart-sport"] = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: data.map(d => d.sport),
-        datasets: [{
-          label: "Players",
-          data: data.map(d => d.count),
-          backgroundColor: data.map((_, i) => `hsl(${i*19},70%,55%)`),
-          borderRadius: 6,
-          borderSkipped: false
-        }]
-      },
-      options: chartDefaults()
-    });
-  } catch (e) { console.error("Sport chart error:", e); }
+  if (!canvas) {
+    console.error("Sports chart canvas not found:", chartId);
+    return;
+  }
+
+  try {
+    let rows = [];
+
+    // =========================================================
+    // 1. TRY THE DEDICATED SPORTS ANALYTICS API
+    // =========================================================
+    try {
+      const result = await anApiCall("/api/analytics/sport-distribution");
+
+      if (Array.isArray(result)) {
+        rows = result;
+      } else if (Array.isArray(result?.distribution)) {
+        rows = result.distribution;
+      } else if (Array.isArray(result?.data)) {
+        rows = result.data;
+      } else if (Array.isArray(result?.sports)) {
+        rows = result.sports;
+      }
+
+      // Convert API response into:
+      // [{ sport: "Football", count: 25 }, ...]
+      rows = rows
+        .map(item => ({
+          sport: String(
+            item?.sport ??
+            item?.name ??
+            item?.label ??
+            ""
+          ).trim(),
+
+          count: Number(
+            item?.count ??
+            item?.players ??
+            item?.total ??
+            item?.value ??
+            0
+          )
+        }))
+        .filter(
+          item =>
+            item.sport &&
+            Number.isFinite(item.count) &&
+            item.count > 0
+        );
+
+    } catch (apiError) {
+      console.warn(
+        "Sport distribution API failed:",
+        apiError
+      );
+    }
+
+    // =========================================================
+    // 2. FALLBACK TO REAL PLAYER DATA
+    // =========================================================
+    // If the analytics endpoint gives no data,
+    // calculate sports directly from registered players.
+    // =========================================================
+
+    if (!rows.length) {
+      console.log(
+        "No sport distribution data found. Calculating from players..."
+      );
+
+      const firstPage = await anApiCall(
+        "/api/players?page=1&limit=100"
+      );
+
+      let players = Array.isArray(firstPage)
+        ? firstPage
+        : (firstPage?.players || []);
+
+      const totalPages = Number(
+        firstPage?.totalPages || 1
+      );
+
+      // Load remaining pages if they exist
+      for (let page = 2; page <= totalPages; page++) {
+        const pageResult = await anApiCall(
+          `/api/players?page=${page}&limit=100`
+        );
+
+        const pagePlayers = Array.isArray(pageResult)
+          ? pageResult
+          : (pageResult?.players || []);
+
+        players = players.concat(pagePlayers);
+      }
+
+      // Count players for each sport
+      const sportCounts = {};
+
+      players.forEach(player => {
+        const sport = String(
+          player?.sport || ""
+        ).trim();
+
+        if (!sport) return;
+
+        sportCounts[sport] =
+          (sportCounts[sport] || 0) + 1;
+      });
+
+      rows = Object.entries(sportCounts).map(
+        ([sport, count]) => ({
+          sport,
+          count
+        })
+      );
+    }
+
+    // =========================================================
+    // 3. SORT SPORTS — HIGHEST FIRST
+    // =========================================================
+
+    rows.sort((a, b) => b.count - a.count);
+
+    console.log(
+      "Sports Distribution:",
+      rows
+    );
+
+    // =========================================================
+    // 4. DESTROY OLD CHART
+    // =========================================================
+
+    destroyChart(chartId);
+
+    const wrapper = canvas.parentElement;
+
+    // =========================================================
+    // 5. NO DATA MESSAGE
+    // =========================================================
+
+    if (!rows.length) {
+
+      canvas.style.display = "none";
+
+      if (wrapper) {
+        wrapper.style.height = "240px";
+
+        let message =
+          wrapper.querySelector(
+            ".an-sport-empty"
+          );
+
+        if (!message) {
+          message =
+            document.createElement("div");
+
+          message.className =
+            "an-sport-empty";
+
+          message.style.cssText = `
+            height:100%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            text-align:center;
+            color:var(--text-muted);
+            font-size:13px;
+          `;
+
+          wrapper.appendChild(message);
+        }
+
+        message.textContent =
+          "No sport registration data available yet.";
+      }
+
+      return;
+    }
+
+    // =========================================================
+    // 6. SHOW CANVAS
+    // =========================================================
+
+    canvas.style.display = "block";
+
+    if (wrapper) {
+
+      const oldMessage =
+        wrapper.querySelector(
+          ".an-sport-empty"
+        );
+
+      if (oldMessage) {
+        oldMessage.remove();
+      }
+
+      // Dynamic height based on number of sports
+      wrapper.style.height =
+        `${Math.max(
+          240,
+          rows.length * 42 + 50
+        )}px`;
+    }
+
+    // =========================================================
+    // 7. PREPARE DATA
+    // =========================================================
+
+    const labels =
+      rows.map(item => item.sport);
+
+    const counts =
+      rows.map(item => item.count);
+
+    // =========================================================
+    // 8. CREATE SPORTS CHART
+    // =========================================================
+
+    analyticsCharts[chartId] =
+      new Chart(canvas, {
+
+        type: "bar",
+
+        data: {
+
+          labels,
+
+          datasets: [{
+
+            label:
+              "Registered Players",
+
+            data: counts,
+
+            backgroundColor:
+              labels.map(
+                (_, index) =>
+                  `hsl(${(index * 29 + 35) % 360}, 70%, 55%)`
+              ),
+
+            borderRadius: 7,
+
+            borderSkipped: false,
+
+            barThickness: 24,
+
+            maxBarThickness: 28
+          }]
+        },
+
+        options: {
+
+          ...chartDefaults(),
+
+          // Horizontal bars
+          indexAxis: "y",
+
+          responsive: true,
+
+          maintainAspectRatio: false,
+
+          scales: {
+
+            x: {
+
+              ...chartScales().x,
+
+              beginAtZero: true,
+
+              ticks: {
+
+                ...chartScales().x.ticks,
+
+                precision: 0,
+
+                stepSize: 1
+              }
+            },
+
+            y: {
+
+              ...chartScales().y,
+
+              grid: {
+                display: false
+              },
+
+              ticks: {
+                ...chartScales().y.ticks,
+
+                autoSkip: false
+              }
+            }
+          },
+
+          plugins: {
+
+            ...chartDefaults().plugins,
+
+            tooltip: {
+
+              ...chartDefaults()
+                .plugins
+                .tooltip,
+
+              callbacks: {
+
+                label: function (ctx) {
+
+                  const count =
+                    Number(ctx.raw || 0);
+
+                  return ` ${count} registered player${count === 1 ? "" : "s"
+                    }`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+  } catch (error) {
+
+    console.error(
+      "Sports Distribution Chart Error:",
+      error
+    );
+
+    const wrapper =
+      canvas.parentElement;
+
+    canvas.style.display = "none";
+
+    if (wrapper) {
+
+      wrapper.style.height =
+        "240px";
+
+      let errorMessage =
+        wrapper.querySelector(
+          ".an-sport-empty"
+        );
+
+      if (!errorMessage) {
+
+        errorMessage =
+          document.createElement(
+            "div"
+          );
+
+        errorMessage.className =
+          "an-sport-empty";
+
+        errorMessage.style.cssText = `
+          height:100%;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          text-align:center;
+          color:var(--text-muted);
+          font-size:13px;
+          padding:20px;
+        `;
+
+        wrapper.appendChild(
+          errorMessage
+        );
+      }
+
+      errorMessage.innerHTML = `
+        Unable to load sport distribution.
+        <br>
+        <small>
+          Check browser Console for details.
+        </small>
+      `;
+    }
+  }
 }
 
 async function loadMandalGenderChart() {
@@ -283,10 +642,10 @@ async function loadTeamStats() {
       return;
     }
     tbody.innerHTML = data.map((t, i) => {
-      const rankColor = i===0?"#ffbc01":i===1?"#94a3b8":i===2?"#f97316":"var(--bg-primary)";
-      const rankText = i===0?"#000":i===1?"#000":i===2?"#000":"var(--text-muted)";
+      const rankColor = i === 0 ? "#ffbc01" : i === 1 ? "#94a3b8" : i === 2 ? "#f97316" : "var(--bg-primary)";
+      const rankText = i === 0 ? "#000" : i === 1 ? "#000" : i === 2 ? "#000" : "var(--text-muted)";
       return `<tr>
-        <td><span style="width:26px;height:26px;border-radius:50%;background:${rankColor};color:${rankText};display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${i+1}</span></td>
+        <td><span style="width:26px;height:26px;border-radius:50%;background:${rankColor};color:${rankText};display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${i + 1}</span></td>
         <td><strong>${esc(t.name)}</strong></td>
         <td>${t.playerCount}</td>
         <td>${t.matchesPlayed}</td>
@@ -318,9 +677,9 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  analyticsFilters = { mandal:"",course:"",semester:"",gender:"",sport:"",search:"",page:1 };
-  const ids = ["an-filter-mandal","an-filter-course","an-filter-semester","an-filter-gender","an-filter-sport"];
-  ids.forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+  analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport: "", search: "", page: 1 };
+  const ids = ["an-filter-mandal", "an-filter-course", "an-filter-semester", "an-filter-gender", "an-filter-sport"];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
   const search = document.getElementById("an-filter-search");
   if (search) search.value = "";
   loadPlayers();
@@ -394,12 +753,12 @@ async function loadPlayers() {
                 <td>${esc(p.course)}</td>
                 <td>${esc(p.semester)}</td>
                 <td>
-                  <span class="an-pill" style="background:rgba(255,188,1,.15);color:var(--primary)">${esc(p.mandalName.replace(" Mandal",""))}</span>
+                  <span class="an-pill" style="background:rgba(255,188,1,.15);color:var(--primary)">${esc(p.mandalName.replace(" Mandal", ""))}</span>
                 </td>
                 <td>
-                  <span class="an-pill" style="background:${GENDER_COLORS[p.gender]||"#94a3b8"}22;color:${GENDER_COLORS[p.gender]||"#94a3b8"}">${esc(p.gender)||"—"}</span>
+                  <span class="an-pill" style="background:${GENDER_COLORS[p.gender] || "#94a3b8"}22;color:${GENDER_COLORS[p.gender] || "#94a3b8"}">${esc(p.gender) || "—"}</span>
                 </td>
-                <td>${esc(p.sport)||"—"}</td>
+                <td>${esc(p.sport) || "—"}</td>
                 <td style="font-size:12px;color:var(--text-muted)">${maskPhone(p.phone)}</td>
                 <td style="font-size:12px;color:var(--text-muted)">${formatDate(p.registrationDate)}</td>
                 <td>
@@ -413,18 +772,18 @@ async function loadPlayers() {
         </table>
       </div>
       <div style="font-size:13px;color:var(--text-muted);margin-top:.75rem;">
-        Showing ${(page-1)*limit+1}–${Math.min(page*limit,total)} of ${total} players
+        Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} players
       </div>
     `;
 
     if (paginationEl) {
       let pHtml = "";
-      if (page > 1) pHtml += `<button class="an-page-btn" onclick="goPage(${page-1})"><i class="ri-arrow-left-s-line"></i></button>`;
-      const start = Math.max(1, page-2), end = Math.min(totalPages, page+2);
+      if (page > 1) pHtml += `<button class="an-page-btn" onclick="goPage(${page - 1})"><i class="ri-arrow-left-s-line"></i></button>`;
+      const start = Math.max(1, page - 2), end = Math.min(totalPages, page + 2);
       for (let i = start; i <= end; i++) {
-        pHtml += `<button class="an-page-btn ${i===page?"active":""}" onclick="goPage(${i})">${i}</button>`;
+        pHtml += `<button class="an-page-btn ${i === page ? "active" : ""}" onclick="goPage(${i})">${i}</button>`;
       }
-      if (page < totalPages) pHtml += `<button class="an-page-btn" onclick="goPage(${page+1})"><i class="ri-arrow-right-s-line"></i></button>`;
+      if (page < totalPages) pHtml += `<button class="an-page-btn" onclick="goPage(${page + 1})"><i class="ri-arrow-right-s-line"></i></button>`;
       paginationEl.innerHTML = pHtml;
     }
   } catch (e) {
@@ -447,7 +806,7 @@ async function openProfile(id) {
 
   try {
     const p = await anApiCall(`/api/players/${id}`);
-    const initials = (p.name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const initials = (p.name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
     content.innerHTML = `
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
         <div class="an-profile-avatar">${initials}</div>
@@ -460,19 +819,19 @@ async function openProfile(id) {
       <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:0 0 .75rem">Personal Information</h4>
       <div class="an-profile-grid" style="margin-bottom:1.25rem">
         <div class="an-profile-field"><label>Scholar ID</label><span><code>${esc(p.scholarNo)}</code></span></div>
-        <div class="an-profile-field"><label>Gender</label><span>${esc(p.gender)||"—"}</span></div>
-        <div class="an-profile-field"><label>Course</label><span>${esc(p.course)||"—"}</span></div>
-        <div class="an-profile-field"><label>Semester</label><span>${p.semester ? "Semester "+esc(p.semester) : "—"}</span></div>
-        <div class="an-profile-field"><label>Phone</label><span>${esc(p.phone)||"—"}</span></div>
-        <div class="an-profile-field"><label>Email</label><span style="word-break:break-all;font-size:13px">${esc(p.email)||"—"}</span></div>
+        <div class="an-profile-field"><label>Gender</label><span>${esc(p.gender) || "—"}</span></div>
+        <div class="an-profile-field"><label>Course</label><span>${esc(p.course) || "—"}</span></div>
+        <div class="an-profile-field"><label>Semester</label><span>${p.semester ? "Semester " + esc(p.semester) : "—"}</span></div>
+        <div class="an-profile-field"><label>Phone</label><span>${esc(p.phone) || "—"}</span></div>
+        <div class="an-profile-field"><label>Email</label><span style="word-break:break-all;font-size:13px">${esc(p.email) || "—"}</span></div>
       </div>
 
       <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:0 0 .75rem">Sports Information</h4>
       <div class="an-profile-grid">
-        <div class="an-profile-field"><label>Mandal</label><span>${esc(p.mandalName)||"—"}</span></div>
-        <div class="an-profile-field"><label>Sport</label><span>${esc(p.sport)||"—"}</span></div>
-        <div class="an-profile-field"><label>Team Role</label><span>${esc(p.teamRole)||"—"}</span></div>
-        <div class="an-profile-field"><label>Team Reg. ID</label><span style="font-size:12px"><code>${esc(p.teamRegistrationId)||"—"}</code></span></div>
+        <div class="an-profile-field"><label>Mandal</label><span>${esc(p.mandalName) || "—"}</span></div>
+        <div class="an-profile-field"><label>Sport</label><span>${esc(p.sport) || "—"}</span></div>
+        <div class="an-profile-field"><label>Team Role</label><span>${esc(p.teamRole) || "—"}</span></div>
+        <div class="an-profile-field"><label>Team Reg. ID</label><span style="font-size:12px"><code>${esc(p.teamRegistrationId) || "—"}</code></span></div>
       </div>
     `;
   } catch (e) {
@@ -634,19 +993,19 @@ function chartDefaults(extraScales = {}) {
 
 function esc(str) {
   if (!str) return "";
-  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function maskPhone(phone) {
   if (!phone || phone.length < 6) return phone || "—";
-  return phone.slice(0,2) + "•".repeat(Math.max(0, phone.length-4)) + phone.slice(-2);
+  return phone.slice(0, 2) + "•".repeat(Math.max(0, phone.length - 4)) + phone.slice(-2);
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   } catch { return "—"; }
 }
 
