@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="index.css">
   <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
   <style>
@@ -68,9 +70,17 @@
     }
 
     @keyframes pulse {
-      0% { opacity: 0.6; }
-      50% { opacity: 1; }
-      100% { opacity: 0.6; }
+      0% {
+        opacity: 0.6;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.6;
+      }
     }
 
     .table-responsive {
@@ -85,7 +95,7 @@
       text-align: left;
     }
 
-    table.standings-table th, 
+    table.standings-table th,
     table.standings-table td {
       padding: 16px 20px;
       border-bottom: 1px solid var(--border-color, #e2e8f0);
@@ -126,9 +136,21 @@
       font-size: 14px;
     }
 
-    .rank-1 { background-color: rgba(255, 188, 1, 0.15); color: #c48f00; border: 1px solid rgba(255, 188, 1, 0.3); }
-    .rank-2 { background-color: rgba(100, 116, 139, 0.1); color: #475569; }
-    .rank-3 { background-color: rgba(180, 83, 9, 0.1); color: #b45309; }
+    .rank-1 {
+      background-color: rgba(255, 188, 1, 0.15);
+      color: #c48f00;
+      border: 1px solid rgba(255, 188, 1, 0.3);
+    }
+
+    .rank-2 {
+      background-color: rgba(100, 116, 139, 0.1);
+      color: #475569;
+    }
+
+    .rank-3 {
+      background-color: rgba(180, 83, 9, 0.1);
+      color: #b45309;
+    }
 
     .pts-badge {
       background-color: rgba(255, 188, 1, 0.1);
@@ -155,6 +177,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="header-left">
@@ -174,7 +197,8 @@
       <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
         <i class="ri-moon-line"></i>
       </button>
-      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register
+          Now</button></a>
     </div>
   </header>
 
@@ -220,7 +244,8 @@
             <!-- Dynamic standings rows injected here -->
             <tr>
               <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 40px;">
-                <i class="ri-loader-3-line" style="font-size: 30px; display: inline-block; animation: spin 1s infinite linear;"></i>
+                <i class="ri-loader-3-line"
+                  style="font-size: 30px; display: inline-block; animation: spin 1s infinite linear;"></i>
                 <p style="margin-top: 10px;">Computing overall rankings...</p>
               </td>
             </tr>
@@ -307,17 +332,17 @@
     async function loadLeaderboardData() {
       try {
         const dalsRes = await fetch("/api/mandals");
-        allDals = (await dalsRes.json()).map((team, index) => ({
+        allDals = (await dalsRes.json()).map((team) => ({
           ...team,
-          name: `Team ${index + 1}`,
-          abbreviation: `T${index + 1}`,
+          name: team.name || team.mandalName,
+          abbreviation: team.abbreviation || team.name || team.mandalName,
           logoUrl: team.logoUrl || "DSSL_LOGO.png",
           logo: team.logoUrl || "DSSL_LOGO.png"
         }));
-        
+
         const matchesRes = await fetch("/api/matches");
         allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
-        
+
         computeLeaderboard();
       } catch (err) {
         document.getElementById("leaderboardBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 40px;">Failed to calculate standings.</td></tr>`;
@@ -426,13 +451,13 @@
           allMatches = await matchesRes.json();
           computeLeaderboard();
         }
-      } catch (e) {}
+      } catch (e) { }
     }, 5000);
   </script>
-<script src="sheet-sync.js?v=20260809_dssl"></script>
-<script src="register-popup.js?v=20260812_dssl"></script>
-<script src="/socket.io/socket.io.js"></script>
-<script src="notifications.js"></script>
+  <script src="sheet-sync.js?v=20260809_dssl"></script>
+  <script src="register-popup.js?v=20260812_dssl"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="notifications.js"></script>
 </body>
-</html>
 
+</html>

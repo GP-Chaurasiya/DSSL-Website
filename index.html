@@ -534,7 +534,7 @@
         };
         video.src = src;
         video.load();
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       }
       else {
         video.classList.add("hidden");
@@ -745,10 +745,10 @@
       try {
         // Fetch Mandals
         const dalsRes = await fetch("/api/mandals");
-        allDals = (await dalsRes.json()).map((team, index) => ({
+        allDals = (await dalsRes.json()).map((team) => ({
           ...team,
-          name: `Team ${index + 1}`,
-          abbreviation: `T${index + 1}`,
+          name: team.name || team.mandalName,
+          abbreviation: team.abbreviation || team.name || team.mandalName,
           logoUrl: team.logoUrl || "DSSL_LOGO.png",
           logo: team.logoUrl || "DSSL_LOGO.png"
         }));

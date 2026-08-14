@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="index.css">
   <link rel="stylesheet" href="notifications.css?v=20260809_dssl">
   <style>
@@ -204,11 +206,12 @@
       align-items: center;
     }
 
-    .lightbox-content img, .lightbox-content video {
+    .lightbox-content img,
+    .lightbox-content video {
       max-width: 100%;
       max-height: 80vh;
       border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
 
     .lightbox-close {
@@ -297,7 +300,8 @@
         flex-direction: column;
       }
 
-      .lightbox-content img, .lightbox-content video {
+      .lightbox-content img,
+      .lightbox-content video {
         max-height: 65vh;
         border-radius: 8px;
       }
@@ -340,6 +344,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="header-left">
@@ -359,7 +364,8 @@
       <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="themeBtn">
         <i class="ri-moon-line"></i>
       </button>
-      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register Now</button></a>
+      <a href="register/index.html" target="_blank" rel="noopener noreferrer"><button class="register-btn">Register
+          Now</button></a>
     </div>
   </header>
 
@@ -382,17 +388,13 @@
       <p>Relive tournament matches, opening highlights, celebrations, and key moments.</p>
     </div>
 
-    <!-- Filter Buttons -->
-    <div class="filter-tabs">
-      <button class="filter-btn active" onclick="setFilter('ALL')">All Media</button>
-      <button class="filter-btn" onclick="setFilter('IMAGE')"><i class="ri-image-line"></i> Photos</button>
-      <button class="filter-btn" onclick="setFilter('VIDEO')"><i class="ri-video-line"></i> Videos</button>
-    </div>
+
 
     <!-- Gallery Grid -->
     <div class="gallery-grid-custom" id="galleryContainer">
       <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px;">
-        <i class="ri-loader-3-line" style="font-size: 36px; display: inline-block; animation: spin 1s infinite linear;"></i>
+        <i class="ri-loader-3-line"
+          style="font-size: 36px; display: inline-block; animation: spin 1s infinite linear;"></i>
         <p style="margin-top: 10px;">Loading media assets...</p>
       </div>
     </div>
@@ -476,10 +478,7 @@
       const container = document.getElementById("galleryContainer");
       container.innerHTML = "";
 
-      const filtered = mediaAssets.filter(item => {
-        if (currentFilter === "ALL") return true;
-        return item.type === currentFilter;
-      });
+      const filtered = mediaAssets;
 
       if (filtered.length === 0) {
         container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 60px;">No media items loaded in this category.</div>`;
@@ -527,24 +526,8 @@
       });
     }
 
-    function setFilter(filterVal) {
-      currentFilter = filterVal;
-      // Highlight active button
-      const buttons = document.querySelectorAll(".filter-btn");
-      buttons.forEach(btn => {
-        const lowerText = btn.textContent.toLowerCase();
-        if (filterVal === "ALL" && lowerText.includes("all")) {
-          btn.classList.add("active");
-        } else if (filterVal === "IMAGE" && lowerText.includes("photo")) {
-          btn.classList.add("active");
-        } else if (filterVal === "VIDEO" && lowerText.includes("video")) {
-          btn.classList.add("active");
-        } else {
-          btn.classList.remove("active");
-        }
-      });
-      renderGallery();
-    }
+
+
 
     function openLightbox(url, type, caption) {
       const modal = document.getElementById("lightboxModal");
@@ -564,7 +547,7 @@
         };
         video.src = url;
         video.load();
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       } else {
         video.onerror = null;
         video.style.display = "none";
@@ -606,7 +589,8 @@
 
     loadMedia();
   </script>
-<script src="register-popup.js?v=20260812_dssl"></script>
-<script src="notifications.js"></script>
+  <script src="register-popup.js?v=20260812_dssl"></script>
+  <script src="notifications.js"></script>
 </body>
+
 </html>

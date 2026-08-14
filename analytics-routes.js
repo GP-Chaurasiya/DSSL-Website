@@ -158,43 +158,441 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
+  // ============================================================
+  // ANALYTICS OVERVIEW
+  // Uses LIVE Google Sheet registration data
+  // ============================================================
+
   app.get("/api/analytics/overview", ...adminAccess, async (req, res) => {
+
     try {
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      const endOfToday = new Date();
-      endOfToday.setHours(23, 59, 59, 999);
-      const [total, maleCount, femaleCount, otherCount, todayCount, mandals, sports, matchStats] = await Promise.all([
-        prisma.player.count(),
-        prisma.player.count({ where: { gender: { equals: "Male", mode: "insensitive" } } }),
-        prisma.player.count({ where: { gender: { equals: "Female", mode: "insensitive" } } }),
-        prisma.player.count({ where: { gender: { notIn: ["Male", "Female"], not: "" } } }),
-        prisma.player.count({ where: { registrationDate: { gte: startOfToday, lte: endOfToday } } }),
-        prisma.mandal.count(),
-        prisma.player.findMany({ select: { sport: true }, distinct: ["sport"], where: { sport: { not: "" } } }),
-        prisma.match.groupBy({ by: ["status"], _count: true })
-      ]);
+
+      const SHEET_ID =
+        "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
+
+      const SPORT_SHEETS = [
+        "Chess",
+        "Table Tennis",
+        "Badminton",
+        "Basketball",
+        "Volleyball",
+        "Football",
+        "Cricket",
+        "Kho Kho",
+        "Tug Of War",
+        "Relay Race",
+        "Athletics (100 m)",
+        "Athletics (200 m)",
+        "Athletics (400 m)",
+        "Long Jump",
+        "High Jump",
+        "Javelin Throw",
+        "Discus Throw",
+        "Shot Put",
+        "7 Stones"
+      ];
+
+      // --------------------------------------------------------
+      // Fetch one Google Sheet tab
+      // --------------------------------------------------------
+
+      async function fetchSheet(sheetName) {
+
+        const url =
+          `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+
+        const response =
+          await fetch(url, {
+            cache: "no-store"
+          });
+
+        if (!response.ok) {
+          throw new Error(
+            `${sheetName}: Google Sheet returned ${response.status}`
+          );
+        }
+
+        const text =
+          await response.text();
+
+        const jsonStart =
+          text.indexOf("{");
+
+        const jsonEnd =
+          text.lastIndexOf("}");
+
+        if (
+          jsonStart === -1 ||
+          jsonEnd === -1
+        ) {
+          throw new Error(
+            `${sheetName}: Invalid Google Sheet response`
+          );
+        }
+
+        return JSON.parse(
+          text.substring(
+            jsonStart,
+            jsonEnd + 1
+          )
+        );
+      }
+
+      // --------------------------------------------------------
+      // Find column by header
+      // --------------------------------------------------------
+
+      function findColumn(table, names) {
+
+        const columns =
+          table?.cols || [];
+
+        const labels =
+          columns.map(col =>
+            String(
+              col.label || ""
+            )
+              .trim()
+              .toLowerCase()
+          );
+
+        return labels.findIndex(
+          label =>
+            names.some(name =>
+              label.includes(name)
+            )
+        );
+      }
+
+      // --------------------------------------------------------
+      // Counters
+      // --------------------------------------------------------
+
+      let totalPlayers = 0;
+      let maleCount = 0;
+      let femaleCount = 0;
+      let otherGenderCount = 0;
+
+      let todayRegistrations = 0;
+
+      const activeSports =
+        new Set();
+
+      // --------------------------------------------------------
+      // Read all 19 sport sheets
+      // --------------------------------------------------------
+
+      for (
+        const sportName
+        of SPORT_SHEETS
+      ) {
+
+        try {
+
+          const data =
+            await fetchSheet(
+              sportName
+            );
+
+          const table =
+            data?.table;
+
+          if (
+            !table ||
+            !Array.isArray(
+              table.rows
+            )
+          ) {
+            continue;
+          }
+
+          const genderIndex =
+            findColumn(
+              table,
+              ["gender", "sex"]
+            );
+
+          const dateIndex =
+            findColumn(
+              table,
+              [
+                "registration date",
+                "registered date",
+                "timestamp",
+                "date"
+              ]
+            );
+
+          let sheetCount = 0;
+
+          table.rows.forEach(row => {
+
+            if (
+              !row ||
+              !Array.isArray(row.c)
+            ) {
+              return;
+            }
+
+            // -----------------------------------------------
+            // Determine whether this is a real registration
+            // -----------------------------------------------
+
+            const cells =
+              row.c.map(cell =>
+                cell?.v != null
+                  ? String(cell.v).trim()
+                  : ""
+              );
+
+            // A valid registration should have data.
+            const hasData =
+              cells.some(
+                value => value !== ""
+              );
+
+            if (!hasData) {
+              return;
+            }
+
+            totalPlayers++;
+            sheetCount++;
+
+            // -----------------------------------------------
+            // Gender
+            // -----------------------------------------------
+
+            if (
+              genderIndex >= 0
+            ) {
+
+              const gender =
+                cells[genderIndex]
+                  ?.toLowerCase()
+                  .trim();
+
+              if (
+                gender === "male"
+              ) {
+                maleCount++;
+              }
+
+              else if (
+                gender === "female"
+              ) {
+                femaleCount++;
+              }
+
+              else if (
+                gender
+              ) {
+                otherGenderCount++;
+              }
+            }
+
+            // -----------------------------------------------
+            // Today's registrations
+            // -----------------------------------------------
+
+            if (
+              dateIndex >= 0
+            ) {
+
+              const dateValue =
+                cells[dateIndex];
+
+              if (
+                dateValue
+              ) {
+
+                const parsedDate =
+                  new Date(
+                    dateValue
+                  );
+
+                if (
+                  !Number.isNaN(
+                    parsedDate.getTime()
+                  )
+                ) {
+
+                  const now =
+                    new Date();
+
+                  if (
+                    parsedDate.getDate() ===
+                    now.getDate() &&
+
+                    parsedDate.getMonth() ===
+                    now.getMonth() &&
+
+                    parsedDate.getFullYear() ===
+                    now.getFullYear()
+                  ) {
+
+                    todayRegistrations++;
+
+                  }
+                }
+              }
+            }
+
+          });
+
+          // If this sport has registrations,
+          // count it as an active sport.
+          if (
+            sheetCount > 0
+          ) {
+            activeSports.add(
+              sportName
+            );
+          }
+
+          console.log(
+            `Analytics: ${sportName} → ${sheetCount} registrations`
+          );
+
+        }
+
+        catch (sheetError) {
+
+          console.warn(
+            `Analytics: Could not read ${sportName}:`,
+            sheetError.message
+          );
+
+        }
+
+      }
+
+      // --------------------------------------------------------
+      // Total Mandals
+      // --------------------------------------------------------
+
+      const totalMandals =
+        await prisma.mandal.count();
+
+      // --------------------------------------------------------
+      // Match statistics remain database based
+      // --------------------------------------------------------
+
+      const matchStats =
+        await prisma.match.groupBy({
+          by: ["status"],
+          _count: true
+        });
+
       const matchSummary = {};
-      matchStats.forEach(m => { matchSummary[m.status] = m._count; });
+
+      matchStats.forEach(
+        match => {
+          matchSummary[
+            match.status
+          ] = match._count;
+        }
+      );
+
+      const totalMatches =
+        Object.values(
+          matchSummary
+        ).reduce(
+          (a, b) => a + b,
+          0
+        );
+
+      // --------------------------------------------------------
+      // Final response
+      // --------------------------------------------------------
+
+      console.log(
+        "================================"
+      );
+
+      console.log(
+        "LIVE GOOGLE SHEET ANALYTICS"
+      );
+
+      console.log(
+        "Total registrations:",
+        totalPlayers
+      );
+
+      console.log(
+        "Male:",
+        maleCount
+      );
+
+      console.log(
+        "Female:",
+        femaleCount
+      );
+
+      console.log(
+        "Other:",
+        otherGenderCount
+      );
+
+      console.log(
+        "Active sports:",
+        activeSports.size
+      );
+
+      console.log(
+        "================================"
+      );
+
       res.json({
-        totalPlayers: total,
+
+        // LIVE GOOGLE SHEET VALUES
+        totalPlayers,
         maleCount,
         femaleCount,
-        otherGenderCount: otherCount,
-        todayRegistrations: todayCount,
-        totalMandals: mandals,
-        totalSports: sports.length,
+        otherGenderCount,
+        todayRegistrations,
+
+        totalMandals,
+
+        totalSports:
+          activeSports.size,
+
+        // MATCH DATA FROM DATABASE
         matches: {
-          total: Object.values(matchSummary).reduce((a, b) => a + b, 0),
-          live: matchSummary.live || 0,
-          scheduled: matchSummary.scheduled || 0,
-          completed: matchSummary.completed || 0
+
+          total:
+            totalMatches,
+
+          live:
+            matchSummary.live || 0,
+
+          scheduled:
+            matchSummary.scheduled || 0,
+
+          completed:
+            matchSummary.completed || 0
+
         }
+
       });
-    } catch (error) {
-      console.error("Analytics overview error:", error);
-      res.status(500).json({ error: "Error computing analytics overview" });
+
     }
+
+    catch (error) {
+
+      console.error(
+        "Analytics overview error:",
+        error
+      );
+
+      res.status(500).json({
+
+        error:
+          "Error computing live Google Sheet analytics"
+
+      });
+
+    }
+
   });
 
   app.get("/api/analytics/mandal-distribution", ...adminAccess, async (req, res) => {
