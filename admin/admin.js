@@ -437,6 +437,35 @@ async function renderDashboard() {
           </div>
           <button type="submit" id="dashMediaSubmitBtn" class="btn" style="margin-top: 1rem;"><i class="ri-upload-cloud-line"></i> Upload Asset</button>
         </form>
+
+        <!-- Upload Progress Bar Container for Creator Dashboard -->
+        <div id="dashUploadProgressCard" style="display: none; margin-top: 1.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(168, 85, 247, 0.15); color: #a855f7; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                <i id="dashUploadFileIcon" class="ri-file-upload-line"></i>
+              </div>
+              <div>
+                <div id="dashUploadFileName" style="font-weight: 600; font-size: 14px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">filename.mp4</div>
+                <div id="dashUploadStatusText" style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Uploading asset...</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div id="dashUploadPercentText" style="font-weight: 800; font-size: 20px; color: var(--accent);">0%</div>
+              <div id="dashUploadSpeedText" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">0 MB/s</div>
+            </div>
+          </div>
+
+          <!-- Progress Track -->
+          <div style="width: 100%; height: 10px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; position: relative;">
+            <div id="dashUploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #a855f7, #3b82f6); border-radius: 10px; transition: width 0.15s ease-out;"></div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem; font-size: 12px; color: var(--text-muted);">
+            <span id="dashUploadBytesText" style="font-weight: 500;">0 MB / 0 MB</span>
+            <span id="dashUploadEtaText" style="font-weight: 500;">Calculating remaining time...</span>
+          </div>
+        </div>
       </div>
 
       <div class="section-card">
@@ -492,8 +521,9 @@ async function renderDashboard() {
 
       try {
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading Asset...`; }
-        await apiCall("/api/media/upload", { method: "POST", body: formData });
-        alert("Media uploaded successfully.");
+        await uploadWithProgress("/api/media/upload", formData, "dashUpload");
+        fileInput.value = "";
+        titleInput.value = "";
         renderDashboard();
       } catch (err) {
         alert(err.message);
@@ -1675,14 +1705,20 @@ socket.on("plannedMatchDelete", (matchId) => {
 });
 
 socket.on("newsUpdate", () => {
-  if (document.querySelector(".menu-btn.active").getAttribute("data-tab") === "news") {
+  const activeTab = document.querySelector(".menu-btn.active")?.getAttribute("data-tab");
+  if (activeTab === "news") {
     loadNews();
+  } else if (activeTab === "dashboard" && user.role === "MEDIA_TEAM") {
+    renderDashboard();
   }
 });
 
 socket.on("mediaUpdate", () => {
-  if (document.querySelector(".menu-btn.active").getAttribute("data-tab") === "media") {
+  const activeTab = document.querySelector(".menu-btn.active")?.getAttribute("data-tab");
+  if (activeTab === "media") {
     loadMedia();
+  } else if (activeTab === "dashboard" && user.role === "CREATOR_TEAM") {
+    renderDashboard();
   }
 });
 
@@ -2548,6 +2584,7 @@ const REGISTRATION_SPORTS_LIST = [
   { id: "cricket", name: "Cricket (11 Players)", icon: "🏏" },
   { id: "volleyball", name: "Volleyball (6 Players)", icon: "🏐" },
   { id: "badminton_doubles", name: "Badminton (Doubles)", icon: "🏸" },
+  { id: "badminton_singles", name: "Badminton (Singles)", icon: "🏸" },
   { id: "table_tennis", name: "Table Tennis (Singles)", icon: "🏓" },
   { id: "chess", name: "Chess (Singles)", icon: "♟️" },
   { id: "kho_kho", name: "Kho-Kho (10 Players)", icon: "🤸" },
