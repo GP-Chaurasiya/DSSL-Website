@@ -16,6 +16,7 @@
     "Chess",
     "Table Tennis",
     "Badminton",
+    "Badminton Singles",
     "Basketball",
     "Volleyball",
     "Football",

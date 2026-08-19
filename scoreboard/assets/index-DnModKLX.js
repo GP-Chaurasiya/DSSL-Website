@@ -22783,89 +22783,103 @@ const SPORTS = [
   },
   {
     id: 5,
-    name: "Badminton",
-    slug: "badminton",
+    name: "Badminton (Doubles)",
+    slug: "badminton-doubles",
     icon: "🏸",
     category: "racquet"
   },
   {
     id: 6,
+    name: "Badminton (Singles)",
+    slug: "badminton-singles",
+    icon: "🏸",
+    category: "racquet"
+  },
+  {
+    id: 7,
     name: "Table Tennis",
     slug: "table-tennis",
     icon: "🏓",
     category: "racquet"
   },
   {
-    id: 7,
+    id: 8,
     name: "Athletics (100m)",
     slug: "athletics-100m",
     icon: "🏃",
     category: "track"
   },
   {
-    id: 8,
+    id: 9,
     name: "Athletics (400m)",
     slug: "athletics-400m",
     icon: "🏃",
     category: "track"
   },
   {
-    id: 9,
+    id: 10,
     name: "Athletics (Relay)",
     slug: "athletics-relay",
     icon: "🔁",
     category: "track"
   },
-  { id: 10, name: "Kho-Kho", slug: "kho-kho", icon: "🤸", category: "team" },
-  { id: 11, name: "Chess", slug: "chess", icon: "♟️", category: "individual" },
+  { id: 11, name: "Kho-Kho", slug: "kho-kho", icon: "🤸", category: "team" },
+  { id: 12, name: "Chess", slug: "chess", icon: "♟️", category: "individual" },
   {
-    id: 12,
+    id: 13,
     name: "High Jump",
     slug: "high-jump",
     icon: "🏋️",
     category: "field"
   },
   {
-    id: 13,
+    id: 14,
     name: "Tug of War",
     slug: "tug-of-war",
     icon: "💪",
     category: "team"
   },
   {
-    id: 14,
+    id: 15,
     name: "Long Jump",
     slug: "long-jump",
     icon: "🦘",
     category: "field"
   },
   {
-    id: 15,
+    id: 16,
     name: "Javelin Throw",
     slug: "javelin-throw",
     icon: "🎿",
     category: "field"
   },
   {
-    id: 16,
+    id: 17,
     name: "Discus Throw",
     slug: "discus-throw",
     icon: "🥏",
     category: "field"
   },
-  { id: 17, name: "Shot Put", slug: "shot-put", icon: "⚫", category: "field" },
+  { id: 18, name: "Shot Put", slug: "shot-put", icon: "⚫", category: "field" },
   {
-    id: 18,
+    id: 19,
     name: "Athletics (200m)",
     slug: "athletics-200m",
     icon: "🏃",
     category: "track"
   },
   {
-    id: 19,
+    id: 20,
     name: "7 Stones",
     slug: "7-stones",
     icon: "🪨",
+    category: "team"
+  },
+  {
+    id: 21,
+    name: "Kabaddi",
+    slug: "kabaddi",
+    icon: "🤼",
     category: "team"
   }
 ];

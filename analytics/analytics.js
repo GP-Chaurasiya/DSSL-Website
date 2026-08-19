@@ -6,7 +6,7 @@
 const MANDALS = ["Vashishta Mandal", "Vishwamitra Mandal", "Atrey Mandal", "Gautam Mandal", "Bharadwaj Mandal", "Jamdagni Mandal", "Kashyap Mandal"];
 const COURSES = ["BA English", "BA Hindi", "BA History", "BA Music", "BA Psychology", "BA Sanskrit", "BAJMC", "BBA", "BCA", "B.Ed", "BRS", "B.Sc IT", "B.Sc Maths", "B.Sc Yogic Science", "B.Voc", "MA English", "MA Hindi", "MA History", "MA Music", "MA Psychology", "MA Yoga Therapy (MA YT)", "MAJMC", "MBA", "MCA", "M.Sc HCYS", "PhD"];
 const SEMESTERS = ["1", "2", "3", "4", "5", "6", "7", "8"];
-const SPORTS = ["Basketball", "Football", "Cricket", "Volleyball", "Badminton", "Table Tennis", "Athletics (100 m)", "Athletics (200 m)", "Athletics (400 m)", "Athletics (Relay Race)", "Kho-Kho", "Chess", "7 Stones", "Tug Of War", "Long Jump", "High Jump", "Javelin Throw", "Discus Throw", "Shot Put"];
+const SPORTS = ["Basketball", "Football", "Cricket", "Volleyball", "Badminton", "Badminton Singles", "Table Tennis", "Athletics (100 m)", "Athletics (200 m)", "Athletics (400 m)", "Athletics (Relay Race)", "Kho-Kho", "Chess", "7 Stones", "Tug Of War", "Long Jump", "High Jump", "Javelin Throw", "Discus Throw", "Shot Put"];
 const GENDER_COLORS = { Male: "#3b82f6", Female: "#ec4899", Other: "#8b5cf6", Unknown: "#94a3b8" };
 const MANDAL_COLORS = ["#ffbc01", "#003e8a", "#10b981", "#ef4444", "#8b5cf6", "#f97316", "#06b6d4"];
 

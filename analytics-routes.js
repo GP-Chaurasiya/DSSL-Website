@@ -176,6 +176,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
         "Chess",
         "Table Tennis",
         "Badminton",
+        "Badminton Singles",
         "Basketball",
         "Volleyball",
         "Football",
