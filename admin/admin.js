@@ -442,7 +442,7 @@ async function renderDashboard() {
         <div id="dashUploadProgressCard" style="display: none; margin-top: 1.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(168, 85, 247, 0.15); color: #a855f7; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+              <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(255, 188, 1, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px;">
                 <i id="dashUploadFileIcon" class="ri-file-upload-line"></i>
               </div>
               <div>
@@ -458,7 +458,7 @@ async function renderDashboard() {
 
           <!-- Progress Track -->
           <div style="width: 100%; height: 10px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; position: relative;">
-            <div id="dashUploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #a855f7, #3b82f6); border-radius: 10px; transition: width 0.15s ease-out;"></div>
+            <div id="dashUploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ffbc01, #10b981); border-radius: 10px; transition: width 0.15s ease-out;"></div>
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem; font-size: 12px; color: var(--text-muted);">
