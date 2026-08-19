@@ -1517,12 +1517,6 @@
         </button>
       </li>
       <li class="menu-item" data-access="ORGANISER">
-        <button class="menu-btn" data-tab="scoreboard">
-          <i class="ri-dashboard-2-line"></i>
-          <span>Live Scoreboard</span>
-        </button>
-      </li>
-      <li class="menu-item" data-access="ORGANISER">
         <button class="menu-btn" data-tab="analytics">
           <i class="ri-bar-chart-box-line"></i>
           <span>Analytics</span>
@@ -2145,10 +2139,7 @@
         </div>
       </div>
 
-      <!-- ── TAB: LIVE SCOREBOARD ── -->
-      <div class="tab-content" id="tab-scoreboard" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
-        <iframe src="/scoreboard/" style="width: 100%; height: 100%; border: none;" id="scoreboardIframe"></iframe>
-      </div>
+
 
       <!-- ── TAB: ANALYTICS (DSSL Analytics Dashboard) ── -->
       <div class="tab-content" id="tab-analytics" style="height: calc(100vh - 120px); margin: -2rem; padding: 0;">
@@ -2269,6 +2260,20 @@
             <select id="matchGender" required>
               <option value="Boys">Boys</option>
               <option value="Girls">Girls</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="matchDalA">Mandal A (Home Team)</label>
+            <select id="matchDalA" required>
+              <option value="">Select Mandal A</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="matchDalB">Mandal B (Away Team)</label>
+            <select id="matchDalB" required>
+              <option value="">Select Mandal B</option>
             </select>
           </div>
         </div>

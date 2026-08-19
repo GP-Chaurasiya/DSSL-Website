@@ -1,5 +1,7 @@
 module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateToken, requireRole }) {
-  const adminAccess = [authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"])];
+  // Allow all logged-in admin dashboard users to view analytics
+  const adminReadAccess = [authenticateToken];
+  const adminWriteAccess = [authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM", "CREATOR_TEAM", "MEDIA_TEAM"])];
 
   async function resolveMandalId(mandalName) {
     if (!mandalName) return null;
@@ -56,7 +58,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     return result;
   }
 
-  app.post("/api/players/register", ...adminAccess, async (req, res) => {
+  app.post("/api/players/register", ...adminWriteAccess, async (req, res) => {
     const { name, scholarNo, course, semester, phone, email, gender, mandalName, sport, teamRegistrationId, teamRole, players } = req.body;
 
     try {
@@ -123,7 +125,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/players", ...adminAccess, async (req, res) => {
+  app.get("/api/players", ...adminReadAccess, async (req, res) => {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
     const where = buildPlayerWhere(req.query);
@@ -146,7 +148,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/players/:id", ...adminAccess, async (req, res) => {
+  app.get("/api/players/:id", ...adminReadAccess, async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid player ID" });
     try {
@@ -163,7 +165,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
   // Uses LIVE Google Sheet registration data
   // ============================================================
 
-  app.get("/api/analytics/overview", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/overview", ...adminReadAccess, async (req, res) => {
 
     try {
 
@@ -595,7 +597,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   });
 
-  app.get("/api/analytics/mandal-distribution", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/mandal-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const data = await prisma.player.groupBy({ by: ["mandalName"], _count: { id: true }, orderBy: { _count: { id: "desc" } } });
       const total = data.reduce((s, d) => s + d._count.id, 0);
@@ -605,7 +607,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/gender-distribution", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/gender-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const data = await prisma.player.groupBy({ by: ["gender"], _count: { id: true } });
       const total = data.reduce((s, d) => s + d._count.id, 0);
@@ -615,7 +617,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/course-distribution", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/course-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const data = await prisma.player.groupBy({ by: ["course"], _count: { id: true }, orderBy: { _count: { id: "desc" } } });
       const total = data.reduce((s, d) => s + d._count.id, 0);
@@ -625,7 +627,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/semester-distribution", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/semester-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const data = await prisma.player.groupBy({ by: ["semester"], _count: { id: true }, orderBy: { semester: "asc" } });
       const total = data.reduce((s, d) => s + d._count.id, 0);
@@ -635,7 +637,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/sport-distribution", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/sport-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const data = await prisma.player.groupBy({ by: ["sport"], _count: { id: true }, orderBy: { _count: { id: "desc" } }, where: { sport: { not: "" } } });
       const total = data.reduce((s, d) => s + d._count.id, 0);
@@ -645,7 +647,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/registration-trend", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/registration-trend", ...adminReadAccess, async (req, res) => {
     const days = Math.min(parseInt(req.query.days) || 30, 90);
     try {
       const since = new Date();
@@ -674,7 +676,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/cross/mandal-gender", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/cross/mandal-gender", ...adminReadAccess, async (req, res) => {
     try {
       const data = await prisma.player.groupBy({ by: ["mandalName", "gender"], _count: { id: true } });
       const mandals = [...new Set(data.map(d => d.mandalName || "Unknown"))];
@@ -694,7 +696,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/export", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/export", ...adminReadAccess, async (req, res) => {
     try {
       const players = await prisma.player.findMany({ where: buildPlayerWhere(req.query), orderBy: { registrationDate: "desc" }, take: 5000 });
       const headers = ["ID", "Name", "Scholar ID", "Course", "Semester", "Mandal", "Gender", "Phone", "Email", "Sport", "Team ID", "Role", "Registration Date"];
@@ -711,17 +713,32 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/analytics/team-stats", ...adminAccess, async (req, res) => {
+  app.get("/api/analytics/team-stats", ...adminReadAccess, async (req, res) => {
     try {
-      const [mandals, matches, playersByMandal] = await Promise.all([
+      const [mandals, matches, playersByDalId, playersByMandalName] = await Promise.all([
         prisma.mandal.findMany(),
         prisma.match.findMany({ where: { status: "completed" } }),
-        prisma.player.groupBy({ by: ["mandalName"], _count: { id: true } })
+        // Count players that have a proper FK dalId set
+        prisma.player.groupBy({ by: ["dalId"], where: { dalId: { not: null } }, _count: { id: true } }),
+        // Count players that have NO dalId but have a mandalName string (fallback for older/synced records)
+        prisma.player.groupBy({ by: ["mandalName"], where: { dalId: null, mandalName: { not: "" } }, _count: { id: true } })
       ]);
-      const playerMap = {};
-      playersByMandal.forEach(p => { playerMap[p.mandalName] = p._count.id; });
+
+      // Build map by dalId (reliable FK)
+      const playerMapById = {};
+      playersByDalId.forEach(p => { playerMapById[p.dalId] = p._count.id; });
+
+      // Build fallback map by mandalName string (case-insensitive)
+      const playerMapByName = {};
+      playersByMandalName.forEach(p => {
+        const key = (p.mandalName || "").trim().toLowerCase();
+        if (key) playerMapByName[key] = (playerMapByName[key] || 0) + p._count.id;
+      });
+
       const teamMap = new Map();
       for (const mandal of mandals) {
+        const byId = playerMapById[mandal.id] || 0;
+        const byName = playerMapByName[(mandal.name || "").trim().toLowerCase()] || 0;
         teamMap.set(mandal.id, {
           id: mandal.id,
           name: mandal.name,
@@ -732,7 +749,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           draws: 0,
           matchesPlayed: 0,
           points: 0,
-          playerCount: playerMap[mandal.name] || 0
+          playerCount: byId + byName
         });
       }
       for (const match of matches) {
@@ -758,6 +775,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
       }
       res.json(Array.from(teamMap.values()).sort((a, b) => b.points - a.points));
     } catch (error) {
+      console.error("team-stats error:", error);
       res.status(500).json({ error: "Error computing team stats" });
     }
   });

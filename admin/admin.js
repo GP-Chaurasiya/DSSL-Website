@@ -223,13 +223,7 @@ async function loadTabData(tab) {
         await loadMatches();
         initFixturesModule();
         break;
-      case "scoreboard":
-        const iframe = document.getElementById("scoreboardIframe");
-        if (iframe && !iframe.dataset.loaded) {
-          iframe.src = iframe.src;
-          iframe.dataset.loaded = "1";
-        }
-        break;
+
       case "analytics":
         const analyticsIframe = document.getElementById("analyticsIframe");
         if (analyticsIframe && !analyticsIframe.dataset.loaded) {
@@ -1334,7 +1328,18 @@ async function openNewMatchModal(mode = "schedule", plannedDate = null) {
   if (!allDals.length) await loadDals();
 
   const sportSelect = document.getElementById("matchSport");
-  sportSelect.innerHTML = SPORTS.map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join("");
+  if (sportSelect) {
+    sportSelect.innerHTML = SPORTS.map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join("");
+  }
+
+  const dalASelect = document.getElementById("matchDalA");
+  const dalBSelect = document.getElementById("matchDalB");
+  if (dalASelect) {
+    dalASelect.innerHTML = `<option value="">Select Mandal A</option>` + allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
+  }
+  if (dalBSelect) {
+    dalBSelect.innerHTML = `<option value="">Select Mandal B</option>` + allDals.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
+  }
 
   if (mode === "planner" && plannedDate) {
     const dateInput = document.getElementById("matchDate");
@@ -1360,6 +1365,18 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const sportId = document.getElementById("matchSport").value;
   const sport = SPORTS.find(s => s.id == sportId);
   const venue = document.getElementById("matchVenue").value;
+  const dalAId = document.getElementById("matchDalA")?.value;
+  const dalBId = document.getElementById("matchDalB")?.value;
+
+  if (!dalAId || !dalBId) {
+    alert("Please select both Mandal A and Mandal B.");
+    return;
+  }
+  if (dalAId === dalBId) {
+    alert("Mandal A and Mandal B must be different.");
+    return;
+  }
+
   const gender = document.getElementById("matchGender")?.value || "Boys";
   const isLive = newMatchMode === "schedule";
   const matchDate = document.getElementById("matchDate")?.value || "";
@@ -1373,8 +1390,10 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
     const endpoint = newMatchMode === "planner" ? "/api/planned-matches" : "/api/matches";
     const payload = {
       sportId,
-      sportName: sport.name,
+      sportName: sport ? sport.name : "Sport",
       venue,
+      dalAId,
+      dalBId,
       gender,
       startTime,
       endTime,

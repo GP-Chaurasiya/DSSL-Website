@@ -715,21 +715,29 @@
     let allDals = [];
 
     function normalizeTeamData(team, fallbackName) {
+      const name = (team && (team.name || team.mandalName)) ? (team.name || team.mandalName) : fallbackName;
       return {
         ...(team || {}),
-        name: fallbackName,
-        abbreviation: fallbackName,
-        logoUrl: team?.logoUrl || "DSSL_LOGO.png",
-        logo: team?.logo || "DSSL_LOGO.png"
+        name,
+        abbreviation: team?.abbreviation || name,
+        logoUrl: team?.logoUrl || team?.logo || "DSSL_LOGO.png",
+        logo: team?.logoUrl || team?.logo || "DSSL_LOGO.png"
       };
     }
 
     function normalizeMatchData(match) {
       if (!match) return null;
+      // Try to resolve mandal data from the allDals list in case the embedded object is missing a name
+      const resolveTeam = (teamObj, idField, fallback) => {
+        const id = teamObj?.id ?? match[idField];
+        const fromDals = id != null ? allDals.find(d => String(d.id) === String(id)) : null;
+        const merged = fromDals ? { ...fromDals, ...(teamObj || {}) } : (teamObj || {});
+        return normalizeTeamData(merged, fallback);
+      };
       return {
         ...match,
-        dalA: normalizeTeamData(match.dalA, "Team A"),
-        dalB: normalizeTeamData(match.dalB, "Team B"),
+        dalA: resolveTeam(match.dalA, "dalAId", "Team A"),
+        dalB: resolveTeam(match.dalB, "dalBId", "Team B"),
         matchupText: match.matchRound || match.description || `${match.sportName || "Scheduled"} Match`
       };
     }

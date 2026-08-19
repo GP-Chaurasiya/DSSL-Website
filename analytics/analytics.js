@@ -15,7 +15,14 @@ let analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport
 let analyticsTimer = null;
 
 async function anApiCall(url) {
-  const tk = localStorage.getItem("DSSL_token");
+  let tk = localStorage.getItem("DSSL_token") || localStorage.getItem("dsspl_token");
+  if (!tk) {
+    try {
+      if (window.parent && window.parent.localStorage) {
+        tk = window.parent.localStorage.getItem("DSSL_token") || window.parent.localStorage.getItem("dsspl_token");
+      }
+    } catch (e) {}
+  }
   const headers = {};
   if (tk) headers["Authorization"] = `Bearer ${tk}`;
   const r = await fetch(url, { headers });
