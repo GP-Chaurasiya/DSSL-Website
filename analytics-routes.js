@@ -826,7 +826,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     return map;
   }
 
-  app.post("/api/admin/import-sheets", ...adminAccess, async (req, res) => {
+  app.post("/api/admin/import-sheets", ...adminWriteAccess, async (req, res) => {
 
     const spreadsheetId =
       "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
