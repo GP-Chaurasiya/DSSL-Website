@@ -907,14 +907,20 @@ app.get("/api/media/file/:id", async (req, res) => {
   }
 });
 
-// List all media (excludes binary data from response for performance)
+// List all media — always returns /api/media/file/:id as url (permanent Supabase-backed URL)
 app.get("/api/media", async (req, res) => {
   try {
     const media = await prisma.media.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, type: true, url: true, title: true, createdAt: true }
     });
-    res.json(media);
+    // Always expose the /api/media/file/:id URL so images are served from
+    // Supabase binary data — survives server restarts and disk wipes
+    const normalized = media.map(m => ({
+      ...m,
+      url: `/api/media/file/${m.id}`
+    }));
+    res.json(normalized);
   } catch (error) {
     res.status(500).json({ error: "Error fetching media list" });
   }
@@ -928,8 +934,10 @@ app.post("/api/media/upload", authenticateToken, requireRole(["SUPER_ADMIN", "CR
 
   try {
     const media = await saveUploadedFile(req.file, req.body.title);
-    io.emit("mediaUpdate", media);
-    res.status(201).json(media);
+    // Return permanent /api/media/file/:id URL — served from Supabase binary data
+    const response = { ...media, url: "/api/media/file/" + media.id };
+    io.emit("mediaUpdate", response);
+    res.status(201).json(response);
   } catch (error) {
     console.error("Media upload error:", error);
     res.status(500).json({ error: "Error saving media" });
