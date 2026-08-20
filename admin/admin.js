@@ -2545,18 +2545,31 @@ function printBracketAction() {
 
     clone.style.transform = "none";
     clone.style.position = "relative";
+    clone.style.width = "100%";
+    clone.style.height = "100%";
+    clone.style.margin = "0";
+    clone.style.top = "0";
+    clone.style.left = "0";
     printBody.appendChild(clone);
 
-    // Show print container so elements have real layout
-    if (printContainer) printContainer.style.display = "flex";
+    // Show print container so elements have real computed layout dimensions
+    if (printContainer) {
+      printContainer.style.display = "flex";
+      printContainer.style.visibility = "visible";
+    }
 
-    // Redraw connectors ON the clone, after its layout has settled
+    // Double frame buffer to ensure DOM has computed exact bounding client rects
     requestAnimationFrame(() => {
+      // Force synchronous reflow
+      void clone.offsetHeight;
       requestAnimationFrame(() => {
         drawPrintConnectors(clone);
         window.print();
         setTimeout(() => {
-          if (printContainer) printContainer.style.display = "none";
+          if (printContainer) {
+            printContainer.style.display = "none";
+            printContainer.style.visibility = "";
+          }
         }, 500);
       });
     });
