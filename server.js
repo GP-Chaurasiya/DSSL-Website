@@ -85,6 +85,8 @@ async function saveUploadedFile(file, title) {
     mimeType = isVideo ? "video/mp4" : "image/jpeg";
   }
 
+  // For images: read optimized bytes into buffer for permanent DB storage
+  let fileData = null;
   if (!isVideo) {
     // Process image directly from disk path using sharp to prevent RAM memory spikes
     try {
@@ -93,23 +95,28 @@ async function saveUploadedFile(file, title) {
         .toBuffer();
       // Overwrite the uploaded file with optimized image
       fs.writeFileSync(file.path, optimizedBuffer);
+      // Keep a copy of the bytes to store permanently in Supabase
+      fileData = optimizedBuffer;
     } catch (err) {
       console.warn("Image sharp optimization fallback:", err.message);
+      // Fall back to raw file bytes if sharp fails
+      try { fileData = fs.readFileSync(file.path); } catch (_) {}
     }
   }
 
-  // Create database record (images and videos both stay on disk, DB data is null)
+  // Create database record — images store binary bytes in DB for permanent persistence
+  // Videos are too large for DB storage and remain disk-only
   const media = await prisma.media.create({
     data: {
       type: isVideo ? "VIDEO" : "IMAGE",
       url: "pending",
       title: title || file.originalname,
       mimeType,
-      data: null
+      data: fileData   // image bytes stored permanently in Supabase ✅
     }
   });
 
-  // Persistent URL: both images and videos served statically from disk
+  // Persistent URL: kept for backward compat and video streaming
   const persistentUrl = "/uploads/" + file.filename;
 
   const updated = await prisma.media.update({
@@ -935,7 +942,18 @@ app.delete("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CRE
   if (isNaN(id)) return res.status(400).json({ error: "Invalid media ID" });
 
   try {
+    // Fetch the URL before deletion so we can clean up the disk file too
+    const existing = await prisma.media.findUnique({ where: { id }, select: { url: true } });
     await prisma.media.delete({ where: { id } });
+    // Also remove disk file if it exists (prevents orphan files in uploads/)
+    if (existing?.url?.startsWith("/uploads/")) {
+      const diskPath = path.join(ROOT, existing.url);
+      try {
+        if (fs.existsSync(diskPath)) fs.unlinkSync(diskPath);
+      } catch (unlinkErr) {
+        console.warn(`Could not delete disk file for media id=${id}:`, unlinkErr.message);
+      }
+    }
     io.emit("mediaUpdate");
     res.json({ success: true });
   } catch (error) {
