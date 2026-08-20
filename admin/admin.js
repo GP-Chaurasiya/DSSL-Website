@@ -2164,8 +2164,7 @@ function drawBracketConnectors(targetCanvas = null, scaleOverride = null) {
   canvas.appendChild(svg);
 }
 
-// ── Draw SVG connectors for PRINT clone (scale = 1, no zoom) ─────────────────
-// Called after clone is in #printBodyContent so getBoundingClientRect is accurate
+// ── Draw SVG connectors for PRINT clone (Pure offset/relative geometry) ──────
 function drawPrintConnectors(canvas) {
   if (!canvas) return;
   if (activeFixtureFormat === "league" || activeFixtureFormat === "group-knockout") return;
@@ -2177,7 +2176,7 @@ function drawPrintConnectors(canvas) {
   const allColumns = Array.from(canvas.querySelectorAll(".round-column"));
   if (allColumns.length < 2) return;
 
-  // Only connect winner-bracket columns (stop before Losers Bracket title)
+  // Only connect winner-bracket columns
   const winnerCols = [];
   for (let col of allColumns) {
     const title = col.querySelector(".round-title");
@@ -2185,8 +2184,6 @@ function drawPrintConnectors(canvas) {
     winnerCols.push(col);
   }
   if (winnerCols.length < 2) return;
-
-  const canvasRect = canvas.getBoundingClientRect();
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "svg-connector-layer");
@@ -2202,42 +2199,55 @@ function drawPrintConnectors(canvas) {
 
     cardsA.forEach((cardA, idxA) => {
       const rowsA = Array.from(cardA.querySelectorAll(".match-team-row"));
-      const rCardA = cardA.getBoundingClientRect();
 
-      // x1 = right edge of cardA (relative to canvas)
-      const x1 = rCardA.right - canvasRect.left;
+      // Calculate absolute positions relative to canvas container using offset geometry
+      const colAOffsetLeft = colA.offsetLeft;
+      const colBOffsetLeft = colB.offsetLeft;
+
+      const cardAOffsetTop = cardA.offsetTop;
+      const cardAWidth = cardA.offsetWidth;
+      const cardAHeight = cardA.offsetHeight;
+
+      const x1 = colAOffsetLeft + cardA.offsetLeft + cardAWidth;
 
       let y1Top, y1Bot, y1Mid;
       if (rowsA.length >= 2) {
-        const rTop = rowsA[0].getBoundingClientRect();
-        const rBot = rowsA[1].getBoundingClientRect();
-        y1Top = rTop.top  + rTop.height  / 2 - canvasRect.top;
-        y1Bot = rBot.top  + rBot.height  / 2 - canvasRect.top;
+        const r1Top = rowsA[0].offsetTop + rowsA[0].offsetHeight / 2;
+        const r2Top = rowsA[1].offsetTop + rowsA[1].offsetHeight / 2;
+        y1Top = cardAOffsetTop + r1Top;
+        y1Bot = cardAOffsetTop + r2Top;
         y1Mid = (y1Top + y1Bot) / 2;
       } else {
-        y1Mid = rCardA.top + rCardA.height / 2 - canvasRect.top;
-        y1Top = y1Mid - 10;
-        y1Bot = y1Mid + 10;
+        y1Mid = cardAOffsetTop + cardAHeight / 2;
+        y1Top = y1Mid - 8;
+        y1Bot = y1Mid + 8;
       }
 
-      // Map to target card in next column
+      // Target card in next column (pair 2 cards to 1 card in next round)
       const targetCardIdx = Math.min(Math.floor(idxA / 2), cardsB.length - 1);
-      const targetCard    = cardsB[targetCardIdx];
+      const targetCard = cardsB[targetCardIdx];
       if (!targetCard) return;
 
       const targetRows = Array.from(targetCard.querySelectorAll(".match-team-row"));
-      const targetRow  = targetRows.length >= 2 ? targetRows[idxA % 2] : targetCard;
-      const rTarget    = (targetRow || targetCard).getBoundingClientRect();
+      const targetCardOffsetTop = targetCard.offsetTop;
+      const x2 = colBOffsetLeft + targetCard.offsetLeft;
 
-      // x2 = left edge of target row
-      const x2 = rTarget.left   - canvasRect.left;
-      const y2 = rTarget.top    + rTarget.height / 2 - canvasRect.top;
+      let y2;
+      if (targetRows.length >= 2) {
+        const slotIdx = idxA % 2;
+        y2 = targetCardOffsetTop + targetRows[slotIdx].offsetTop + targetRows[slotIdx].offsetHeight / 2;
+      } else if (targetRows.length === 1) {
+        // Champion single slot
+        y2 = targetCardOffsetTop + targetRows[0].offsetTop + targetRows[0].offsetHeight / 2;
+      } else {
+        y2 = targetCardOffsetTop + targetCard.offsetHeight / 2;
+      }
 
-      const midX  = x1 + (x2 - x1) * 0.45;
+      const midX = x1 + (x2 - x1) * 0.45;
       const turnX = x2 - 12;
 
       let stemPath = `M ${midX} ${y1Mid} H ${x2}`;
-      if (Math.abs(y1Mid - y2) > 3) {
+      if (Math.abs(y1Mid - y2) > 2) {
         const dir = y2 > y1Mid ? 1 : -1;
         stemPath = `
           M ${midX} ${y1Mid}
@@ -2267,7 +2277,7 @@ function drawPrintConnectors(canvas) {
 
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", pathStr.replace(/\s+/g, " ").trim());
-      path.setAttribute("stroke", "#000");
+      path.setAttribute("stroke", "#1e293b");
       path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", "none");
       path.setAttribute("stroke-linecap", "round");
