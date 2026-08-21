@@ -597,9 +597,19 @@
   <!-- Analytics Application Logic -->
   <script src="/analytics/analytics.js"></script>
   <script>
-    // Apply saved theme to analytics body
-    const savedTheme = localStorage.getItem("dsspl_theme") || "dark";
-    document.body.setAttribute("data-theme", savedTheme);
+    // Keep the embedded analytics view aligned with the admin portal theme.
+    function applyAdminTheme(theme) {
+      if (theme === "light" || theme === "dark") {
+        document.body.setAttribute("data-theme", theme);
+      }
+    }
+
+    applyAdminTheme(localStorage.getItem("admin_theme") || localStorage.getItem("dsspl_theme") || "dark");
+    window.addEventListener("message", (event) => {
+      if (event.origin === window.location.origin && event.data?.type === "admin-theme-change") {
+        applyAdminTheme(event.data.theme);
+      }
+    });
 
     // Load analytics on page ready
     document.addEventListener("DOMContentLoaded", () => {

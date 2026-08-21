@@ -79,6 +79,10 @@ themeToggleBtn.addEventListener("click", () => {
   const newTheme = currentTheme === "light" ? "dark" : "light";
   document.body.setAttribute("data-theme", newTheme);
   localStorage.setItem("admin_theme", newTheme);
+  document.getElementById("analyticsIframe")?.contentWindow?.postMessage({
+    type: "admin-theme-change",
+    theme: newTheme
+  }, window.location.origin);
   updateThemeIcon(newTheme);
 });
 
@@ -1330,9 +1334,12 @@ function setNewMatchModalMode(mode) {
   const submitBtn = document.getElementById("newMatchSubmitBtn");
   const liveSelect = document.getElementById("matchIsLive");
   const liveModeGroup = document.getElementById("matchLiveModeGroup");
+  const teamsFields = document.getElementById("matchTeamsFields");
   const planningTimeFields = document.getElementById("matchPlanningTimeFields");
   const dateInput = document.getElementById("matchDate");
   const startInput = document.getElementById("matchStartTime");
+  const dalASelect = document.getElementById("matchDalA");
+  const dalBSelect = document.getElementById("matchDalB");
 
   if (title) {
     title.innerHTML = mode === "planner"
@@ -1348,6 +1355,9 @@ function setNewMatchModalMode(mode) {
     liveSelect.disabled = true;
   }
   if (liveModeGroup) liveModeGroup.style.display = mode === "planner" ? "none" : "";
+  if (teamsFields) teamsFields.style.display = mode === "planner" ? "none" : "";
+  if (dalASelect) dalASelect.required = mode !== "planner";
+  if (dalBSelect) dalBSelect.required = mode !== "planner";
   if (planningTimeFields) planningTimeFields.style.display = mode === "planner" ? "" : "none";
   if (dateInput) dateInput.required = mode === "planner";
   if (startInput) startInput.required = mode === "planner";
@@ -1399,11 +1409,11 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
   const dalAId = document.getElementById("matchDalA")?.value;
   const dalBId = document.getElementById("matchDalB")?.value;
 
-  if (!dalAId || !dalBId) {
+  if (newMatchMode === "schedule" && (!dalAId || !dalBId)) {
     alert("Please select both Mandal A and Mandal B.");
     return;
   }
-  if (dalAId === dalBId) {
+  if (newMatchMode === "schedule" && dalAId === dalBId) {
     alert("Mandal A and Mandal B must be different.");
     return;
   }
@@ -1423,8 +1433,6 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
       sportId,
       sportName: sport ? sport.name : "Sport",
       venue,
-      dalAId,
-      dalBId,
       gender,
       startTime,
       endTime,
@@ -1432,6 +1440,8 @@ document.getElementById("newMatchForm")?.addEventListener("submit", async (e) =>
     };
 
     if (newMatchMode === "schedule") {
+      payload.dalAId = dalAId;
+      payload.dalBId = dalBId;
       payload.isLive = isLive;
     }
 
