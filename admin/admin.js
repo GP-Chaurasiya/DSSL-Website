@@ -4,6 +4,7 @@ const user = JSON.parse(localStorage.getItem("DSSL_user") || "null");
 
 if (!token || !user) {
   logout();
+  throw new Error("Admin authentication required");
 }
 
 // Global state

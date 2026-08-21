@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DSSL Admin Dashboard</title>
+  <script>
+    if (!localStorage.getItem("DSSL_token") || !localStorage.getItem("DSSL_user")) {
+      window.location.replace("login.html");
+    }
+  </script>
   <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.8.0/fonts/remixicon.css">
