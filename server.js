@@ -1040,9 +1040,6 @@ const staticCacheOptions = {
 };
 
 // The /uploads route is already declared at the top of the file to skip compression
-app.get(["/admin", "/admin/", "/admin/index.html"], (req, res) => {
-  res.redirect("/admin/login.html");
-});
 app.use("/admin", express.static(path.join(ROOT, "admin"), staticCacheOptions));
 app.use("/scoreboard", express.static(path.join(ROOT, "scoreboard"), staticCacheOptions));
 app.use("/analytics", express.static(path.join(ROOT, "analytics"), staticCacheOptions));
