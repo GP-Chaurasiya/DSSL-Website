@@ -11,6 +11,7 @@ const fs = require("fs");
 
 const compression = require("compression");
 const sharp = require("sharp");
+const { isDriveConfigured, uploadMediaToDrive } = require("./google-drive");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -116,8 +117,15 @@ async function saveUploadedFile(file, title) {
     }
   });
 
-  // Persistent URL: kept for backward compat and video streaming
-  const persistentUrl = "/uploads/" + file.filename;
+  let persistentUrl = "/uploads/" + file.filename;
+  if (isDriveConfigured()) {
+    try {
+      const driveFile = await uploadMediaToDrive(file.path, file.originalname, mimeType);
+      persistentUrl = driveFile.mediaUrl;
+    } catch (error) {
+      console.error("Google Drive upload failed; keeping local media copy:", error.message);
+    }
+  }
 
   const updated = await prisma.media.update({
     where: { id: media.id },

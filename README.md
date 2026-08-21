@@ -114,6 +114,14 @@ JWT_SECRET="replace-with-a-long-random-secret"
 
 # Port the Express server listens on (defaults to 3000)
 PORT=3000
+
+# Optional Google Drive destination for admin gallery uploads
+GOOGLE_DRIVE_FOLDER_ID="16o6pBVa0A6ozFDumES5sUtrIfPp8N0nN"
+
+# Use either one JSON value or the two separate service-account values below.
+# GOOGLE_SERVICE_ACCOUNT_JSON='{"client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"}'
+# GOOGLE_SERVICE_ACCOUNT_EMAIL="service-account@project.iam.gserviceaccount.com"
+# GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"
 ```
 
 > ⚠️ `server.js` falls back to a hard-coded development `JWT_SECRET` if the variable is missing. Always set `JWT_SECRET` explicitly in production.
@@ -358,14 +366,16 @@ The sheet ID and tab list are currently hard-coded in `sheet-sync.js` and `analy
 - Images are resized to fit within 1920×1080 by Sharp; failures fall back to the original file.
 - `/uploads` is registered **before** the compression middleware so HTTP range requests (video seeking) keep working.
 - Missing files degrade gracefully to `dssl_banner.jpg`, then `DSSL_LOGO.png`, instead of a hard 404.
+- When Google Drive credentials are configured, new admin gallery uploads are copied to the configured Drive folder, made publicly readable, and their Drive URLs are used automatically by the public gallery. The Drive service-account email must be added as an **Editor** on the folder.
 
 ## Deployment
 
 `vercel.json` enables clean URLs. On any Node host:
 
 1. Set `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, and `PORT`.
-2. Build with `npm run build` (runs `prisma generate`).
-3. Start with `npm start`.
+2. For persistent gallery photos and videos, set `GOOGLE_DRIVE_FOLDER_ID` and either `GOOGLE_SERVICE_ACCOUNT_JSON` or `GOOGLE_SERVICE_ACCOUNT_EMAIL` plus `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`. Share the Drive folder with the service-account email as Editor.
+3. Build with `npm run build` (runs `prisma generate`).
+4. Start with `npm start`.
 
 Notes for production:
 
