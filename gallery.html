@@ -413,6 +413,10 @@
       <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
       <img id="lightboxImg" src="" alt="Enlarged view">
       <video id="lightboxVideo" src="" controls style="display: none;"></video>
+      <div id="lightboxError" style="display:none; flex-direction:column; align-items:center; justify-content:center; color:#f87171; padding:40px; text-align:center; gap:12px;">
+        <i class="ri-video-off-line" style="font-size:52px; opacity:0.7;"></i>
+        <p id="lightboxErrorMsg" style="margin:0; font-size:15px; opacity:0.85;">This video is currently unavailable.</p>
+      </div>
       <div class="lightbox-caption" id="lightboxCaption"></div>
     </div>
   </div>
@@ -559,16 +563,24 @@
       const img = document.getElementById("lightboxImg");
       const video = document.getElementById("lightboxVideo");
       const cap = document.getElementById("lightboxCaption");
+      const errBox = document.getElementById("lightboxError");
+      const errMsg = document.getElementById("lightboxErrorMsg");
 
       modal.style.display = "flex";
       cap.textContent = caption || "Tournament highlights";
+
+      // Reset error state
+      errBox.style.display = "none";
 
       if (type === "VIDEO") {
         img.style.display = "none";
         video.style.display = "block";
         video.onerror = () => {
-          alert(caption ? `"${caption}" is unavailable. The video file may need to be re-uploaded.` : "This video is unavailable. The file may need to be re-uploaded.");
-          closeLightbox();
+          video.style.display = "none";
+          errMsg.textContent = caption
+            ? `“${caption}” could not be played. The video may still be processing on Google Drive.`
+            : "This video is currently unavailable.";
+          errBox.style.display = "flex";
         };
         video.src = url;
         video.load();
@@ -586,10 +598,13 @@
     function closeLightbox() {
       const modal = document.getElementById("lightboxModal");
       const video = document.getElementById("lightboxVideo");
+      const errBox = document.getElementById("lightboxError");
       if (video) {
         video.pause();
         video.src = "";
+        video.onerror = null;
       }
+      if (errBox) errBox.style.display = "none";
       modal.style.display = "none";
     }
 

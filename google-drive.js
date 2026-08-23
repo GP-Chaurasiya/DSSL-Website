@@ -83,9 +83,9 @@ function formatDriveFile(file) {
     title: file.name ? file.name.replace(/\.[^/.]+$/, "") : "Tournament Highlight",
     type: isVideo ? "VIDEO" : "IMAGE",
     mimeType: file.mimeType,
-    // Google Drive direct embed / thumbnail URL
+    // Google Drive direct embed / stream URL
     url: isVideo
-      ? `https://drive.google.com/uc?export=download&id=${file.id}`
+      ? `/api/drive/stream/${file.id}`
       : `https://lh3.googleusercontent.com/u/0/d/${file.id}=w1600`,
     thumbnail: file.thumbnailLink || `https://lh3.googleusercontent.com/u/0/d/${file.id}=w800`,
     createdAt: file.createdTime || new Date().toISOString(),
