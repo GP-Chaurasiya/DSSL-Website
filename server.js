@@ -864,14 +864,15 @@ app.post("/api/upload", authenticateToken, upload.single("file"), async (req, re
 
 // ── Google Drive Video Stream Proxy ──────────────────────────────────────────
 // Proxies Google Drive videos with range support so HTML5 <video> can play/seek without CORS or cookie block
-// NOTE: Must disable compression on this route — gzip breaks byte-range video streaming
 app.get("/api/drive/stream/:fileId", async (req, res) => {
   const { fileId } = req.params;
   if (!fileId) return res.status(400).send("File ID required");
 
-  // Explicitly opt out of gzip/deflate compression so Range requests aren't corrupted
+  // Tell intermediate proxies / Express compression not to re-encode this stream
   res.set("Cache-Control", "no-transform");
-  res.set("Content-Encoding", "identity");
+  // NOTE: Do NOT set Content-Encoding header here — absence means identity (RFC 7231).
+  // Explicitly setting Content-Encoding: identity causes Chrome/Edge to reject the
+  // video element with a media decode error even though the bytes are valid.
 
   try {
     const driveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download`;
@@ -986,16 +987,25 @@ app.get("/api/media", async (req, res) => {
       select: { id: true, type: true, url: true, title: true, createdAt: true, data: true }
     });
 
-    const normalizedDb = dbMedia.map(m => ({
-      id: m.id,
-      type: m.type,
-      title: m.title,
-      createdAt: m.createdAt,
-      // If binary data is in DB, use /api/media/file/:id; otherwise use direct URL (e.g. /uploads/video.mp4 or Drive URL)
-      url: (m.data && m.data.length > 0)
-        ? `/api/media/file/${m.id}`
-        : (m.url && m.url !== "pending" ? m.url : `/api/media/file/${m.id}`)
-    }));
+    const normalizedDb = dbMedia
+      .filter(m => {
+        // Skip DB video records whose upload file is missing on disk (avoids broken card)
+        if (m.type === "VIDEO" && m.url && m.url.startsWith("/uploads/")) {
+          const diskPath = path.join(ROOT, m.url);
+          return fs.existsSync(diskPath);
+        }
+        return true;
+      })
+      .map(m => ({
+        id: m.id,
+        type: m.type,
+        title: m.title,
+        createdAt: m.createdAt,
+        // If binary data is in DB, use /api/media/file/:id; otherwise use direct URL (e.g. /uploads/video.mp4 or Drive URL)
+        url: (m.data && m.data.length > 0)
+          ? `/api/media/file/${m.id}`
+          : (m.url && m.url !== "pending" ? m.url : `/api/media/file/${m.id}`)
+      }));
 
     // Return combined media list with Drive files at top
     res.json([...driveMedia, ...normalizedDb]);
