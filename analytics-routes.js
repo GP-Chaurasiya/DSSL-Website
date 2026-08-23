@@ -125,23 +125,226 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
-  app.get("/api/players", ...adminReadAccess, async (req, res) => {
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
-    const where = buildPlayerWhere(req.query);
 
+  // ============================================================
+  // SHARED LIVE GOOGLE SHEET DATA FETCHER
+  // All analytics endpoints use this single cached helper
+  // Cache TTL: 15 seconds to avoid rate limits
+  // ============================================================
+
+  const SHEET_ID = "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
+  const SPORT_SHEETS = [
+    "Chess", "Table Tennis", "Badminton", "Badminton Singles", "Basketball",
+    "Volleyball", "Football", "Cricket", "Kho Kho", "Tug Of War", "Relay Race",
+    "Athletics (100 m)", "Athletics (200 m)", "Athletics (400 m)", "Long Jump",
+    "High Jump", "Javelin Throw", "Discus Throw", "Shot Put", "7 Stones"
+  ];
+  const MANDAL_ALIASES = {
+    "Vashishta Mandal": ["vashishta", "vasistha", "vashishtha"],
+    "Vishwamitra Mandal": ["vishwamitra", "viswamitra"],
+    "Atrey Mandal": ["atrey", "atreyi", "atri"],
+    "Gautam Mandal": ["gautam", "gautama"],
+    "Bharadwaj Mandal": ["bharadwaj", "bhardwaj", "bharadwaja"],
+    "Jamdagni Mandal": ["jamdagni", "jamdagani", "jamadagni"],
+    "Kashyap Mandal": ["kashyap", "kasyap", "kashyapa"]
+  };
+
+  let _sheetCache = null;
+  let _sheetCacheExpiry = 0;
+
+  async function fetchSheetTab(sheetName) {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`${sheetName}: HTTP ${response.status}`);
+    const text = await response.text();
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}");
+    if (jsonStart === -1 || jsonEnd === -1) throw new Error(`${sheetName}: Invalid response`);
+    return JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+  }
+
+  function findColIndex(table, names) {
+    // Try column labels first (cols[].label)
+    const columns = table?.cols || [];
+    const labels = columns.map(col => String(col?.label || "").trim().toLowerCase());
+    let idx = labels.findIndex(label => names.some(name => label.includes(name)));
+    if (idx !== -1) return { index: idx, headerInRow: false };
+    // Fallback: check first data row as header
+    if (table?.rows?.[0]?.c) {
+      const row0 = table.rows[0].c;
+      idx = row0.findIndex(cell => {
+        const v = cell?.v != null ? String(cell.v).trim().toLowerCase() : "";
+        return names.some(name => v.includes(name));
+      });
+      if (idx !== -1) return { index: idx, headerInRow: true };
+    }
+    return { index: -1, headerInRow: false };
+  }
+
+  function normalizeMandal(raw) {
+    const lower = (raw || "").toLowerCase().trim();
+    for (const [canonical, aliases] of Object.entries(MANDAL_ALIASES)) {
+      if (aliases.some(a => lower.includes(a))) return canonical;
+    }
+    return raw || "Unknown";
+  }
+
+  function normalizeGender(raw) {
+    const g = (raw || "").toLowerCase().trim();
+    if (g === "male" || g === "m") return "Male";
+    if (g === "female" || g === "f") return "Female";
+    if (g) return "Other";
+    return "Unknown";
+  }
+
+  function parseGoogleDate(val) {
+    if (!val) return null;
+    if (typeof val === "string") {
+      const match = val.match(/Date\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+),\s*(\d+),\s*(\d+))?\)/);
+      if (match) {
+        const [_, y, m, d, h, min, s] = match;
+        return new Date(parseInt(y), parseInt(m), parseInt(d), parseInt(h || 0), parseInt(min || 0), parseInt(s || 0));
+      }
+    }
+    const pd = new Date(val);
+    return isNaN(pd.getTime()) ? null : pd;
+  }
+
+  async function getLiveSheetData() {
+    const now = Date.now();
+    if (_sheetCache && now < _sheetCacheExpiry) return _sheetCache;
+
+    const uniqueMap = new Map(); // key = scholarNo or name+mandal
+    const allRegistrations = [];
+    const activeSports = new Set();
+    let idCounter = 0;
+
+    const results = await Promise.allSettled(
+      SPORT_SHEETS.map(async (sheetName) => {
+        const data = await fetchSheetTab(sheetName);
+        const table = data?.table;
+        if (!table || !Array.isArray(table.rows)) return;
+
+        const mandalCol = findColIndex(table, ["mandal"]);
+        const scholarCol = findColIndex(table, ["scholar", "roll"]);
+        const nameCol = findColIndex(table, ["name", "student"]);
+        const courseCol = findColIndex(table, ["course", "dept", "branch"]);
+        const semCol = findColIndex(table, ["semester", "sem"]);
+        const genderCol = findColIndex(table, ["gender", "sex"]);
+        const phoneCol = findColIndex(table, ["phone", "mobile", "contact"]);
+        const emailCol = findColIndex(table, ["email", "mail"]);
+        const regIdCol = findColIndex(table, ["registration", "reg id"]);
+        const dateCol = findColIndex(table, ["date", "timestamp", "time"]);
+        const roleCol = findColIndex(table, ["role", "captain"]);
+
+        const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, dateCol, roleCol].some(c => c.headerInRow);
+        const startRow = headerInRow ? 1 : 0;
+
+        // Use detected indices or fallback defaults
+        const mIdx = mandalCol.index !== -1 ? mandalCol.index : 7;
+        const scIdx = scholarCol.index !== -1 ? scholarCol.index : 3;
+        const nIdx = nameCol.index !== -1 ? nameCol.index : 2;
+        const cIdx = courseCol.index !== -1 ? courseCol.index : 4;
+        const sIdx = semCol.index !== -1 ? semCol.index : 5;
+        const gIdx = genderCol.index !== -1 ? genderCol.index : 10;
+        const pIdx = phoneCol.index !== -1 ? phoneCol.index : 9;
+        const eIdx = emailCol.index !== -1 ? emailCol.index : 8;
+        const rIdx = regIdCol.index !== -1 ? regIdCol.index : 1;
+        const dIdx = dateCol.index !== -1 ? dateCol.index : 11;
+        const rlIdx = roleCol.index !== -1 ? roleCol.index : 1;
+
+        let sheetValid = 0;
+        for (let i = startRow; i < table.rows.length; i++) {
+          const row = table.rows[i];
+          if (!row || !Array.isArray(row.c)) continue;
+          const getV = (idx) => (row.c[idx]?.v != null ? String(row.c[idx].v).trim() : "");
+
+          const mandalRaw = getV(mIdx);
+          if (!mandalRaw || mandalRaw.toLowerCase() === "mandal") continue;
+          const name = getV(nIdx);
+          const scholarNo = getV(scIdx);
+          if (!name && !scholarNo) continue;
+
+          const rawDate = getV(dIdx);
+          const parsedDate = parseGoogleDate(rawDate);
+
+          const rec = {
+            id: ++idCounter,
+            name,
+            scholarNo: scholarNo || name.toLowerCase().replace(/\s+/g, "_"),
+            course: getV(cIdx) || "Other",
+            semester: getV(sIdx) || "",
+            mandalName: normalizeMandal(mandalRaw),
+            gender: normalizeGender(getV(gIdx)),
+            phone: getV(pIdx),
+            email: getV(eIdx),
+            sport: sheetName,
+            teamRegistrationId: getV(rIdx),
+            teamRole: getV(rlIdx) || "Player",
+            registrationDate: rawDate,
+            registrationDateParsed: parsedDate
+          };
+
+          allRegistrations.push(rec);
+          sheetValid++;
+
+          const uniqueKey = scholarNo || (name.toLowerCase() + "_" + rec.mandalName);
+          if (!uniqueMap.has(uniqueKey)) {
+            uniqueMap.set(uniqueKey, { ...rec, sports: [sheetName] });
+          } else {
+            const existing = uniqueMap.get(uniqueKey);
+            if (!existing.sports.includes(sheetName)) existing.sports.push(sheetName);
+            if (!existing.registrationDateParsed && parsedDate) {
+              existing.registrationDateParsed = parsedDate;
+              existing.registrationDate = rawDate;
+            }
+          }
+        }
+        if (sheetValid > 0) activeSports.add(sheetName);
+      })
+    );
+
+    const uniquePlayers = Array.from(uniqueMap.values());
+
+    _sheetCache = { uniquePlayers, allRegistrations, activeSports: Array.from(activeSports) };
+    _sheetCacheExpiry = Date.now() + 15000; // 15 second cache
+    console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players, ${activeSports.size} active sports`);
+    return _sheetCache;
+  }
+
+  // ============================================================
+  // PLAYER LIST — from LIVE Google Sheets
+  // ============================================================
+
+  app.get("/api/players", ...adminReadAccess, async (req, res) => {
     try {
-      const [players, total] = await Promise.all([
-        prisma.player.findMany({
-          where,
-          orderBy: { registrationDate: "desc" },
-          skip: (page - 1) * limit,
-          take: limit,
-          include: { mandal: { select: { name: true, color: true } } }
-        }),
-        prisma.player.count({ where })
-      ]);
-      res.json({ players, total, page, limit, totalPages: Math.ceil(total / limit) });
+      const { uniquePlayers } = await getLiveSheetData();
+      const page = Math.max(parseInt(req.query.page) || 1, 1);
+      const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
+      const { mandal, course, semester, gender, sport, search } = req.query;
+
+      let filtered = uniquePlayers;
+      if (mandal) filtered = filtered.filter(p => p.mandalName.toLowerCase().includes(mandal.toLowerCase()));
+      if (course) filtered = filtered.filter(p => p.course.toLowerCase().includes(course.toLowerCase()));
+      if (semester) filtered = filtered.filter(p => p.semester === String(semester));
+      if (gender) filtered = filtered.filter(p => p.gender.toLowerCase().includes(gender.toLowerCase()));
+      if (sport) filtered = filtered.filter(p => p.sport.toLowerCase().includes(sport.toLowerCase()) || (p.sports && p.sports.some(s => s.toLowerCase().includes(sport.toLowerCase()))));
+      if (search) {
+        const s = search.toLowerCase();
+        filtered = filtered.filter(p =>
+          p.name.toLowerCase().includes(s) ||
+          p.scholarNo.toLowerCase().includes(s) ||
+          p.phone.includes(s) ||
+          p.email.toLowerCase().includes(s) ||
+          p.course.toLowerCase().includes(s)
+        );
+      }
+
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limit);
+      const paged = filtered.slice((page - 1) * limit, page * limit);
+
+      res.json({ players: paged, total, page, limit, totalPages });
     } catch (error) {
       console.error("Player list error:", error);
       res.status(500).json({ error: "Error fetching players" });
@@ -152,7 +355,8 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid player ID" });
     try {
-      const player = await prisma.player.findUnique({ where: { id }, include: { mandal: true } });
+      const { uniquePlayers } = await getLiveSheetData();
+      const player = uniquePlayers.find(p => p.id === id) || uniquePlayers.find(p => p.scholarNo === String(req.params.id));
       if (!player) return res.status(404).json({ error: "Player not found" });
       res.json(player);
     } catch (error) {
@@ -161,514 +365,202 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
   });
 
   // ============================================================
-  // ANALYTICS OVERVIEW
-  // Uses LIVE Google Sheet registration data
+  // ANALYTICS OVERVIEW — from LIVE Google Sheets
   // ============================================================
 
   app.get("/api/analytics/overview", ...adminReadAccess, async (req, res) => {
-
     try {
+      const { allRegistrations, uniquePlayers, activeSports } = await getLiveSheetData();
+      const today = new Date();
 
-      const SHEET_ID =
-        "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
-
-      const SPORT_SHEETS = [
-        "Chess",
-        "Table Tennis",
-        "Badminton",
-        "Badminton Singles",
-        "Basketball",
-        "Volleyball",
-        "Football",
-        "Cricket",
-        "Kho Kho",
-        "Tug Of War",
-        "Relay Race",
-        "Athletics (100 m)",
-        "Athletics (200 m)",
-        "Athletics (400 m)",
-        "Long Jump",
-        "High Jump",
-        "Javelin Throw",
-        "Discus Throw",
-        "Shot Put",
-        "7 Stones"
-      ];
-
-      // --------------------------------------------------------
-      // Fetch one Google Sheet tab
-      // --------------------------------------------------------
-
-      async function fetchSheet(sheetName) {
-
-        const url =
-          `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
-
-        const response =
-          await fetch(url, {
-            cache: "no-store"
-          });
-
-        if (!response.ok) {
-          throw new Error(
-            `${sheetName}: Google Sheet returned ${response.status}`
-          );
-        }
-
-        const text =
-          await response.text();
-
-        const jsonStart =
-          text.indexOf("{");
-
-        const jsonEnd =
-          text.lastIndexOf("}");
-
-        if (
-          jsonStart === -1 ||
-          jsonEnd === -1
-        ) {
-          throw new Error(
-            `${sheetName}: Invalid Google Sheet response`
-          );
-        }
-
-        return JSON.parse(
-          text.substring(
-            jsonStart,
-            jsonEnd + 1
-          )
-        );
-      }
-
-      // --------------------------------------------------------
-      // Find column by header
-      // --------------------------------------------------------
-
-      function findColumn(table, names) {
-
-        const columns =
-          table?.cols || [];
-
-        const labels =
-          columns.map(col =>
-            String(
-              col.label || ""
-            )
-              .trim()
-              .toLowerCase()
-          );
-
-        return labels.findIndex(
-          label =>
-            names.some(name =>
-              label.includes(name)
-            )
-        );
-      }
-
-      // --------------------------------------------------------
-      // Counters
-      // --------------------------------------------------------
-
-      let totalPlayers = 0;
-      let maleCount = 0;
-      let femaleCount = 0;
-      let otherGenderCount = 0;
-
-      let todayRegistrations = 0;
-
-      const activeSports =
-        new Set();
-
-      // --------------------------------------------------------
-      // Read all 19 sport sheets
-      // --------------------------------------------------------
-
-      for (
-        const sportName
-        of SPORT_SHEETS
-      ) {
-
-        try {
-
-          const data =
-            await fetchSheet(
-              sportName
-            );
-
-          const table =
-            data?.table;
-
-          if (
-            !table ||
-            !Array.isArray(
-              table.rows
-            )
-          ) {
-            continue;
+      let maleCount = 0, femaleCount = 0, otherGenderCount = 0, todayRegistrations = 0;
+      // Count gender from unique players so totals match
+      uniquePlayers.forEach(r => {
+        if (r.gender === "Male") maleCount++;
+        else if (r.gender === "Female") femaleCount++;
+        else if (r.gender === "Other") otherGenderCount++;
+        if (r.registrationDateParsed) {
+          const d = r.registrationDateParsed;
+          if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+            todayRegistrations++;
           }
-
-          const genderIndex =
-            findColumn(
-              table,
-              ["gender", "sex"]
-            );
-
-          const dateIndex =
-            findColumn(
-              table,
-              [
-                "registration date",
-                "registered date",
-                "timestamp",
-                "date"
-              ]
-            );
-
-          let sheetCount = 0;
-
-          table.rows.forEach(row => {
-
-            if (
-              !row ||
-              !Array.isArray(row.c)
-            ) {
-              return;
-            }
-
-            // -----------------------------------------------
-            // Determine whether this is a real registration
-            // -----------------------------------------------
-
-            const cells =
-              row.c.map(cell =>
-                cell?.v != null
-                  ? String(cell.v).trim()
-                  : ""
-              );
-
-            // A valid registration should have data.
-            const hasData =
-              cells.some(
-                value => value !== ""
-              );
-
-            if (!hasData) {
-              return;
-            }
-
-            totalPlayers++;
-            sheetCount++;
-
-            // -----------------------------------------------
-            // Gender
-            // -----------------------------------------------
-
-            if (
-              genderIndex >= 0
-            ) {
-
-              const gender =
-                cells[genderIndex]
-                  ?.toLowerCase()
-                  .trim();
-
-              if (
-                gender === "male"
-              ) {
-                maleCount++;
-              }
-
-              else if (
-                gender === "female"
-              ) {
-                femaleCount++;
-              }
-
-              else if (
-                gender
-              ) {
-                otherGenderCount++;
-              }
-            }
-
-            // -----------------------------------------------
-            // Today's registrations
-            // -----------------------------------------------
-
-            if (
-              dateIndex >= 0
-            ) {
-
-              const dateValue =
-                cells[dateIndex];
-
-              if (
-                dateValue
-              ) {
-
-                const parsedDate =
-                  new Date(
-                    dateValue
-                  );
-
-                if (
-                  !Number.isNaN(
-                    parsedDate.getTime()
-                  )
-                ) {
-
-                  const now =
-                    new Date();
-
-                  if (
-                    parsedDate.getDate() ===
-                    now.getDate() &&
-
-                    parsedDate.getMonth() ===
-                    now.getMonth() &&
-
-                    parsedDate.getFullYear() ===
-                    now.getFullYear()
-                  ) {
-
-                    todayRegistrations++;
-
-                  }
-                }
-              }
-            }
-
-          });
-
-          // If this sport has registrations,
-          // count it as an active sport.
-          if (
-            sheetCount > 0
-          ) {
-            activeSports.add(
-              sportName
-            );
-          }
-
-          console.log(
-            `Analytics: ${sportName} → ${sheetCount} registrations`
-          );
-
         }
+      });
 
-        catch (sheetError) {
-
-          console.warn(
-            `Analytics: Could not read ${sportName}:`,
-            sheetError.message
-          );
-
-        }
-
-      }
-
-      // --------------------------------------------------------
-      // Total Mandals
-      // --------------------------------------------------------
-
-      const totalMandals =
-        await prisma.mandal.count();
-
-      // --------------------------------------------------------
-      // Match statistics remain database based
-      // --------------------------------------------------------
-
-      const matchStats =
-        await prisma.match.groupBy({
-          by: ["status"],
-          _count: true
-        });
-
+      const totalMandals = await prisma.mandal.count();
+      const matchStats = await prisma.match.groupBy({ by: ["status"], _count: true });
       const matchSummary = {};
+      matchStats.forEach(m => { matchSummary[m.status] = m._count; });
+      const totalMatches = Object.values(matchSummary).reduce((a, b) => a + b, 0);
 
-      matchStats.forEach(
-        match => {
-          matchSummary[
-            match.status
-          ] = match._count;
-        }
-      );
-
-      const totalMatches =
-        Object.values(
-          matchSummary
-        ).reduce(
-          (a, b) => a + b,
-          0
-        );
-
-      // --------------------------------------------------------
-      // Final response
-      // --------------------------------------------------------
-
-      console.log(
-        "================================"
-      );
-
-      console.log(
-        "LIVE GOOGLE SHEET ANALYTICS"
-      );
-
-      console.log(
-        "Total registrations:",
-        totalPlayers
-      );
-
-      console.log(
-        "Male:",
-        maleCount
-      );
-
-      console.log(
-        "Female:",
-        femaleCount
-      );
-
-      console.log(
-        "Other:",
-        otherGenderCount
-      );
-
-      console.log(
-        "Active sports:",
-        activeSports.size
-      );
-
-      console.log(
-        "================================"
-      );
+      console.log("================================");
+      console.log("LIVE GOOGLE SHEET ANALYTICS");
+      console.log("Unique players:", uniquePlayers.length);
+      console.log("Total sport registrations:", allRegistrations.length);
+      console.log("Male:", maleCount, "Female:", femaleCount, "Other:", otherGenderCount);
+      console.log("Active sports:", activeSports.length);
+      console.log("================================");
 
       res.json({
-
-        // LIVE GOOGLE SHEET VALUES
-        totalPlayers,
-        maleCount,
-        femaleCount,
-        otherGenderCount,
-        todayRegistrations,
-
+        totalPlayers: uniquePlayers.length,
+        totalSportRegistrations: allRegistrations.length,
+        maleCount, femaleCount, otherGenderCount, todayRegistrations,
         totalMandals,
-
-        totalSports:
-          activeSports.size,
-
-        // MATCH DATA FROM DATABASE
+        totalSports: activeSports.length,
         matches: {
-
-          total:
-            totalMatches,
-
-          live:
-            matchSummary.live || 0,
-
-          scheduled:
-            matchSummary.scheduled || 0,
-
-          completed:
-            matchSummary.completed || 0
-
+          total: totalMatches,
+          live: matchSummary.live || 0,
+          scheduled: matchSummary.scheduled || 0,
+          completed: matchSummary.completed || 0
         }
-
       });
-
+    } catch (error) {
+      console.error("Analytics overview error:", error);
+      res.status(500).json({ error: "Error computing live Google Sheet analytics" });
     }
-
-    catch (error) {
-
-      console.error(
-        "Analytics overview error:",
-        error
-      );
-
-      res.status(500).json({
-
-        error:
-          "Error computing live Google Sheet analytics"
-
-      });
-
-    }
-
   });
+
+  // ============================================================
+  // MANDAL DISTRIBUTION — from LIVE Google Sheets
+  // ============================================================
 
   app.get("/api/analytics/mandal-distribution", ...adminReadAccess, async (req, res) => {
     try {
-      const data = await prisma.player.groupBy({ by: ["mandalName"], _count: { id: true }, orderBy: { _count: { id: "desc" } } });
-      const total = data.reduce((s, d) => s + d._count.id, 0);
-      res.json(data.map(d => ({ mandal: d.mandalName || "Unknown", count: d._count.id, percentage: total > 0 ? Math.round((d._count.id / total) * 100) : 0 })));
+      const { uniquePlayers } = await getLiveSheetData();
+      const counts = {};
+      uniquePlayers.forEach(p => { counts[p.mandalName] = (counts[p.mandalName] || 0) + 1; });
+      const total = uniquePlayers.length;
+      const result = Object.entries(counts)
+        .map(([mandal, count]) => ({ mandal, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
+        .sort((a, b) => b.count - a.count);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Error computing mandal distribution" });
     }
   });
 
+  // ============================================================
+  // GENDER DISTRIBUTION — from LIVE Google Sheets
+  // ============================================================
+
   app.get("/api/analytics/gender-distribution", ...adminReadAccess, async (req, res) => {
     try {
-      const data = await prisma.player.groupBy({ by: ["gender"], _count: { id: true } });
-      const total = data.reduce((s, d) => s + d._count.id, 0);
-      res.json({ total, distribution: data.map(d => ({ gender: d.gender || "Unknown", count: d._count.id, percentage: total > 0 ? Math.round((d._count.id / total) * 100) : 0 })) });
+      const { uniquePlayers } = await getLiveSheetData();
+      const counts = {};
+      uniquePlayers.forEach(p => { counts[p.gender] = (counts[p.gender] || 0) + 1; });
+      const total = uniquePlayers.length;
+      const distribution = Object.entries(counts)
+        .map(([gender, count]) => ({ gender, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }));
+      res.json({ total, distribution });
     } catch (error) {
       res.status(500).json({ error: "Error computing gender distribution" });
     }
   });
 
+  // ============================================================
+  // COURSE DISTRIBUTION — from LIVE Google Sheets
+  // ============================================================
+
   app.get("/api/analytics/course-distribution", ...adminReadAccess, async (req, res) => {
     try {
-      const data = await prisma.player.groupBy({ by: ["course"], _count: { id: true }, orderBy: { _count: { id: "desc" } } });
-      const total = data.reduce((s, d) => s + d._count.id, 0);
-      res.json(data.map(d => ({ course: d.course || "Unknown", count: d._count.id, percentage: total > 0 ? Math.round((d._count.id / total) * 100) : 0 })));
+      const { uniquePlayers } = await getLiveSheetData();
+      const counts = {};
+      uniquePlayers.forEach(p => { counts[p.course || "Unknown"] = (counts[p.course || "Unknown"] || 0) + 1; });
+      const total = uniquePlayers.length;
+      const result = Object.entries(counts)
+        .map(([course, count]) => ({ course, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
+        .sort((a, b) => b.count - a.count);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Error computing course distribution" });
     }
   });
 
+  // ============================================================
+  // SEMESTER DISTRIBUTION — from LIVE Google Sheets
+  // ============================================================
+
   app.get("/api/analytics/semester-distribution", ...adminReadAccess, async (req, res) => {
     try {
-      const data = await prisma.player.groupBy({ by: ["semester"], _count: { id: true }, orderBy: { semester: "asc" } });
-      const total = data.reduce((s, d) => s + d._count.id, 0);
-      res.json(data.map(d => ({ semester: d.semester || "Unknown", count: d._count.id, percentage: total > 0 ? Math.round((d._count.id / total) * 100) : 0 })));
+      const { uniquePlayers } = await getLiveSheetData();
+      const counts = {};
+      uniquePlayers.forEach(p => { counts[p.semester || "Unknown"] = (counts[p.semester || "Unknown"] || 0) + 1; });
+      const total = uniquePlayers.length;
+      const result = Object.entries(counts)
+        .map(([semester, count]) => ({ semester, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
+        .sort((a, b) => {
+          const numA = parseInt(a.semester) || 999;
+          const numB = parseInt(b.semester) || 999;
+          return numA - numB;
+        });
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Error computing semester distribution" });
     }
   });
 
+  // ============================================================
+  // SPORT DISTRIBUTION — from LIVE Google Sheets
+  // Includes all tournament sports dynamically with live counts
+  // ============================================================
+
   app.get("/api/analytics/sport-distribution", ...adminReadAccess, async (req, res) => {
     try {
-      const data = await prisma.player.groupBy({ by: ["sport"], _count: { id: true }, orderBy: { _count: { id: "desc" } }, where: { sport: { not: "" } } });
-      const total = data.reduce((s, d) => s + d._count.id, 0);
-      res.json(data.map(d => ({ sport: d.sport, count: d._count.id, percentage: total > 0 ? Math.round((d._count.id / total) * 100) : 0 })));
+      const { allRegistrations } = await getLiveSheetData();
+      const counts = {};
+      // Initialize all tournament sport sheets to 0
+      SPORT_SHEETS.forEach(s => { counts[s] = 0; });
+      // Count actual live registrations
+      allRegistrations.forEach(r => {
+        counts[r.sport] = (counts[r.sport] || 0) + 1;
+      });
+      const total = allRegistrations.length;
+      const result = Object.entries(counts)
+        .map(([sport, count]) => ({
+          sport,
+          count,
+          percentage: total > 0 ? Math.round((count / total) * 100) : 0
+        }))
+        .sort((a, b) => b.count - a.count || a.sport.localeCompare(b.sport));
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Error computing sport distribution" });
     }
   });
 
+  // ============================================================
+  // REGISTRATION TREND — from LIVE Google Sheets
+  // ============================================================
+
+  function toDateKey(date) {
+    if (!date) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
   app.get("/api/analytics/registration-trend", ...adminReadAccess, async (req, res) => {
     const days = Math.min(parseInt(req.query.days) || 30, 90);
     try {
+      const { uniquePlayers } = await getLiveSheetData();
       const since = new Date();
       since.setDate(since.getDate() - days);
       since.setHours(0, 0, 0, 0);
-      const players = await prisma.player.findMany({
-        where: { registrationDate: { gte: since } },
-        select: { registrationDate: true },
-        orderBy: { registrationDate: "asc" }
-      });
+
       const dateMap = {};
-      players.forEach(p => {
-        const d = p.registrationDate.toISOString().split("T")[0];
-        dateMap[d] = (dateMap[d] || 0) + 1;
+      uniquePlayers.forEach(r => {
+        if (r.registrationDateParsed && r.registrationDateParsed >= since) {
+          const key = toDateKey(r.registrationDateParsed);
+          dateMap[key] = (dateMap[key] || 0) + 1;
+        }
       });
+
       const trend = [];
       for (let i = 0; i < days; i++) {
         const d = new Date();
         d.setDate(d.getDate() - (days - 1 - i));
-        const key = d.toISOString().split("T")[0];
+        const key = toDateKey(d);
         trend.push({ date: key, count: dateMap[key] || 0 });
       }
       res.json(trend);
@@ -677,16 +569,31 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
+  // ============================================================
+  // CROSS MANDAL×GENDER — from LIVE Google Sheets
+  // ============================================================
+
   app.get("/api/analytics/cross/mandal-gender", ...adminReadAccess, async (req, res) => {
     try {
-      const data = await prisma.player.groupBy({ by: ["mandalName", "gender"], _count: { id: true } });
-      const mandals = [...new Set(data.map(d => d.mandalName || "Unknown"))];
-      const genders = [...new Set(data.map(d => d.gender || "Unknown"))];
-      const result = mandals.map(mandal => {
+      const { uniquePlayers } = await getLiveSheetData();
+      const genderSet = new Set();
+      const mandalSet = new Set();
+      const crossMap = {};
+
+      uniquePlayers.forEach(p => {
+        const mandal = p.mandalName || "Unknown";
+        const gender = p.gender || "Unknown";
+        genderSet.add(gender);
+        mandalSet.add(mandal);
+        const key = `${mandal}|||${gender}`;
+        crossMap[key] = (crossMap[key] || 0) + 1;
+      });
+
+      const genders = Array.from(genderSet);
+      const result = Array.from(mandalSet).map(mandal => {
         const row = { mandal };
         genders.forEach(g => {
-          const found = data.find(d => (d.mandalName || "Unknown") === mandal && (d.gender || "Unknown") === g);
-          row[g] = found ? found._count.id : 0;
+          row[g] = crossMap[`${mandal}|||${g}`] || 0;
         });
         row.total = genders.reduce((sum, g) => sum + (row[g] || 0), 0);
         return row;
@@ -697,13 +604,33 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
+  // ============================================================
+  // EXPORT CSV — from LIVE Google Sheets
+  // ============================================================
+
   app.get("/api/analytics/export", ...adminReadAccess, async (req, res) => {
     try {
-      const players = await prisma.player.findMany({ where: buildPlayerWhere(req.query), orderBy: { registrationDate: "desc" }, take: 5000 });
+      const { allRegistrations } = await getLiveSheetData();
+      const { mandal, course, semester, gender, sport, search } = req.query;
+
+      let filtered = allRegistrations;
+      if (mandal) filtered = filtered.filter(p => p.mandalName.toLowerCase().includes(mandal.toLowerCase()));
+      if (course) filtered = filtered.filter(p => p.course.toLowerCase().includes(course.toLowerCase()));
+      if (semester) filtered = filtered.filter(p => p.semester === String(semester));
+      if (gender) filtered = filtered.filter(p => p.gender.toLowerCase().includes(gender.toLowerCase()));
+      if (sport) filtered = filtered.filter(p => p.sport.toLowerCase().includes(sport.toLowerCase()));
+      if (search) {
+        const s = search.toLowerCase();
+        filtered = filtered.filter(p =>
+          p.name.toLowerCase().includes(s) || p.scholarNo.toLowerCase().includes(s) ||
+          p.phone.includes(s) || p.email.toLowerCase().includes(s)
+        );
+      }
+
       const headers = ["ID", "Name", "Scholar ID", "Course", "Semester", "Mandal", "Gender", "Phone", "Email", "Sport", "Team ID", "Role", "Registration Date"];
-      const rows = players.map(p => [
+      const rows = filtered.map(p => [
         p.id, p.name, p.scholarNo, p.course, p.semester, p.mandalName, p.gender, p.phone, p.email, p.sport, p.teamRegistrationId, p.teamRole,
-        p.registrationDate ? p.registrationDate.toISOString().split("T")[0] : ""
+        p.registrationDate || ""
       ].map(csvEscape).join(","));
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="DSSL_Players_${new Date().toISOString().split("T")[0]}.csv"`);
@@ -714,45 +641,43 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     }
   });
 
+  // ============================================================
+  // TEAM STATS — player counts from LIVE Sheets, matches from DB
+  // ============================================================
+
   app.get("/api/analytics/team-stats", ...adminReadAccess, async (req, res) => {
     try {
-      const [mandals, matches, playersByDalId, playersByMandalName] = await Promise.all([
+      const { uniquePlayers } = await getLiveSheetData();
+      const [mandals, matches] = await Promise.all([
         prisma.mandal.findMany(),
-        prisma.match.findMany({ where: { status: "completed" } }),
-        // Count players that have a proper FK dalId set
-        prisma.player.groupBy({ by: ["dalId"], where: { dalId: { not: null } }, _count: { id: true } }),
-        // Count players that have NO dalId but have a mandalName string (fallback for older/synced records)
-        prisma.player.groupBy({ by: ["mandalName"], where: { dalId: null, mandalName: { not: "" } }, _count: { id: true } })
+        prisma.match.findMany({ where: { status: "completed" } })
       ]);
 
-      // Build map by dalId (reliable FK)
-      const playerMapById = {};
-      playersByDalId.forEach(p => { playerMapById[p.dalId] = p._count.id; });
-
-      // Build fallback map by mandalName string (case-insensitive)
-      const playerMapByName = {};
-      playersByMandalName.forEach(p => {
+      // Count players per mandal from live sheet data
+      const liveMandalCounts = {};
+      uniquePlayers.forEach(p => {
         const key = (p.mandalName || "").trim().toLowerCase();
-        if (key) playerMapByName[key] = (playerMapByName[key] || 0) + p._count.id;
+        if (key) liveMandalCounts[key] = (liveMandalCounts[key] || 0) + 1;
       });
 
       const teamMap = new Map();
       for (const mandal of mandals) {
-        const byId = playerMapById[mandal.id] || 0;
-        const byName = playerMapByName[(mandal.name || "").trim().toLowerCase()] || 0;
+        const mandalKey = (mandal.name || "").trim().toLowerCase();
+        // Also match with " mandal" suffix
+        const withSuffix = mandalKey.endsWith(" mandal") ? mandalKey : mandalKey + " mandal";
+        const withoutSuffix = mandalKey.replace(/ mandal$/, "");
+        const playerCount = liveMandalCounts[mandalKey] || liveMandalCounts[withSuffix] || liveMandalCounts[withoutSuffix] || 0;
+
         teamMap.set(mandal.id, {
           id: mandal.id,
           name: mandal.name,
           color: mandal.color,
           abbreviation: mandal.abbreviation,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          matchesPlayed: 0,
-          points: 0,
-          playerCount: byId + byName
+          wins: 0, losses: 0, draws: 0, matchesPlayed: 0, points: 0,
+          playerCount
         });
       }
+
       for (const match of matches) {
         const a = teamMap.get(match.dalAId);
         const b = teamMap.get(match.dalBId);
@@ -760,18 +685,11 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
         a.matchesPlayed++;
         b.matchesPlayed++;
         if (match.scoreA > match.scoreB) {
-          a.wins++;
-          a.points += 3;
-          b.losses++;
+          a.wins++; a.points += 3; b.losses++;
         } else if (match.scoreB > match.scoreA) {
-          b.wins++;
-          b.points += 3;
-          a.losses++;
+          b.wins++; b.points += 3; a.losses++;
         } else {
-          a.draws++;
-          b.draws++;
-          a.points++;
-          b.points++;
+          a.draws++; b.draws++; a.points++; b.points++;
         }
       }
       res.json(Array.from(teamMap.values()).sort((a, b) => b.points - a.points));

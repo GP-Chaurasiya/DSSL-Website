@@ -270,7 +270,7 @@ async function loadSportChart() {
           item =>
             item.sport &&
             Number.isFinite(item.count) &&
-            item.count > 0
+            item.count >= 0
         );
 
     } catch (apiError) {

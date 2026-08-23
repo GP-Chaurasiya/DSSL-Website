@@ -11,7 +11,7 @@ const fs = require("fs");
 
 const compression = require("compression");
 const sharp = require("sharp");
-const { isDriveConfigured, uploadMediaToDrive } = require("./google-drive");
+const { isDriveConfigured, listDriveMedia, uploadMediaToDrive } = require("./google-drive");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -915,21 +915,32 @@ app.get("/api/media/file/:id", async (req, res) => {
   }
 });
 
-// List all media — always returns /api/media/file/:id as url (permanent Supabase-backed URL)
+// List all media — merges Google Drive folder media with PostgreSQL/Supabase media
 app.get("/api/media", async (req, res) => {
   try {
-    const media = await prisma.media.findMany({
+    let driveMedia = [];
+    try {
+      if (isDriveConfigured()) {
+        driveMedia = await listDriveMedia();
+      }
+    } catch (driveErr) {
+      console.warn("Google Drive fetch error:", driveErr.message);
+    }
+
+    const dbMedia = await prisma.media.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, type: true, url: true, title: true, createdAt: true }
     });
-    // Always expose the /api/media/file/:id URL so images are served from
-    // Supabase binary data — survives server restarts and disk wipes
-    const normalized = media.map(m => ({
+
+    const normalizedDb = dbMedia.map(m => ({
       ...m,
       url: `/api/media/file/${m.id}`
     }));
-    res.json(normalized);
+
+    // Return combined media list with Drive files at top
+    res.json([...driveMedia, ...normalizedDb]);
   } catch (error) {
+    console.error("Media list error:", error);
     res.status(500).json({ error: "Error fetching media list" });
   }
 });

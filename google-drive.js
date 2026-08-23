@@ -23,20 +23,74 @@ function getServiceAccountCredentials() {
 }
 
 function isDriveConfigured() {
-  return Boolean(getServiceAccountCredentials());
+  return Boolean(getServiceAccountCredentials() || process.env.GOOGLE_API_KEY);
 }
 
 function getDriveClient() {
   const credentials = getServiceAccountCredentials();
-  if (!credentials) return null;
+  if (credentials) {
+    const auth = new google.auth.JWT({
+      email: credentials.client_email,
+      key: credentials.private_key,
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"]
+    });
+    return google.drive({ version: "v3", auth });
+  }
 
-  const auth = new google.auth.JWT({
-    email: credentials.client_email,
-    key: credentials.private_key,
-    scopes: ["https://www.googleapis.com/auth/drive"]
+  if (process.env.GOOGLE_API_KEY) {
+    return google.drive({ version: "v3", auth: process.env.GOOGLE_API_KEY });
+  }
+
+  return null;
+}
+
+/**
+ * Fetch all media files directly from the Google Drive Folder
+ */
+async function listDriveMedia() {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || DRIVE_FOLDER_ID;
+
+  if (apiKey) {
+    // Direct REST API fetch with API Key
+    const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,mimeType,thumbnailLink,webContentLink,createdTime)&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Google Drive API error (${res.status}): ${errText}`);
+    }
+    const data = await res.json();
+    return (data.files || []).map(file => formatDriveFile(file));
+  }
+
+  const drive = getDriveClient();
+  if (!drive) return [];
+
+  const response = await drive.files.list({
+    q: `'${folderId}' in parents and trashed = false`,
+    fields: "files(id, name, mimeType, thumbnailLink, webContentLink, createdTime)"
   });
 
-  return google.drive({ version: "v3", auth });
+  return (response.data.files || []).map(file => formatDriveFile(file));
+}
+
+function formatDriveFile(file) {
+  const isVideo = (file.mimeType || "").startsWith("video/");
+  return {
+    id: `gdrive_${file.id}`,
+    driveId: file.id,
+    title: file.name ? file.name.replace(/\.[^/.]+$/, "") : "Tournament Highlight",
+    type: isVideo ? "VIDEO" : "IMAGE",
+    mimeType: file.mimeType,
+    // Google Drive direct embed / thumbnail URL
+    url: isVideo
+      ? `https://drive.google.com/uc?export=download&id=${file.id}`
+      : `https://lh3.googleusercontent.com/u/0/d/${file.id}=w1600`,
+    thumbnail: file.thumbnailLink || `https://lh3.googleusercontent.com/u/0/d/${file.id}=w800`,
+    createdAt: file.createdTime || new Date().toISOString(),
+    isDrive: true
+  };
 }
 
 async function uploadMediaToDrive(filePath, fileName, mimeType) {
@@ -61,12 +115,11 @@ async function uploadMediaToDrive(filePath, fileName, mimeType) {
     requestBody: { type: "anyone", role: "reader" }
   });
 
-  return {
+  return formatDriveFile({
     id: fileId,
     name: uploaded.data.name,
-    mimeType: uploaded.data.mimeType,
-    mediaUrl: `https://drive.google.com/uc?export=${mimeType.startsWith("video/") ? "download" : "view"}&id=${fileId}`
-  };
+    mimeType: uploaded.data.mimeType
+  });
 }
 
-module.exports = { isDriveConfigured, uploadMediaToDrive };
+module.exports = { isDriveConfigured, listDriveMedia, uploadMediaToDrive };

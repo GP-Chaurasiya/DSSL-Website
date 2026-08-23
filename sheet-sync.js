@@ -97,6 +97,20 @@
 
   }
 
+  function emptyMandalSets() {
+
+    return {
+      vashishta: new Set(),
+      vishwamitra: new Set(),
+      atrey: new Set(),
+      gautam: new Set(),
+      bharadwaj: new Set(),
+      jamdagni: new Set(),
+      kashyap: new Set()
+    };
+
+  }
+
   window.dsslPlayerCounts =
     emptyCounts();
 
@@ -151,57 +165,64 @@
 
 
   // =========================================================
-  // FIND MANDAL COLUMN
+  // FIND COLUMN INDEX HELPER
   // =========================================================
 
-  function findMandalColumn(table) {
+  function findColumnIndex(table, nameHints, fallbackIndex) {
 
     const columns =
-      table.cols || [];
+      table?.cols || [];
 
     const labels =
       columns.map(col =>
         String(
-          col.label || ""
+          col?.label || ""
         )
           .trim()
           .toLowerCase()
       );
 
-    // First try to find column by name
+    // Try finding by col.label first
     let index =
-      labels.findIndex(
-        label =>
-          label.includes("mandal")
+      labels.findIndex(label =>
+        nameHints.some(hint =>
+          label.includes(hint)
+        )
       );
 
-    // Your sheet structure:
-    // A Registration ID
-    // B Role
-    // C Name
-    // D Scholar ID
-    // E Course
-    // F Semester
-    // G Mandal
-    //
-    // JavaScript index = 6
-
-    if (index === -1) {
-      index = 6;
+    if (index !== -1) {
+      return { index, isFirstRowHeader: false };
     }
 
-    return index;
+    // If cols are empty, check if row 0 contains header names
+    if (
+      table?.rows &&
+      table.rows[0] &&
+      Array.isArray(table.rows[0].c)
+    ) {
+      const row0 = table.rows[0].c;
+      const rIndex = row0.findIndex(cell => {
+        const v = cell && cell.v != null ? String(cell.v).trim().toLowerCase() : "";
+        return nameHints.some(hint => v.includes(hint));
+      });
+
+      if (rIndex !== -1) {
+        return { index: rIndex, isFirstRowHeader: true };
+      }
+    }
+
+    return { index: fallbackIndex, isFirstRowHeader: false };
 
   }
 
 
   // =========================================================
-  // EXTRACT MANDAL COUNTS FROM ONE SHEET
+  // EXTRACT MANDAL PLAYERS FROM ONE SHEET
   // =========================================================
 
-  function countMandalsFromSheet(
+  function extractMandalsFromSheet(
     data,
-    counts,
+    mandalPlayerSets,
     sheetName
   ) {
 
@@ -221,74 +242,95 @@
 
     }
 
-    const mandalIndex =
-      findMandalColumn(
-        data.table
-      );
+    const table = data.table;
 
+    // Detect column positions dynamically
+    const mandalInfo = findColumnIndex(table, ["mandal"], 7);
+    const scholarInfo = findColumnIndex(table, ["scholar", "roll"], 3);
+    const nameInfo = findColumnIndex(table, ["name", "student"], 2);
+    const regIdInfo = findColumnIndex(table, ["registration", "reg id", "id"], 1);
+
+    const mandalIndex = mandalInfo.index;
+    const scholarIndex = scholarInfo.index;
+    const nameIndex = nameInfo.index;
+    const regIdIndex = regIdInfo.index;
+
+    const isHeaderRow =
+      mandalInfo.isFirstRowHeader ||
+      scholarInfo.isFirstRowHeader ||
+      nameInfo.isFirstRowHeader ||
+      regIdInfo.isFirstRowHeader;
+
+    const startRow = isHeaderRow ? 1 : 0;
     let validRows = 0;
 
-    data.table.rows.forEach(
-      (row, index) => {
+    for (let i = startRow; i < table.rows.length; i++) {
 
-        if (
-          !row ||
-          !row.c
-        ) {
-          return;
-        }
+      const row = table.rows[i];
 
-        const cell =
-          row.c[mandalIndex];
+      if (
+        !row ||
+        !Array.isArray(row.c)
+      ) {
+        continue;
+      }
 
-        if (!cell) {
-          return;
-        }
+      const cell =
+        row.c[mandalIndex];
 
-        const value =
-          cell.v !== undefined &&
-            cell.v !== null
-            ? String(cell.v)
-            : "";
+      if (!cell || cell.v == null) {
+        continue;
+      }
 
-        const mandalName =
-          value
-            .trim()
-            .toLowerCase();
+      const value =
+        String(cell.v)
+          .trim()
+          .toLowerCase();
 
-        if (!mandalName) {
-          return;
-        }
+      // Skip header words or empty strings
+      if (
+        !value ||
+        value === "mandal" ||
+        value === "mandal name"
+      ) {
+        continue;
+      }
 
-        validRows++;
+      for (
+        const [key, aliases]
+        of Object.entries(
+          MANDAL_KEYS
+        )
+      ) {
 
-        for (
-          const [key, aliases]
-          of Object.entries(
-            MANDAL_KEYS
-          )
-        ) {
+        const matched =
+          aliases.some(
+            alias =>
+              value.includes(
+                alias
+              )
+          );
 
-          const matched =
-            aliases.some(
-              alias =>
-                mandalName.includes(
-                  alias
-                )
-            );
+        if (matched) {
 
-          if (matched) {
+          validRows++;
 
-            counts[key]++;
+          // Build unique player identifier
+          const scholarId = row.c[scholarIndex]?.v != null ? String(row.c[scholarIndex].v).trim().toLowerCase() : "";
+          const playerName = row.c[nameIndex]?.v != null ? String(row.c[nameIndex].v).trim().toLowerCase() : "";
+          const regId = row.c[regIdIndex]?.v != null ? String(row.c[regIdIndex].v).trim().toLowerCase() : "";
 
-            break;
+          const uniqueKey = scholarId || (playerName ? (key + "_" + playerName) : "") || regId || (`row_${sheetName}_${i}`);
 
-          }
+          mandalPlayerSets[key].add(uniqueKey);
+
+          break;
 
         }
 
       }
-    );
+
+    }
 
     console.log(
       `DSSL: ${sheetName} → ${validRows} registrations`
@@ -309,8 +351,8 @@
       "DSSL: Starting complete Mandal sync..."
     );
 
-    const counts =
-      emptyCounts();
+    const mandalPlayerSets =
+      emptyMandalSets();
 
     let totalEntries = 0;
 
@@ -331,9 +373,9 @@
           );
 
         totalEntries +=
-          countMandalsFromSheet(
+          extractMandalsFromSheet(
             data,
-            counts,
+            mandalPlayerSets,
             sportSheet
           );
 
@@ -346,6 +388,12 @@
 
       }
 
+    }
+
+    // Calculate count of unique players per Mandal
+    const counts = emptyCounts();
+    for (const [key, set] of Object.entries(mandalPlayerSets)) {
+      counts[key] = set.size;
     }
 
     // =======================================================
@@ -365,7 +413,7 @@
     );
 
     console.log(
-      "DSSL MANDAL COUNTS:",
+      "DSSL MANDAL COUNTS (UNIQUE PLAYERS):",
       counts
     );
 
