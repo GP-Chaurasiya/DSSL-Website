@@ -1556,6 +1556,12 @@
         </button>
       </li>
       <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="semifinals">
+          <i class="ri-medal-line"></i>
+          <span>Semi-Final Players</span>
+        </button>
+      </li>
+      <li class="menu-item" data-access="ORGANISER">
         <button class="menu-btn" data-tab="teams">
           <i class="ri-team-line"></i>
           <span>Team Management</span>
@@ -2151,6 +2157,302 @@
             <div class="bracket-canvas" id="bracketCanvas">
               <!-- Generated dynamically via Javascript in clean bracket format -->
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: SEMI-FINAL PLAYERS ── -->
+      <div class="tab-content" id="tab-semifinals">
+        <div class="section-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 10px;">
+                <i class="ri-medal-fill" style="color: var(--primary);"></i>
+                Semi-Final Stage &amp; Qualifiers Manager
+              </h3>
+              <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+                Set and edit the qualified semi-finalist players and teams for any sport category. Updates reflect live on the public Sports tab.
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button type="button" class="btn btn-secondary" onclick="resetSemiFinalForm()">
+                <i class="ri-refresh-line"></i> Reset Form
+              </button>
+              <button type="button" class="btn" onclick="saveSemiFinalData()" style="display: flex; align-items: center; gap: 8px;">
+                <i class="ri-save-line"></i> Save Semi-Finalists
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter / Sport Picker Bar -->
+          <div class="fixtures-toolbar" style="background: rgba(255,255,255,0.02); margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color);">
+            <div class="fixtures-filters" style="width: 100%;">
+              <div class="filter-item" style="flex: 1; min-width: 200px;">
+                <label for="adminSemiSportSelect">Select Sport</label>
+                <select id="adminSemiSportSelect" onchange="onAdminSemiSportChange()" style="font-weight: 600; font-size: 14px;">
+                  <!-- Sports populated dynamically -->
+                </select>
+              </div>
+              <div class="filter-item" style="width: 180px;">
+                <label for="adminSemiGenderSelect">Category / Gender</label>
+                <select id="adminSemiGenderSelect" onchange="onAdminSemiFieldChange()">
+                  <option value="Boys">Boys Championship</option>
+                  <option value="Girls">Girls Championship</option>
+                  <option value="Open">Open Category</option>
+                  <option value="Mixed">Mixed Doubles / Event</option>
+                </select>
+              </div>
+              <div class="filter-item" style="width: 160px;">
+                <label>Status Preview</label>
+                <div id="adminSemiStatusBadge" class="badge badge-success" style="padding: 9px 12px; font-size: 13px; text-align: center; border-radius: 8px;">CONFIGURED</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dual Semi-Final Editor Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+            
+            <!-- Semi-Final 1 Box -->
+            <div class="section-card" style="border: 2px solid rgba(255, 188, 1, 0.4); border-radius: 16px; background-color: var(--bg-secondary); box-shadow: var(--shadow); position: relative;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #ffbc01, #3b82f6); border-radius: 16px 16px 0 0;"></div>
+              <div class="section-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <i class="ri-fire-fill" style="color: #ffbc01;"></i> Semi-Final 1
+                </h4>
+                <span class="badge badge-warning">SF 1</span>
+              </div>
+
+              <!-- Slot A -->
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                  <span>Player / Team A</span>
+                  <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="sf1_isWinnerA" onchange="toggleSfWinner('sf1', 'A')"> Winner / Qualified 🏆
+                  </label>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                  <div class="form-group">
+                    <label>Name / Title</label>
+                    <input type="text" id="sf1_nameA" placeholder="e.g. Vashishta Warriors / Rahul" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Mandal / Dal</label>
+                    <select id="sf1_mandalA" class="input">
+                      <option value="">-- Select Mandal --</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                  <div class="form-group">
+                    <label>Score / Result (Optional)</label>
+                    <input type="text" id="sf1_scoreA" placeholder="e.g. 142/6 or 21" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Captain / Subtitle / Role</label>
+                    <input type="text" id="sf1_notesA" placeholder="e.g. Capt: Rahul / Seed 1" class="input">
+                  </div>
+                </div>
+              </div>
+
+              <!-- VS Badge Divider -->
+              <div style="text-align: center; margin: -6px 0 6px 0; font-weight: 800; font-size: 12px; color: var(--text-muted);">⚡ VS ⚡</div>
+
+              <!-- Slot B -->
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 12px; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                  <span>Player / Team B</span>
+                  <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="sf1_isWinnerB" onchange="toggleSfWinner('sf1', 'B')"> Winner / Qualified 🏆
+                  </label>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                  <div class="form-group">
+                    <label>Name / Title</label>
+                    <input type="text" id="sf1_nameB" placeholder="e.g. Vishwamitra Kings / Amit" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Mandal / Dal</label>
+                    <select id="sf1_mandalB" class="input">
+                      <option value="">-- Select Mandal --</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                  <div class="form-group">
+                    <label>Score / Result (Optional)</label>
+                    <input type="text" id="sf1_scoreB" placeholder="e.g. 138/9 or 19" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Captain / Subtitle / Role</label>
+                    <input type="text" id="sf1_notesB" placeholder="e.g. Capt: Amit / Seed 4" class="input">
+                  </div>
+                </div>
+              </div>
+
+              <!-- SF1 Meta -->
+              <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                <div class="form-group">
+                  <label>Match Date</label>
+                  <input type="date" id="sf1_date" class="input">
+                </div>
+                <div class="form-group">
+                  <label>Time &amp; Venue</label>
+                  <input type="text" id="sf1_timeVenue" placeholder="09:00 AM • Main Ground" class="input">
+                </div>
+                <div class="form-group">
+                  <label>Match Status</label>
+                  <select id="sf1_status" class="input">
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Live">Live In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Semi-Final 2 Box -->
+            <div class="section-card" style="border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 16px; background-color: var(--bg-secondary); box-shadow: var(--shadow); position: relative;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #3b82f6, #10b981); border-radius: 16px 16px 0 0;"></div>
+              <div class="section-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <i class="ri-fire-fill" style="color: #3b82f6;"></i> Semi-Final 2
+                </h4>
+                <span class="badge badge-warning" style="background:rgba(59,130,246,0.15); color:#3b82f6; border-color:rgba(59,130,246,0.3);">SF 2</span>
+              </div>
+
+              <!-- Slot A -->
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                  <span>Player / Team A</span>
+                  <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="sf2_isWinnerA" onchange="toggleSfWinner('sf2', 'A')"> Winner / Qualified 🏆
+                  </label>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                  <div class="form-group">
+                    <label>Name / Title</label>
+                    <input type="text" id="sf2_nameA" placeholder="e.g. Atrey Strikers" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Mandal / Dal</label>
+                    <select id="sf2_mandalA" class="input">
+                      <option value="">-- Select Mandal --</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                  <div class="form-group">
+                    <label>Score / Result (Optional)</label>
+                    <input type="text" id="sf2_scoreA" placeholder="e.g. 2 or 21" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Captain / Subtitle / Role</label>
+                    <input type="text" id="sf2_notesA" placeholder="e.g. Capt: Rohit / Seed 2" class="input">
+                  </div>
+                </div>
+              </div>
+
+              <!-- VS Badge Divider -->
+              <div style="text-align: center; margin: -6px 0 6px 0; font-weight: 800; font-size: 12px; color: var(--text-muted);">⚡ VS ⚡</div>
+
+              <!-- Slot B -->
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 12px; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                  <span>Player / Team B</span>
+                  <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <input type="checkbox" id="sf2_isWinnerB" onchange="toggleSfWinner('sf2', 'B')"> Winner / Qualified 🏆
+                  </label>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                  <div class="form-group">
+                    <label>Name / Title</label>
+                    <input type="text" id="sf2_nameB" placeholder="e.g. Gautam Lions" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Mandal / Dal</label>
+                    <select id="sf2_mandalB" class="input">
+                      <option value="">-- Select Mandal --</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                  <div class="form-group">
+                    <label>Score / Result (Optional)</label>
+                    <input type="text" id="sf2_scoreB" placeholder="e.g. 1 or 17" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label>Captain / Subtitle / Role</label>
+                    <input type="text" id="sf2_notesB" placeholder="e.g. Capt: Vikas / Seed 3" class="input">
+                  </div>
+                </div>
+              </div>
+
+              <!-- SF2 Meta -->
+              <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                <div class="form-group">
+                  <label>Match Date</label>
+                  <input type="date" id="sf2_date" class="input">
+                </div>
+                <div class="form-group">
+                  <label>Time &amp; Venue</label>
+                  <input type="text" id="sf2_timeVenue" placeholder="02:00 PM • Arena" class="input">
+                </div>
+                <div class="form-group">
+                  <label>Match Status</label>
+                  <select id="sf2_status" class="input">
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Live">Live In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Individual Athletes / Qualifiers Manager (Optional Table) -->
+          <div class="section-card" style="background: rgba(255,255,255,0.01); margin-bottom: 1.5rem;">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <i class="ri-user-star-line" style="color: var(--primary);"></i> Individual Qualified Athletes / Players (Athletics, Chess, Singles)
+                </h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  Add specific qualifiers with their Mandal, lane/rank, and timing/scores.
+                </p>
+              </div>
+              <button type="button" class="btn btn-secondary" onclick="addAdminSemiQualifierRow()" style="font-size: 12px; padding: 6px 12px;">
+                <i class="ri-user-add-line"></i> Add Qualifier
+              </button>
+            </div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Player / Athlete Name</th>
+                    <th>Mandal</th>
+                    <th>Stage / Role / Lane</th>
+                    <th>Timing / Points</th>
+                    <th>Status</th>
+                    <th style="width: 50px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="adminSemiQualifiersTable">
+                  <!-- Rows populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Action Save Footer -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 10px;">
+            <button type="button" class="btn btn-danger" onclick="deleteSemiFinalData()">
+              <i class="ri-delete-bin-line"></i> Clear Semi-Finals For This Sport
+            </button>
+            <button type="button" class="btn" onclick="saveSemiFinalData()" style="padding: 10px 24px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <i class="ri-save-line"></i> Save Semi-Finalists Now
+            </button>
           </div>
         </div>
       </div>

@@ -228,6 +228,10 @@ async function loadTabData(tab) {
         await loadMatches();
         initFixturesModule();
         break;
+      case "semifinals":
+        await loadDals();
+        await initAdminSemiFinals();
+        break;
 
       case "analytics":
         const analyticsIframe = document.getElementById("analyticsIframe");
@@ -2802,5 +2806,379 @@ if (document.readyState === "loading") {
 } else {
   renderRegistrationControl();
 }
+
+// ── Semi-Finals Management Module ─────────────────────────────────────────────
+let adminSemiFinalsData = {};
+
+async function initAdminSemiFinals() {
+  populateAdminSemiSportSelect();
+  populateAdminSemiMandalSelects();
+  
+  try {
+    const res = await fetch("/api/semifinals");
+    if (res.ok) {
+      adminSemiFinalsData = await res.json();
+    }
+  } catch (err) {
+    console.error("Error loading semifinals data in admin:", err);
+  }
+
+  const select = document.getElementById("adminSemiSportSelect");
+  if (select && select.value) {
+    loadAdminSemiDataForSport(select.value);
+  }
+}
+
+function populateAdminSemiSportSelect() {
+  const select = document.getElementById("adminSemiSportSelect");
+  if (!select || select.children.length > 0) return;
+
+  select.innerHTML = SPORTS.map(s => `<option value="${s.name}">${s.icon} ${s.name}</option>`).join("");
+}
+
+function populateAdminSemiMandalSelects() {
+  const mandalSelects = [
+    document.getElementById("sf1_mandalA"),
+    document.getElementById("sf1_mandalB"),
+    document.getElementById("sf2_mandalA"),
+    document.getElementById("sf2_mandalB")
+  ];
+
+  const mandalOptions = `
+    <option value="">-- Select Mandal --</option>
+    ${allDals.map(d => `<option value="${d.name}">${d.name} (${d.abbreviation || ''})</option>`).join("")}
+  `;
+
+  mandalSelects.forEach(sel => {
+    if (sel) {
+      const currentVal = sel.value;
+      sel.innerHTML = mandalOptions;
+      if (currentVal) sel.value = currentVal;
+    }
+  });
+}
+
+function onAdminSemiSportChange() {
+  const select = document.getElementById("adminSemiSportSelect");
+  if (!select) return;
+  loadAdminSemiDataForSport(select.value);
+}
+
+function onAdminSemiFieldChange() {
+  // Can trigger live validation/indicators
+}
+
+function loadAdminSemiDataForSport(sportName) {
+  const sportData = adminSemiFinalsData[sportName] || null;
+  const statusBadge = document.getElementById("adminSemiStatusBadge");
+
+  if (!sportData) {
+    if (statusBadge) {
+      statusBadge.textContent = "NOT CONFIGURED";
+      statusBadge.className = "badge badge-secondary";
+    }
+    resetSemiFinalForm(false);
+    return;
+  }
+
+  if (statusBadge) {
+    statusBadge.textContent = "ACTIVE & CONFIGURED";
+    statusBadge.className = "badge badge-success";
+  }
+
+  // Gender
+  const genderSel = document.getElementById("adminSemiGenderSelect");
+  if (genderSel && sportData.gender) genderSel.value = sportData.gender;
+
+  // SF1
+  const sf1 = sportData.semiFinal1 || {};
+  const pA1 = sf1.playerA || {};
+  const pB1 = sf1.playerB || {};
+
+  setElVal("sf1_nameA", pA1.name || "");
+  setElVal("sf1_mandalA", pA1.mandal || "");
+  setElVal("sf1_scoreA", pA1.score || "");
+  setElVal("sf1_notesA", pA1.notes || "");
+  setElChecked("sf1_isWinnerA", Boolean(pA1.isWinner));
+
+  setElVal("sf1_nameB", pB1.name || "");
+  setElVal("sf1_mandalB", pB1.mandal || "");
+  setElVal("sf1_scoreB", pB1.score || "");
+  setElVal("sf1_notesB", pB1.notes || "");
+  setElChecked("sf1_isWinnerB", Boolean(pB1.isWinner));
+
+  setElVal("sf1_date", sf1.matchDate || "");
+  const sf1TimeVenue = [sf1.matchTime, sf1.venue].filter(Boolean).join(" • ");
+  setElVal("sf1_timeVenue", sf1TimeVenue);
+  setElVal("sf1_status", sf1.status || "Scheduled");
+
+  // SF2
+  const sf2 = sportData.semiFinal2 || {};
+  const pA2 = sf2.playerA || {};
+  const pB2 = sf2.playerB || {};
+
+  setElVal("sf2_nameA", pA2.name || "");
+  setElVal("sf2_mandalA", pA2.mandal || "");
+  setElVal("sf2_scoreA", pA2.score || "");
+  setElVal("sf2_notesA", pA2.notes || "");
+  setElChecked("sf2_isWinnerA", Boolean(pA2.isWinner));
+
+  setElVal("sf2_nameB", pB2.name || "");
+  setElVal("sf2_mandalB", pB2.mandal || "");
+  setElVal("sf2_scoreB", pB2.score || "");
+  setElVal("sf2_notesB", pB2.notes || "");
+  setElChecked("sf2_isWinnerB", Boolean(pB2.isWinner));
+
+  setElVal("sf2_date", sf2.matchDate || "");
+  const sf2TimeVenue = [sf2.matchTime, sf2.venue].filter(Boolean).join(" • ");
+  setElVal("sf2_timeVenue", sf2TimeVenue);
+  setElVal("sf2_status", sf2.status || "Scheduled");
+
+  // Custom Qualifiers
+  const tableBody = document.getElementById("adminSemiQualifiersTable");
+  if (tableBody) {
+    tableBody.innerHTML = "";
+    if (Array.isArray(sportData.customQualifiers)) {
+      sportData.customQualifiers.forEach(q => addAdminSemiQualifierRow(q));
+    }
+  }
+}
+
+function setElVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function setElChecked(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.checked = Boolean(val);
+}
+
+function toggleSfWinner(sfKey, slot) {
+  if (slot === 'A') {
+    const isWinnerA = document.getElementById(`${sfKey}_isWinnerA`)?.checked;
+    if (isWinnerA) {
+      setElChecked(`${sfKey}_isWinnerB`, false);
+    }
+  } else {
+    const isWinnerB = document.getElementById(`${sfKey}_isWinnerB`)?.checked;
+    if (isWinnerB) {
+      setElChecked(`${sfKey}_isWinnerA`, false);
+    }
+  }
+}
+
+function addAdminSemiQualifierRow(data = {}) {
+  const tableBody = document.getElementById("adminSemiQualifiersTable");
+  if (!tableBody) return;
+
+  const mandalOptions = `
+    <option value="">-- Mandal --</option>
+    ${allDals.map(d => `<option value="${d.name}" ${data.mandal === d.name ? 'selected' : ''}>${d.name}</option>`).join("")}
+  `;
+
+  const tr = document.createElement("tr");
+  tr.className = "qualifier-row-item";
+  tr.innerHTML = `
+    <td><input type="text" class="input q-name" value="${data.name || ''}" placeholder="Player / Athlete Name" style="width: 100%;"></td>
+    <td><select class="input q-mandal" style="width: 100%;">${mandalOptions}</select></td>
+    <td><input type="text" class="input q-role" value="${data.role || data.lane || ''}" placeholder="Heat 1 / Lane 4 / Rank 1" style="width: 100%;"></td>
+    <td><input type="text" class="input q-timing" value="${data.timing || data.score || ''}" placeholder="11.2s / 25 pts" style="width: 100%;"></td>
+    <td>
+      <select class="input q-status" style="width: 100%;">
+        <option value="Qualified" ${data.status === 'Qualified' ? 'selected' : ''}>Qualified</option>
+        <option value="Semi-Finalist" ${data.status === 'Semi-Finalist' ? 'selected' : ''}>Semi-Finalist</option>
+        <option value="Finalist" ${data.status === 'Finalist' ? 'selected' : ''}>Finalist</option>
+        <option value="Standby" ${data.status === 'Standby' ? 'selected' : ''}>Standby</option>
+      </select>
+    </td>
+    <td>
+      <button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()" style="padding: 4px 8px; font-size: 13px;" title="Remove row">
+        <i class="ri-delete-bin-line"></i>
+      </button>
+    </td>
+  `;
+  tableBody.appendChild(tr);
+}
+
+function resetSemiFinalForm(confirmUser = true) {
+  if (confirmUser && !confirm("Are you sure you want to clear current input fields?")) return;
+
+  const fields = [
+    "sf1_nameA", "sf1_mandalA", "sf1_scoreA", "sf1_notesA",
+    "sf1_nameB", "sf1_mandalB", "sf1_scoreB", "sf1_notesB",
+    "sf1_date", "sf1_timeVenue",
+    "sf2_nameA", "sf2_mandalA", "sf2_scoreA", "sf2_notesA",
+    "sf2_nameB", "sf2_mandalB", "sf2_scoreB", "sf2_notesB",
+    "sf2_date", "sf2_timeVenue"
+  ];
+
+  fields.forEach(id => setElVal(id, ""));
+  setElChecked("sf1_isWinnerA", false);
+  setElChecked("sf1_isWinnerB", false);
+  setElChecked("sf2_isWinnerA", false);
+  setElChecked("sf2_isWinnerB", false);
+  setElVal("sf1_status", "Scheduled");
+  setElVal("sf2_status", "Scheduled");
+
+  const tableBody = document.getElementById("adminSemiQualifiersTable");
+  if (tableBody) tableBody.innerHTML = "";
+}
+
+async function saveSemiFinalData() {
+  const sportSelect = document.getElementById("adminSemiSportSelect");
+  if (!sportSelect || !sportSelect.value) {
+    alert("Please select a sport category first.");
+    return;
+  }
+
+  const sportName = sportSelect.value;
+  const gender = document.getElementById("adminSemiGenderSelect")?.value || "Boys";
+
+  // Parse SF1 time and venue
+  const sf1Tv = (document.getElementById("sf1_timeVenue")?.value || "").split("•");
+  const sf1MatchTime = sf1Tv[0] ? sf1Tv[0].trim() : "";
+  const sf1Venue = sf1Tv[1] ? sf1Tv[1].trim() : "";
+
+  const semiFinal1 = {
+    playerA: {
+      name: document.getElementById("sf1_nameA")?.value.trim() || "",
+      mandal: document.getElementById("sf1_mandalA")?.value || "",
+      score: document.getElementById("sf1_scoreA")?.value.trim() || "",
+      notes: document.getElementById("sf1_notesA")?.value.trim() || "",
+      isWinner: document.getElementById("sf1_isWinnerA")?.checked || false
+    },
+    playerB: {
+      name: document.getElementById("sf1_nameB")?.value.trim() || "",
+      mandal: document.getElementById("sf1_mandalB")?.value || "",
+      score: document.getElementById("sf1_scoreB")?.value.trim() || "",
+      notes: document.getElementById("sf1_notesB")?.value.trim() || "",
+      isWinner: document.getElementById("sf1_isWinnerB")?.checked || false
+    },
+    matchDate: document.getElementById("sf1_date")?.value || "",
+    matchTime: sf1MatchTime,
+    venue: sf1Venue,
+    status: document.getElementById("sf1_status")?.value || "Scheduled"
+  };
+
+  // Parse SF2 time and venue
+  const sf2Tv = (document.getElementById("sf2_timeVenue")?.value || "").split("•");
+  const sf2MatchTime = sf2Tv[0] ? sf2Tv[0].trim() : "";
+  const sf2Venue = sf2Tv[1] ? sf2Tv[1].trim() : "";
+
+  const semiFinal2 = {
+    playerA: {
+      name: document.getElementById("sf2_nameA")?.value.trim() || "",
+      mandal: document.getElementById("sf2_mandalA")?.value || "",
+      score: document.getElementById("sf2_scoreA")?.value.trim() || "",
+      notes: document.getElementById("sf2_notesA")?.value.trim() || "",
+      isWinner: document.getElementById("sf2_isWinnerA")?.checked || false
+    },
+    playerB: {
+      name: document.getElementById("sf2_nameB")?.value.trim() || "",
+      mandal: document.getElementById("sf2_mandalB")?.value || "",
+      score: document.getElementById("sf2_scoreB")?.value.trim() || "",
+      notes: document.getElementById("sf2_notesB")?.value.trim() || "",
+      isWinner: document.getElementById("sf2_isWinnerB")?.checked || false
+    },
+    matchDate: document.getElementById("sf2_date")?.value || "",
+    matchTime: sf2MatchTime,
+    venue: sf2Venue,
+    status: document.getElementById("sf2_status")?.value || "Scheduled"
+  };
+
+  // Collect custom qualifiers
+  const customQualifiers = [];
+  const rows = document.querySelectorAll("#adminSemiQualifiersTable .qualifier-row-item");
+  rows.forEach(r => {
+    const name = r.querySelector(".q-name")?.value.trim();
+    if (name) {
+      customQualifiers.push({
+        name,
+        mandal: r.querySelector(".q-mandal")?.value || "",
+        role: r.querySelector(".q-role")?.value.trim() || "",
+        timing: r.querySelector(".q-timing")?.value.trim() || "",
+        status: r.querySelector(".q-status")?.value || "Qualified"
+      });
+    }
+  });
+
+  const payload = {
+    sportName,
+    gender,
+    semiFinal1,
+    semiFinal2,
+    customQualifiers
+  };
+
+  try {
+    const res = await apiCall("/api/semifinals", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    if (res.success) {
+      adminSemiFinalsData[sportName] = res.data;
+      const statusBadge = document.getElementById("adminSemiStatusBadge");
+      if (statusBadge) {
+        statusBadge.textContent = "ACTIVE & SAVED";
+        statusBadge.className = "badge badge-success";
+      }
+      alert(`Semi-Finalists for ${sportName} saved successfully! Updates are live on the Sports tab.`);
+    }
+  } catch (err) {
+    alert("Error saving semi-finalists: " + err.message);
+  }
+}
+
+async function deleteSemiFinalData() {
+  const sportSelect = document.getElementById("adminSemiSportSelect");
+  if (!sportSelect || !sportSelect.value) return;
+
+  const sportName = sportSelect.value;
+  if (!confirm(`Are you sure you want to completely clear and reset Semi-Finals for ${sportName}?`)) return;
+
+  try {
+    await apiCall(`/api/semifinals/${encodeURIComponent(sportName)}`, {
+      method: "DELETE"
+    });
+
+    delete adminSemiFinalsData[sportName];
+    resetSemiFinalForm(false);
+    const statusBadge = document.getElementById("adminSemiStatusBadge");
+    if (statusBadge) {
+      statusBadge.textContent = "NOT CONFIGURED";
+      statusBadge.className = "badge badge-secondary";
+    }
+    alert(`Semi-Finals for ${sportName} cleared.`);
+  } catch (err) {
+    alert("Error clearing semi-final data: " + err.message);
+  }
+}
+
+// Socket listener for admin semi-final sync
+socket.on("semifinalsUpdate", ({ sportName, data }) => {
+  if (data) {
+    adminSemiFinalsData[sportName] = data;
+  } else {
+    delete adminSemiFinalsData[sportName];
+  }
+
+  const select = document.getElementById("adminSemiSportSelect");
+  if (select && select.value === sportName && document.getElementById("tab-semifinals")?.classList.contains("active")) {
+    loadAdminSemiDataForSport(sportName);
+  }
+});
+
+// Global window bindings for admin inline event handlers
+window.initAdminSemiFinals = initAdminSemiFinals;
+window.onAdminSemiSportChange = onAdminSemiSportChange;
+window.onAdminSemiFieldChange = onAdminSemiFieldChange;
+window.toggleSfWinner = toggleSfWinner;
+window.addAdminSemiQualifierRow = addAdminSemiQualifierRow;
+window.saveSemiFinalData = saveSemiFinalData;
+window.deleteSemiFinalData = deleteSemiFinalData;
+window.resetSemiFinalForm = resetSemiFinalForm;
+
 
 

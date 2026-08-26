@@ -1113,6 +1113,101 @@ app.post("/api/settings/registration", authenticateToken, requireRole(["SUPER_AD
   res.json(updatedSettings);
 });
 
+// ── Semi-Final Players & Qualifiers APIs ───────────────────────────────────────
+const semiFinalsFilePath = path.join(ROOT, "semifinal_players.json");
+
+function getSemiFinalsData() {
+  try {
+    if (fs.existsSync(semiFinalsFilePath)) {
+      const data = fs.readFileSync(semiFinalsFilePath, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Error reading semifinal_players.json:", err);
+  }
+  return {};
+}
+
+function saveSemiFinalsData(data) {
+  try {
+    fs.writeFileSync(semiFinalsFilePath, JSON.stringify(data, null, 2), "utf8");
+    return true;
+  } catch (err) {
+    console.error("Error saving semifinal_players.json:", err);
+    return false;
+  }
+}
+
+// Get all semi-final data or for a specific sport
+app.get("/api/semifinals", (req, res) => {
+  const allData = getSemiFinalsData();
+  const sport = req.query.sport;
+  if (sport) {
+    return res.json(allData[sport] || null);
+  }
+  res.json(allData);
+});
+
+app.get("/api/semifinals/:sportName", (req, res) => {
+  const allData = getSemiFinalsData();
+  const sportName = req.params.sportName;
+  res.json(allData[sportName] || null);
+});
+
+// Save / update semi-finalists for a sport (Admin/Organiser only)
+app.post("/api/semifinals", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  const { sportName, gender, semiFinal1, semiFinal2, customQualifiers } = req.body;
+  if (!sportName) {
+    return res.status(400).json({ error: "Sport name is required" });
+  }
+
+  const allData = getSemiFinalsData();
+  const sportEntry = {
+    sportName,
+    gender: gender || "Boys",
+    updatedAt: new Date().toISOString(),
+    updatedBy: req.user ? req.user.username : "Admin",
+    semiFinal1: semiFinal1 || {
+      playerA: { name: "", mandal: "", score: "", notes: "", isWinner: false },
+      playerB: { name: "", mandal: "", score: "", notes: "", isWinner: false },
+      matchDate: "",
+      matchTime: "",
+      venue: "",
+      status: "Scheduled"
+    },
+    semiFinal2: semiFinal2 || {
+      playerA: { name: "", mandal: "", score: "", notes: "", isWinner: false },
+      playerB: { name: "", mandal: "", score: "", notes: "", isWinner: false },
+      matchDate: "",
+      matchTime: "",
+      venue: "",
+      status: "Scheduled"
+    },
+    customQualifiers: Array.isArray(customQualifiers) ? customQualifiers : []
+  };
+
+  allData[sportName] = sportEntry;
+  const success = saveSemiFinalsData(allData);
+  if (!success) {
+    return res.status(500).json({ error: "Failed to save semi-finalists data" });
+  }
+
+  io.emit("semifinalsUpdate", { sportName, data: sportEntry });
+  res.json({ success: true, sportName, data: sportEntry });
+});
+
+// Delete / reset semi-finalists for a sport
+app.delete("/api/semifinals/:sportName", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  const sportName = req.params.sportName;
+  const allData = getSemiFinalsData();
+  if (allData[sportName]) {
+    delete allData[sportName];
+    saveSemiFinalsData(allData);
+    io.emit("semifinalsUpdate", { sportName, data: null });
+  }
+  res.json({ success: true, sportName });
+});
+
 
 // ── Static Files & Dashboard Routes ───────────────────────────────────────────
 

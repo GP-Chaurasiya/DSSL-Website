@@ -172,6 +172,301 @@
       grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
       gap: 1.5rem;
     }
+
+    /* ── Semi-Finals Component Styles ── */
+    .semifinal-stage-container {
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, rgba(255, 188, 1, 0.04) 0%, rgba(37, 99, 235, 0.04) 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 1.5rem;
+    }
+
+    .semifinal-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .semifinal-title-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--heading-color);
+    }
+
+    .semifinal-title-box i {
+      font-size: 22px;
+      color: #ffbc01;
+    }
+
+    .semifinal-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(255, 188, 1, 0.15);
+      color: #e0a500;
+      border: 1px solid rgba(255, 188, 1, 0.3);
+    }
+
+    .semifinal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .semifinal-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .semifinal-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--card-shadow);
+      border-color: rgba(255, 188, 1, 0.5);
+    }
+
+    .semifinal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #ffbc01, #3b82f6);
+    }
+
+    .semifinal-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .semifinal-match-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--heading-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .semifinal-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .badge-completed {
+      background-color: rgba(16, 185, 129, 0.12);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-live {
+      background-color: rgba(239, 68, 68, 0.12);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      animation: pulse 1.5s infinite;
+    }
+
+    .badge-scheduled {
+      background-color: rgba(214, 158, 46, 0.12);
+      color: #d69e2e;
+      border: 1px solid rgba(214, 158, 46, 0.3);
+    }
+
+    .semifinal-players-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .semifinal-player-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+
+    [data-theme="light"] .semifinal-player-row {
+      background-color: #f8fafc;
+    }
+
+    .semifinal-player-row.winner {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .semifinal-player-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .mandal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary-color, #ffbc01);
+      flex-shrink: 0;
+    }
+
+    .semifinal-player-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--heading-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .semifinal-player-mandal {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .semifinal-player-score {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--heading-color);
+      padding: 2px 8px;
+      background: rgba(0,0,0,0.06);
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .winner-badge-icon {
+      color: #ffbc01;
+      font-size: 15px;
+      margin-left: 4px;
+    }
+
+    .semifinal-vs-divider {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin: -2px 0;
+    }
+
+    .semifinal-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-light);
+      padding-top: 10px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .semifinal-card-footer span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .qualifiers-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 0.5rem;
+    }
+
+    .qualifiers-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .qualifiers-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .qualifier-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(255, 188, 1, 0.1);
+      border: 1px solid rgba(255, 188, 1, 0.25);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--heading-color);
+    }
+
+    .drawer-view-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .drawer-tab-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .drawer-tab-btn:hover {
+      background-color: var(--surface-hover);
+      color: var(--heading-color);
+    }
+
+    .drawer-tab-btn.active {
+      background-color: var(--primary-color);
+      color: #000;
+      border-color: var(--primary-color);
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -230,8 +525,29 @@
         </div>
         <button class="drawer-close" onclick="closeDrawer()"><i class="ri-close-line"></i></button>
       </div>
-      <div class="matches-grid" id="drawerMatchesList">
-        <!-- Dynamic matches layout list -->
+
+      <!-- Drawer View Switcher Tabs -->
+      <div class="drawer-view-tabs">
+        <button type="button" class="drawer-tab-btn active" id="drawerTabSemi" onclick="switchDrawerTab('semi')">
+          <i class="ri-medal-line"></i> Semi-Final Players &amp; Qualifiers
+        </button>
+        <button type="button" class="drawer-tab-btn" id="drawerTabFixtures" onclick="switchDrawerTab('fixtures')">
+          <i class="ri-calendar-event-line"></i> All Fixtures (<span id="drawerMatchCount">0</span>)
+        </button>
+      </div>
+
+      <!-- Semi-Finals Section Container -->
+      <div class="semifinal-stage-container" id="semifinalsView">
+        <div id="semifinalsContent">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- Matches list container -->
+      <div id="fixturesView" style="display: none;">
+        <div class="matches-grid" id="drawerMatchesList">
+          <!-- Dynamic matches layout list -->
+        </div>
       </div>
     </div>
   </div>
@@ -296,7 +612,10 @@
     ];
 
     let allMatches = [];
+    let allSemiFinals = {};
     let selectedSportId = null;
+    let selectedSportName = "";
+    let activeDrawerTab = "semi"; // "semi" | "fixtures"
 
     // Theme Switch
     const themeBtn = document.getElementById("themeBtn");
@@ -335,14 +654,24 @@
 
     async function loadMatches() {
       try {
-        const response = await fetch("/api/matches");
-        allMatches = (await response.json()).map(normalizeMatchData).filter(Boolean);
+        const [matchesRes, semiRes] = await Promise.all([
+          fetch("/api/matches"),
+          fetch("/api/semifinals")
+        ]);
+        
+        if (matchesRes.ok) {
+          allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
+        }
+        if (semiRes.ok) {
+          allSemiFinals = await semiRes.json();
+        }
+
         renderSportsList();
         if (selectedSportId !== null) {
-          renderMatchesForSport();
+          renderDrawerContent();
         }
       } catch (err) {
-        console.error("Failed to load matches list", err);
+        console.error("Failed to load matches/semifinals list", err);
       }
     }
 
@@ -352,6 +681,7 @@
 
       SPORTS.forEach((sport) => {
         const matchesCount = allMatches.filter(m => m.sportId == sport.id).length;
+        const hasSemi = Boolean(allSemiFinals[sport.name]);
 
         const card = document.createElement("div");
         card.className = `sport-card-custom ${selectedSportId == sport.id ? 'active' : ''}`;
@@ -360,7 +690,10 @@
         card.innerHTML = `
           <div class="sport-icon-wrapper">${sport.icon}</div>
           <h3>${sport.name}</h3>
-          <div class="sport-match-count">${matchesCount} Matches</div>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; align-items: center;">
+            <div class="sport-match-count">${matchesCount} Matches</div>
+            ${hasSemi ? '<span class="sport-match-count" style="background: rgba(255,188,1,0.15); color: #e0a500; border: 1px solid rgba(255,188,1,0.3);">🏆 Semi-Finals</span>' : ''}
+          </div>
         `;
         container.appendChild(card);
       });
@@ -373,22 +706,200 @@
       }
 
       selectedSportId = id;
+      selectedSportName = name;
       renderSportsList(); // Update active highlights
 
       const drawer = document.getElementById("matchesDrawer");
       drawer.style.display = "block";
       document.getElementById("drawerIcon").textContent = icon;
-      document.getElementById("drawerSportName").textContent = `${name} Matches`;
+      document.getElementById("drawerSportName").textContent = `${name} Highlights & Stage`;
 
-      renderMatchesForSport();
-
+      renderDrawerContent();
       drawer.scrollIntoView({ behavior: 'smooth' });
     }
 
     function closeDrawer() {
       selectedSportId = null;
+      selectedSportName = "";
       document.getElementById("matchesDrawer").style.display = "none";
       renderSportsList();
+    }
+
+    function switchDrawerTab(tab) {
+      activeDrawerTab = tab;
+      document.getElementById("drawerTabSemi").classList.toggle("active", tab === "semi");
+      document.getElementById("drawerTabFixtures").classList.toggle("active", tab === "fixtures");
+      
+      document.getElementById("semifinalsView").style.display = tab === "semi" ? "block" : "none";
+      document.getElementById("fixturesView").style.display = tab === "fixtures" ? "block" : "none";
+    }
+
+    function renderDrawerContent() {
+      const sportObj = SPORTS.find(s => s.id === selectedSportId);
+      const sportName = sportObj ? sportObj.name : selectedSportName;
+      
+      const filteredMatches = allMatches.filter(m => m.sportId == selectedSportId);
+      document.getElementById("drawerMatchCount").textContent = filteredMatches.length;
+
+      renderSemiFinalsForSport(sportName);
+      renderMatchesForSport();
+    }
+
+    function renderSemiFinalsForSport(sportName) {
+      const container = document.getElementById("semifinalsContent");
+      const semiData = allSemiFinals[sportName];
+
+      if (!semiData || (!semiData.semiFinal1 && !semiData.semiFinal2 && (!semiData.customQualifiers || semiData.customQualifiers.length === 0))) {
+        container.innerHTML = `
+          <div class="semifinal-section-header">
+            <div class="semifinal-title-box">
+              <i class="ri-medal-line"></i>
+              <span>Semi-Final Stage</span>
+            </div>
+            <span class="semifinal-tag">${sportName}</span>
+          </div>
+          <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+            <i class="ri-trophy-line" style="font-size: 40px; color: #ffbc01; opacity: 0.6; display: block; margin-bottom: 10px;"></i>
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--heading-color); margin-bottom: 6px;">Semi-Final Qualifiers Pending</h4>
+            <p style="font-size: 13px; max-width: 460px; margin: 0 auto;">Official semi-finalists and qualified players for <strong>${sportName}</strong> will be announced and updated here as group matches conclude.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const sf1 = semiData.semiFinal1 || {};
+      const sf2 = semiData.semiFinal2 || {};
+      const qualifiers = semiData.customQualifiers || [];
+      const genderText = semiData.gender ? `${semiData.gender} Category` : "Tournament Stage";
+
+      const renderMatchCard = (title, match) => {
+        if (!match || (!match.playerA?.name && !match.playerB?.name)) {
+          return `
+            <div class="semifinal-card">
+              <div class="semifinal-card-top">
+                <span class="semifinal-match-label"><i class="ri-fire-line" style="color: #ffbc01;"></i> ${title}</span>
+                <span class="semifinal-badge badge-scheduled">TBD</span>
+              </div>
+              <div style="padding: 25px 10px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                Teams / Players to be decided
+              </div>
+            </div>
+          `;
+        }
+
+        const pA = match.playerA || {};
+        const pB = match.playerB || {};
+        const status = (match.status || "Scheduled").toLowerCase();
+        let badgeClass = "badge-scheduled";
+        if (status === "completed") badgeClass = "badge-completed";
+        if (status === "live") badgeClass = "badge-live";
+
+        return `
+          <div class="semifinal-card">
+            <div>
+              <div class="semifinal-card-top">
+                <span class="semifinal-match-label">
+                  <i class="ri-trophy-fill" style="color: #ffbc01;"></i> ${title}
+                </span>
+                <span class="semifinal-badge ${badgeClass}">${match.status || 'Scheduled'}</span>
+              </div>
+
+              <div class="semifinal-players-list">
+                <!-- Player / Team A -->
+                <div class="semifinal-player-row ${pA.isWinner ? 'winner' : ''}">
+                  <div class="semifinal-player-info">
+                    <span class="mandal-dot"></span>
+                    <div style="min-width: 0;">
+                      <div class="semifinal-player-name">
+                        ${pA.name || 'TBD'}
+                        ${pA.isWinner ? '<i class="ri-award-fill winner-badge-icon" title="Winner / Qualified"></i>' : ''}
+                      </div>
+                      <div class="semifinal-player-mandal">${pA.mandal || 'Mandal TBD'}${pA.notes ? ` • <span style="color:var(--text-muted);">${pA.notes}</span>` : ''}</div>
+                    </div>
+                  </div>
+                  ${pA.score ? `<div class="semifinal-player-score">${pA.score}</div>` : ''}
+                </div>
+
+                <div class="semifinal-vs-divider">VS</div>
+
+                <!-- Player / Team B -->
+                <div class="semifinal-player-row ${pB.isWinner ? 'winner' : ''}">
+                  <div class="semifinal-player-info">
+                    <span class="mandal-dot" style="background:#3b82f6;"></span>
+                    <div style="min-width: 0;">
+                      <div class="semifinal-player-name">
+                        ${pB.name || 'TBD'}
+                        ${pB.isWinner ? '<i class="ri-award-fill winner-badge-icon" title="Winner / Qualified"></i>' : ''}
+                      </div>
+                      <div class="semifinal-player-mandal">${pB.mandal || 'Mandal TBD'}${pB.notes ? ` • <span style="color:var(--text-muted);">${pB.notes}</span>` : ''}</div>
+                    </div>
+                  </div>
+                  ${pB.score ? `<div class="semifinal-player-score">${pB.score}</div>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div class="semifinal-card-footer">
+              <span><i class="ri-calendar-line"></i> ${match.matchDate || 'Date TBD'}${match.matchTime ? ` @ ${match.matchTime}` : ''}</span>
+              <span><i class="ri-map-pin-line"></i> ${match.venue || 'Venue TBD'}</span>
+            </div>
+          </div>
+        `;
+      };
+
+      let html = `
+        <div class="semifinal-section-header">
+          <div class="semifinal-title-box">
+            <i class="ri-medal-fill"></i>
+            <span>Semi-Final Qualified Players &amp; Teams</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="semifinal-tag" style="background: rgba(59,130,246,0.15); color: #3b82f6; border-color: rgba(59,130,246,0.3);">${genderText}</span>
+            <span class="semifinal-tag">${sportName}</span>
+          </div>
+        </div>
+
+        <div class="semifinal-grid">
+          ${renderMatchCard("Semi-Final 1", sf1)}
+          ${renderMatchCard("Semi-Final 2", sf2)}
+        </div>
+      `;
+
+      if (qualifiers.length > 0) {
+        html += `
+          <div style="margin-top: 1.5rem; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 14px; padding: 1.25rem;">
+            <h4 style="font-size: 14px; font-weight: 800; margin-bottom: 0.75rem; color: var(--heading-color); display: flex; align-items: center; gap: 8px;">
+              <i class="ri-user-star-line" style="color: #ffbc01;"></i> Individual Qualified Semi-Finalists
+            </h4>
+            <div style="overflow-x: auto;">
+              <table class="qualifiers-table">
+                <thead>
+                  <tr>
+                    <th>Player / Athlete</th>
+                    <th>Mandal</th>
+                    <th>Stage / Role</th>
+                    <th>Timing / Score</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${qualifiers.map(q => `
+                    <tr>
+                      <td style="font-weight: 700; color: var(--heading-color);">${q.name || '-'}</td>
+                      <td><span class="qualifier-chip"><i class="ri-shield-line" style="color:#ffbc01;"></i> ${q.mandal || '-'}</span></td>
+                      <td>${q.role || q.lane || '-'}</td>
+                      <td style="font-weight: 700;">${q.timing || q.score || '-'}</td>
+                      <td><span class="semifinal-badge badge-completed">${q.status || 'Qualified'}</span></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
     }
 
     function renderMatchesForSport() {
@@ -472,7 +983,7 @@
       }
       renderSportsList();
       if (selectedSportId == match.sportId) {
-        renderMatchesForSport();
+        renderDrawerContent();
       }
     });
 
@@ -480,9 +991,40 @@
       allMatches = allMatches.filter(m => m.id.toString() != matchId.toString());
       renderSportsList();
       if (selectedSportId) {
-        renderMatchesForSport();
+        renderDrawerContent();
       }
     });
+
+    socket.on("semifinalsUpdate", ({ sportName, data }) => {
+      if (data) {
+        allSemiFinals[sportName] = data;
+      } else {
+        delete allSemiFinals[sportName];
+      }
+      renderSportsList();
+      if (selectedSportName === sportName || (SPORTS.find(s => s.id === selectedSportId)?.name === sportName)) {
+        renderDrawerContent();
+      }
+    });
+
+    loadMatches();
+    // 5-second auto-polling fallback
+    setInterval(async () => {
+      try {
+        const [matchesRes, semiRes] = await Promise.all([
+          fetch("/api/matches"),
+          fetch("/api/semifinals")
+        ]);
+        if (matchesRes.ok) {
+          allMatches = (await matchesRes.json()).map(normalizeMatchData).filter(Boolean);
+        }
+        if (semiRes.ok) {
+          allSemiFinals = await semiRes.json();
+        }
+        renderSportsList();
+        if (selectedSportId) renderDrawerContent();
+      } catch (e) {}
+    }, 5000);
 
     loadMatches();
     // 5-second match auto-polling fallback
