@@ -135,7 +135,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   const SHEET_ID = "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
 
-  // Canonical list of all 21 DSSL Tournament Sports
+  // Canonical list of all 22 DSSL Tournament Sports
   const ALL_TOURNAMENT_SPORTS = [
     "Basketball",
     "Football",
@@ -157,7 +157,8 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     "Discus Throw",
     "Shot Put",
     "7 Stones",
-    "Kabaddi"
+    "Kabaddi",
+    "Track Marking"
   ];
 
   // Exact sheet tab names in the Google Sheet / Excel workbook
@@ -183,12 +184,15 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     "Shot Put",
     "Javelin Throw",
     "Discus Throw",
-    "Kabaddi"
+    "Kabaddi",
+    "Track Marking",
+    "Track marking"
   ];
 
   function normalizeSportName(raw, fallbackSheetName) {
     const s = String(raw || fallbackSheetName || "").trim().toLowerCase();
     
+    if (s.includes("track marking") || s.includes("track mark") || s.includes("track_marking")) return "Track Marking";
     if (s.includes("badminton") && (s.includes("single") || s.includes("singles"))) return "Badminton (Singles)";
     if (s.includes("badminton") && (s.includes("doubl") || s.includes("double") || s.includes("doubles"))) return "Badminton (Doubles)";
     if (s === "badminton") return "Badminton (Singles)";

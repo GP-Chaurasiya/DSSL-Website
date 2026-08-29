@@ -30868,7 +30868,7 @@ function UpcomingMatchCard({
     }
   );
 }
-const VENUES$1 = ["R&D ground", "Vidyapeeth", "Shriram ground", "Gym Hall"];
+const VENUES$1 = ["R&D ground", "Vidyapeeth", "Shriram ground", "Sanghamitra ground", "Gym Hall"];
 function DashboardPage() {
   const { data: stats } = useGetMatchStats();
   const { data: upcomingMatches = [] } = useGetUpcomingMatches(10n);
@@ -32885,7 +32885,7 @@ const Route$1 = createRoute({
   path: "/settings",
   component: SettingsPage
 });
-const VENUES = ["R&D ground", "Vidyapeeth", "Shriram ground", "Gym Hall"];
+const VENUES = ["R&D ground", "Vidyapeeth", "Shriram ground", "Sanghamitra ground", "Gym Hall"];
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");

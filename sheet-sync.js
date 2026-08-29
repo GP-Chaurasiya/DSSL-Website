@@ -13,10 +13,11 @@
   // =========================================================
 
   const SPORT_SHEETS = [
+    "Input",
+    "Badminton (double)",
+    "Badminton (Singles)",
     "Chess",
     "Table Tennis",
-    "Badminton",
-    "Badminton Singles",
     "Basketball",
     "Volleyball",
     "Football",
@@ -24,15 +25,17 @@
     "Kho Kho",
     "Tug Of War",
     "Relay Race",
-    "Athletics (100 m)",
-    "Athletics (200 m)",
-    "Athletics (400 m)",
+    "7 Stones",
+    "100 m",
+    "200 m",
+    "400 m",
     "Long Jump",
     "High Jump",
+    "Shot Put",
     "Javelin Throw",
     "Discus Throw",
-    "Shot Put",
-    "7 Stones"
+    "Kabaddi",
+    "Track Marking"
   ];
 
   // =========================================================

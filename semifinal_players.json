@@ -1,89 +1,44 @@
 {
-  "Cricket": {
-    "sportName": "Cricket",
-    "gender": "Boys",
-    "updatedAt": "2026-08-26T12:00:00.000Z",
-    "updatedBy": "Admin",
-    "semiFinal1": {
-      "playerA": { "name": "Vashishta Warriors", "mandal": "Vashishta Mandal", "score": "142/6 (20 ov)", "notes": "Captain: Rahul Sharma", "isWinner": true },
-      "playerB": { "name": "Vishwamitra Kings", "mandal": "Vishwamitra Mandal", "score": "138/9 (20 ov)", "notes": "Captain: Amit Verma", "isWinner": false },
-      "matchDate": "2026-08-28",
-      "matchTime": "09:00 AM",
-      "venue": "Main Cricket Ground",
-      "status": "Completed"
-    },
-    "semiFinal2": {
-      "playerA": { "name": "Atrey Strikers", "mandal": "Atrey Mandal", "score": "", "notes": "Captain: Rohit Singh", "isWinner": false },
-      "playerB": { "name": "Gautam Lions", "mandal": "Gautam Mandal", "score": "", "notes": "Captain: Vikas Kumar", "isWinner": false },
-      "matchDate": "2026-08-28",
-      "matchTime": "02:00 PM",
-      "venue": "Main Cricket Ground",
-      "status": "Scheduled"
-    },
-    "customQualifiers": []
-  },
-  "Football": {
-    "sportName": "Football",
-    "gender": "Boys",
-    "updatedAt": "2026-08-26T12:00:00.000Z",
-    "updatedBy": "Admin",
-    "semiFinal1": {
-      "playerA": { "name": "Bharadwaj Tigers", "mandal": "Bharadwaj Mandal", "score": "2", "notes": "Striker: Sameer", "isWinner": true },
-      "playerB": { "name": "Jamdagni Hawks", "mandal": "Jamdagni Mandal", "score": "1", "notes": "Goalkeeper: Ankit", "isWinner": false },
-      "matchDate": "2026-08-29",
-      "matchTime": "10:00 AM",
-      "venue": "Football Arena",
-      "status": "Completed"
-    },
-    "semiFinal2": {
-      "playerA": { "name": "Kashyap Panthers", "mandal": "Kashyap Mandal", "score": "", "notes": "Captain: Deepesh", "isWinner": false },
-      "playerB": { "name": "Vashishta Warriors", "mandal": "Vashishta Mandal", "score": "", "notes": "Captain: Abhishek", "isWinner": false },
-      "matchDate": "2026-08-29",
-      "matchTime": "03:30 PM",
-      "venue": "Football Arena",
-      "status": "Scheduled"
-    },
-    "customQualifiers": []
-  },
-  "Basketball": {
-    "sportName": "Basketball",
-    "gender": "Boys",
-    "updatedAt": "2026-08-26T12:00:00.000Z",
-    "updatedBy": "Admin",
-    "semiFinal1": {
-      "playerA": { "name": "Vishwamitra Kings", "mandal": "Vishwamitra Mandal", "score": "54", "notes": "Point Guard: Aman", "isWinner": false },
-      "playerB": { "name": "Atrey Strikers", "mandal": "Atrey Mandal", "score": "61", "notes": "Center: Rohan", "isWinner": true },
-      "matchDate": "2026-08-27",
-      "matchTime": "11:00 AM",
-      "venue": "Indoor Sports Complex",
-      "status": "Completed"
-    },
-    "semiFinal2": {
-      "playerA": { "name": "Gautam Lions", "mandal": "Gautam Mandal", "score": "", "notes": "Captain: Priya/Manish", "isWinner": false },
-      "playerB": { "name": "Bharadwaj Tigers", "mandal": "Bharadwaj Mandal", "score": "", "notes": "Forward: Sumit", "isWinner": false },
-      "matchDate": "2026-08-27",
-      "matchTime": "04:00 PM",
-      "venue": "Indoor Sports Complex",
-      "status": "Scheduled"
-    },
-    "customQualifiers": []
-  },
   "Badminton (Singles)": {
     "sportName": "Badminton (Singles)",
     "gender": "Boys",
     "updatedAt": "2026-08-26T12:00:00.000Z",
     "updatedBy": "Admin",
     "semiFinal1": {
-      "playerA": { "name": "Karan Joshi", "mandal": "Vashishta Mandal", "score": "21, 19, 21", "notes": "Seed 1", "isWinner": true },
-      "playerB": { "name": "Prateek Rawat", "mandal": "Atrey Mandal", "score": "18, 21, 16", "notes": "Seed 4", "isWinner": false },
+      "playerA": {
+        "name": "Karan Joshi",
+        "mandal": "Vashishta Mandal",
+        "score": "21, 19, 21",
+        "notes": "Seed 1",
+        "isWinner": true
+      },
+      "playerB": {
+        "name": "Prateek Rawat",
+        "mandal": "Atrey Mandal",
+        "score": "18, 21, 16",
+        "notes": "Seed 4",
+        "isWinner": false
+      },
       "matchDate": "2026-08-28",
       "matchTime": "09:30 AM",
       "venue": "Badminton Court A",
       "status": "Completed"
     },
     "semiFinal2": {
-      "playerA": { "name": "Siddharth Nautiyal", "mandal": "Jamdagni Mandal", "score": "", "notes": "Seed 2", "isWinner": false },
-      "playerB": { "name": "Aditya Negi", "mandal": "Kashyap Mandal", "score": "", "notes": "Seed 3", "isWinner": false },
+      "playerA": {
+        "name": "Siddharth Nautiyal",
+        "mandal": "Jamdagni Mandal",
+        "score": "",
+        "notes": "Seed 2",
+        "isWinner": false
+      },
+      "playerB": {
+        "name": "Aditya Negi",
+        "mandal": "Kashyap Mandal",
+        "score": "",
+        "notes": "Seed 3",
+        "isWinner": false
+      },
       "matchDate": "2026-08-28",
       "matchTime": "11:00 AM",
       "venue": "Badminton Court A",
@@ -97,16 +52,40 @@
     "updatedAt": "2026-08-26T12:00:00.000Z",
     "updatedBy": "Admin",
     "semiFinal1": {
-      "playerA": { "name": "Ananya Sharma", "mandal": "Gautam Mandal", "score": "1.0", "notes": "White (Rating 1850)", "isWinner": true },
-      "playerB": { "name": "Devansh Gupta", "mandal": "Vishwamitra Mandal", "score": "0.0", "notes": "Black (Rating 1780)", "isWinner": false },
+      "playerA": {
+        "name": "Ananya Sharma",
+        "mandal": "Gautam Mandal",
+        "score": "1.0",
+        "notes": "White (Rating 1850)",
+        "isWinner": true
+      },
+      "playerB": {
+        "name": "Devansh Gupta",
+        "mandal": "Vishwamitra Mandal",
+        "score": "0.0",
+        "notes": "Black (Rating 1780)",
+        "isWinner": false
+      },
       "matchDate": "2026-08-27",
       "matchTime": "02:00 PM",
       "venue": "Activity Hall 2",
       "status": "Completed"
     },
     "semiFinal2": {
-      "playerA": { "name": "Ritik Semwal", "mandal": "Bharadwaj Mandal", "score": "", "notes": "White (Rating 1820)", "isWinner": false },
-      "playerB": { "name": "Tushar Bhatt", "mandal": "Vashishta Mandal", "score": "", "notes": "Black (Rating 1810)", "isWinner": false },
+      "playerA": {
+        "name": "Ritik Semwal",
+        "mandal": "Bharadwaj Mandal",
+        "score": "",
+        "notes": "White (Rating 1820)",
+        "isWinner": false
+      },
+      "playerB": {
+        "name": "Tushar Bhatt",
+        "mandal": "Vashishta Mandal",
+        "score": "",
+        "notes": "Black (Rating 1810)",
+        "isWinner": false
+      },
       "matchDate": "2026-08-27",
       "matchTime": "04:30 PM",
       "venue": "Activity Hall 2",
@@ -120,26 +99,125 @@
     "updatedAt": "2026-08-26T12:00:00.000Z",
     "updatedBy": "Admin",
     "semiFinal1": {
-      "playerA": { "name": "Semi-Final Heat 1", "mandal": "Vashishta Mandal", "score": "", "notes": "Top 2 qualify for Final", "isWinner": false },
-      "playerB": { "name": "Semi-Final Heat 2", "mandal": "Bharadwaj Mandal", "score": "", "notes": "Top 2 qualify for Final", "isWinner": false },
+      "playerA": {
+        "name": "Semi-Final Heat 1",
+        "mandal": "Vashishta Mandal",
+        "score": "",
+        "notes": "Top 2 qualify for Final",
+        "isWinner": false
+      },
+      "playerB": {
+        "name": "Semi-Final Heat 2",
+        "mandal": "Bharadwaj Mandal",
+        "score": "",
+        "notes": "Top 2 qualify for Final",
+        "isWinner": false
+      },
       "matchDate": "2026-08-30",
       "matchTime": "08:30 AM",
       "venue": "Synthetic Track",
       "status": "Scheduled"
     },
     "semiFinal2": {
-      "playerA": { "name": "", "mandal": "", "score": "", "notes": "", "isWinner": false },
-      "playerB": { "name": "", "mandal": "", "score": "", "notes": "", "isWinner": false },
+      "playerA": {
+        "name": "",
+        "mandal": "",
+        "score": "",
+        "notes": "",
+        "isWinner": false
+      },
+      "playerB": {
+        "name": "",
+        "mandal": "",
+        "score": "",
+        "notes": "",
+        "isWinner": false
+      },
       "matchDate": "",
       "matchTime": "",
       "venue": "",
       "status": "Scheduled"
     },
     "customQualifiers": [
-      { "name": "Pawan Negi", "mandal": "Vashishta Mandal", "role": "Heat 1 Qualifier", "timing": "11.12s", "lane": "Lane 4", "status": "Qualified" },
-      { "name": "Suraj Pant", "mandal": "Atrey Mandal", "role": "Heat 1 Qualifier", "timing": "11.28s", "lane": "Lane 5", "status": "Qualified" },
-      { "name": "Mohit Uniyal", "mandal": "Bharadwaj Mandal", "role": "Heat 2 Qualifier", "timing": "11.18s", "lane": "Lane 3", "status": "Qualified" },
-      { "name": "Deepak Rana", "mandal": "Gautam Mandal", "role": "Heat 2 Qualifier", "timing": "11.35s", "lane": "Lane 6", "status": "Qualified" }
+      {
+        "name": "Pawan Negi",
+        "mandal": "Vashishta Mandal",
+        "role": "Heat 1 Qualifier",
+        "timing": "11.12s",
+        "lane": "Lane 4",
+        "status": "Qualified"
+      },
+      {
+        "name": "Suraj Pant",
+        "mandal": "Atrey Mandal",
+        "role": "Heat 1 Qualifier",
+        "timing": "11.28s",
+        "lane": "Lane 5",
+        "status": "Qualified"
+      },
+      {
+        "name": "Mohit Uniyal",
+        "mandal": "Bharadwaj Mandal",
+        "role": "Heat 2 Qualifier",
+        "timing": "11.18s",
+        "lane": "Lane 3",
+        "status": "Qualified"
+      },
+      {
+        "name": "Deepak Rana",
+        "mandal": "Gautam Mandal",
+        "role": "Heat 2 Qualifier",
+        "timing": "11.35s",
+        "lane": "Lane 6",
+        "status": "Qualified"
+      }
     ]
+  },
+  "Track Marking": {
+    "sportName": "Track Marking",
+    "gender": "Open",
+    "updatedAt": "2026-08-29T00:00:00.000Z",
+    "updatedBy": "Admin",
+    "semiFinal1": {
+      "playerA": {
+        "name": "Team Alpha",
+        "mandal": "Vashishta Mandal",
+        "score": "",
+        "notes": "Lane 1-4",
+        "isWinner": false
+      },
+      "playerB": {
+        "name": "Team Beta",
+        "mandal": "Vishwamitra Mandal",
+        "score": "",
+        "notes": "Lane 5-8",
+        "isWinner": false
+      },
+      "matchDate": "2026-08-30",
+      "matchTime": "08:00 AM",
+      "venue": "Sanghamitra Ground",
+      "status": "Scheduled"
+    },
+    "semiFinal2": {
+      "playerA": {
+        "name": "Team Gamma",
+        "mandal": "Jamdagni Mandal",
+        "score": "",
+        "notes": "Lane 1-4",
+        "isWinner": false
+      },
+      "playerB": {
+        "name": "Team Delta",
+        "mandal": "Kashyap Mandal",
+        "score": "",
+        "notes": "Lane 5-8",
+        "isWinner": false
+      },
+      "matchDate": "2026-08-30",
+      "matchTime": "10:00 AM",
+      "venue": "Sanghamitra Ground",
+      "status": "Scheduled"
+    },
+    "customQualifiers": []
   }
 }

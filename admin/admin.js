@@ -32,7 +32,8 @@ const SPORT_COLORS = {
   "Cricket": "#22c55e",
   "Basketball": "#f97316",
   "Kabaddi": "#ec4899",
-  "Kho-Kho": "#a855f7"
+  "Kho-Kho": "#a855f7",
+  "Track Marking": "#38bdf8"
 };
 
 // Sports Catalogue Matching Scoreboard Client
@@ -57,7 +58,8 @@ const SPORTS = [
   { id: 18, name: "Shot Put", icon: "⚫" },
   { id: 19, name: "Athletics (200m)", icon: "🏃" },
   { id: 20, name: "7 Stones", icon: "🪨" },
-  { id: 21, name: "Kabaddi", icon: "🤼" }
+  { id: 21, name: "Kabaddi", icon: "🤼" },
+  { id: 22, name: "Track Marking", icon: "🚩" }
 ];
 
 // Socket.IO Init
@@ -1929,7 +1931,7 @@ function buildKnockoutMatches(teams, byes, isDouble) {
 }
 
 function buildLeagueMatches(teams) {
-  const venues = ["Main Ground", "Ground A", "Shriram Ground", "Gym Hall", "Vidyapeeth"];
+  const venues = ["Main Ground", "Ground A", "Shriram Ground", "Gym Hall", "Vidyapeeth", "Sanghamitra Ground"];
   const matches = [];
   let mid = 1;
   for (let i = 0; i < teams.length; i++) {
@@ -1949,7 +1951,7 @@ function buildLeagueMatches(teams) {
 }
 
 function buildGroupMatches(teams) {
-  const venues = ["Main Ground", "Ground A", "Shriram Ground", "Gym Hall"];
+  const venues = ["Main Ground", "Ground A", "Shriram Ground", "Gym Hall", "Sanghamitra Ground"];
   return [
     { id: 201, matchNum: "G01", round: "Group A", label: "Group A", teamA: teams[0], teamB: teams[1], winner: teams[0], status: "COMPLETED", date: "Aug 10", time: "10:00 AM", venue: venues[0] },
     { id: 202, matchNum: "G02", round: "Group B", label: "Group B", teamA: teams[2], teamB: teams[3], winner: teams[2], status: "LIVE",      date: "Aug 10", time: "12:00 PM", venue: venues[1] },
@@ -2636,7 +2638,8 @@ const REGISTRATION_SPORTS_LIST = [
   { id: "high_jump", name: "High Jump", icon: "🏋️" },
   { id: "shot_put", name: "Shot Put", icon: "⚫" },
   { id: "discus_throw", name: "Discus Throw", icon: "🥏" },
-  { id: "javelin_throw", name: "Javelin Throw", icon: "🎯" }
+  { id: "javelin_throw", name: "Javelin Throw", icon: "🎯" },
+  { id: "track_marking", name: "Track Marking", icon: "🚩" }
 ];
 
 async function loadRegistrationSettings() {
