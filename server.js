@@ -1235,6 +1235,161 @@ app.delete("/api/semifinals/:sportName", authenticateToken, requireRole(["SUPER_
   res.json({ success: true, sportName });
 });
 
+// ── Qualified Players Manager APIs ──────────────────────────────────────────
+const qualifiedPlayersFilePath = path.join(ROOT, "qualified_players.json");
+
+function getQualifiedPlayersData() {
+  try {
+    if (fs.existsSync(qualifiedPlayersFilePath)) {
+      const data = fs.readFileSync(qualifiedPlayersFilePath, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Error reading qualified_players.json:", err);
+  }
+  return [];
+}
+
+function saveQualifiedPlayersData(data) {
+  try {
+    fs.writeFileSync(qualifiedPlayersFilePath, JSON.stringify(data, null, 2), "utf8");
+    return true;
+  } catch (err) {
+    console.error("Error saving qualified_players.json:", err);
+    return false;
+  }
+}
+
+// Public: Get all qualified players (supports sport, search, stage, and mandal filters)
+app.get("/api/qualified-players", (req, res) => {
+  try {
+    let list = getQualifiedPlayersData();
+    const { sport, search, stage, mandal } = req.query;
+
+    if (sport && sport !== "ALL") {
+      list = list.filter(p => (p.sportName || "").toLowerCase() === sport.toLowerCase());
+    }
+    if (stage && stage !== "ALL") {
+      list = list.filter(p => (p.stage || "").toLowerCase() === stage.toLowerCase());
+    }
+    if (mandal && mandal !== "ALL") {
+      list = list.filter(p => (p.mandal || "").toLowerCase().includes(mandal.toLowerCase()));
+    }
+    if (search) {
+      const q = search.toLowerCase().trim();
+      list = list.filter(p =>
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.scholarNo || "").toLowerCase().includes(q) ||
+        (p.course || "").toLowerCase().includes(q) ||
+        (p.mandal || "").toLowerCase().includes(q)
+      );
+    }
+
+    res.json(list);
+  } catch (err) {
+    console.error("Error fetching qualified players:", err);
+    res.status(500).json({ error: "Failed to fetch qualified players" });
+  }
+});
+
+// Admin: Add or update a qualified player
+app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  try {
+    const { id, sportName, name, scholarNo, mandal, course, stage, photoUrl } = req.body;
+    if (!name || !scholarNo) {
+      return res.status(400).json({ error: "Player name and Scholar No are required" });
+    }
+
+    let list = getQualifiedPlayersData();
+    let playerEntry = null;
+
+    if (id) {
+      const idx = list.findIndex(p => p.id === id || p.id === String(id));
+      if (idx !== -1) {
+        list[idx] = {
+          ...list[idx],
+          sportName: sportName ? sportName.trim() : list[idx].sportName || "Basketball",
+          name: name.trim(),
+          scholarNo: scholarNo.trim(),
+          mandal: mandal ? mandal.trim() : list[idx].mandal,
+          course: course ? course.trim() : list[idx].course,
+          stage: stage === "Final" ? "Final" : "Semi-Final",
+          photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[idx].photoUrl,
+          updatedAt: new Date().toISOString()
+        };
+        playerEntry = list[idx];
+      }
+    }
+
+    if (!playerEntry) {
+      // Check if player with same scholarNo and sportName already exists
+      const targetSport = sportName ? sportName.trim() : "Basketball";
+      const existingIdx = list.findIndex(p => 
+        (p.scholarNo || "").toLowerCase() === scholarNo.toLowerCase().trim() &&
+        (p.sportName || "").toLowerCase() === targetSport.toLowerCase()
+      );
+
+      if (existingIdx !== -1) {
+        list[existingIdx] = {
+          ...list[existingIdx],
+          sportName: targetSport,
+          name: name.trim(),
+          scholarNo: scholarNo.trim(),
+          mandal: mandal ? mandal.trim() : list[existingIdx].mandal,
+          course: course ? course.trim() : list[existingIdx].course,
+          stage: stage === "Final" ? "Final" : "Semi-Final",
+          photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[existingIdx].photoUrl,
+          updatedAt: new Date().toISOString()
+        };
+        playerEntry = list[existingIdx];
+      } else {
+        playerEntry = {
+          id: `qp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          sportName: targetSport,
+          name: name.trim(),
+          scholarNo: scholarNo.trim(),
+          mandal: mandal ? mandal.trim() : "General",
+          course: course ? course.trim() : "DSSL Athlete",
+          stage: stage === "Final" ? "Final" : "Semi-Final",
+          photoUrl: photoUrl ? photoUrl.trim() : "",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        list.unshift(playerEntry);
+      }
+    }
+
+    saveQualifiedPlayersData(list);
+    io.emit("qualifiedPlayersUpdate", { players: list, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
+    res.json({ success: true, player: playerEntry, total: list.length });
+  } catch (err) {
+    console.error("Error saving qualified player:", err);
+    res.status(500).json({ error: "Failed to save qualified player" });
+  }
+});
+
+// Admin: Delete a qualified player
+app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  try {
+    const id = req.params.id;
+    let list = getQualifiedPlayersData();
+    const targetPlayer = list.find(p => p.id === id || p.scholarNo === id);
+    const initialLen = list.length;
+    list = list.filter(p => p.id !== id && p.scholarNo !== id);
+
+    if (list.length === initialLen) {
+      return res.status(404).json({ error: "Qualified player not found" });
+    }
+
+    saveQualifiedPlayersData(list);
+    io.emit("qualifiedPlayersUpdate", { players: list, deletedId: id, sportName: targetPlayer?.sportName });
+    res.json({ success: true, total: list.length });
+  } catch (err) {
+    console.error("Error deleting qualified player:", err);
+    res.status(500).json({ error: "Failed to delete qualified player" });
+  }
+});
+
 
 // ── Static Files & Dashboard Routes ───────────────────────────────────────────
 

@@ -38,28 +38,28 @@ const SPORT_COLORS = {
 
 // Sports Catalogue Matching Scoreboard Client
 const SPORTS = [
-  { id: 1, name: "Basketball", icon: "🏀" },
-  { id: 2, name: "Football", icon: "⚽" },
-  { id: 3, name: "Cricket", icon: "🏏" },
-  { id: 4, name: "Volleyball", icon: "🏐" },
-  { id: 5, name: "Badminton (Doubles)", icon: "🏸" },
-  { id: 6, name: "Badminton (Singles)", icon: "🏸" },
-  { id: 7, name: "Table Tennis", icon: "🏓" },
-  { id: 8, name: "Athletics (100m)", icon: "🏃" },
-  { id: 9, name: "Athletics (400m)", icon: "🏃" },
-  { id: 10, name: "Athletics (Relay)", icon: "🔁" },
-  { id: 11, name: "Kho-Kho", icon: "🤸" },
-  { id: 12, name: "Chess", icon: "♟️" },
-  { id: 13, name: "High Jump", icon: "🏋️" },
-  { id: 14, name: "Tug of War", icon: "💪" },
-  { id: 15, name: "Long Jump", icon: "🦘" },
-  { id: 16, name: "Javelin Throw", icon: "🎿" },
-  { id: 17, name: "Discus Throw", icon: "🥏" },
-  { id: 18, name: "Shot Put", icon: "⚫" },
-  { id: 19, name: "Athletics (200m)", icon: "🏃" },
-  { id: 20, name: "7 Stones", icon: "🪨" },
-  { id: 21, name: "Kabaddi", icon: "🤼" },
-  { id: 22, name: "Track Marking", icon: "🚩" }
+  { id: 1, name: "Basketball", iconClass: "ri-basketball-line" },
+  { id: 2, name: "Football", iconClass: "ri-football-line" },
+  { id: 3, name: "Cricket", iconClass: "ri-trophy-line" },
+  { id: 4, name: "Volleyball", iconClass: "ri-basketball-line" },
+  { id: 5, name: "Badminton (Doubles)", iconClass: "ri-ping-pong-line" },
+  { id: 6, name: "Badminton (Singles)", iconClass: "ri-ping-pong-line" },
+  { id: 7, name: "Table Tennis", iconClass: "ri-ping-pong-line" },
+  { id: 8, name: "Athletics (100m)", iconClass: "ri-run-line" },
+  { id: 9, name: "Athletics (400m)", iconClass: "ri-run-line" },
+  { id: 10, name: "Athletics (Relay)", iconClass: "ri-repeat-line" },
+  { id: 11, name: "Kho-Kho", iconClass: "ri-user-shared-line" },
+  { id: 12, name: "Chess", iconClass: "ri-grid-line" },
+  { id: 13, name: "High Jump", iconClass: "ri-arrow-up-line" },
+  { id: 14, name: "Tug of War", iconClass: "ri-team-line" },
+  { id: 15, name: "Long Jump", iconClass: "ri-arrow-right-line" },
+  { id: 16, name: "Javelin Throw", iconClass: "ri-flight-takeoff-line" },
+  { id: 17, name: "Discus Throw", iconClass: "ri-disc-line" },
+  { id: 18, name: "Shot Put", iconClass: "ri-circle-line" },
+  { id: 19, name: "Athletics (200m)", iconClass: "ri-run-line" },
+  { id: 20, name: "7 Stones", iconClass: "ri-apps-line" },
+  { id: 21, name: "Kabaddi", iconClass: "ri-shield-user-line" },
+  { id: 22, name: "Track Marking", iconClass: "ri-flag-line" }
 ];
 
 // Socket.IO Init
@@ -2816,6 +2816,9 @@ let adminSemiFinalsData = {};
 async function initAdminSemiFinals() {
   populateAdminSemiSportSelect();
   populateAdminSemiMandalSelects();
+  populateAdminQpSportSelects();
+  loadAdminQualifiedPlayers();
+  fetchSheetPlayersForSelector();
   
   try {
     const res = await fetch("/api/semifinals");
@@ -3173,6 +3176,360 @@ socket.on("semifinalsUpdate", ({ sportName, data }) => {
   }
 });
 
+// ── Admin Qualified Players Management Module ────────────────────────────────
+let adminQualifiedPlayersList = [];
+let sheetPlayersCache = [];
+
+function populateAdminQpSportSelects() {
+  const formSportSelect = document.getElementById("adminQpSportSelect");
+  const filterSportSelect = document.getElementById("adminQpSportFilter");
+
+  if (formSportSelect && formSportSelect.children.length === 0) {
+    formSportSelect.innerHTML = SPORTS.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+  }
+
+  if (filterSportSelect && filterSportSelect.children.length <= 1) {
+    filterSportSelect.innerHTML = `<option value="ALL">All Sports</option>` + SPORTS.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+  }
+}
+
+async function loadAdminQualifiedPlayers() {
+  const tbody = document.getElementById("adminQpTableBody");
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 25px; color: var(--text-muted);"><i class="ri-loader-4-line ri-spin" style="font-size: 20px;"></i> Loading qualified players...</td></tr>`;
+  }
+
+  try {
+    const res = await fetch("/api/qualified-players");
+    if (res.ok) {
+      adminQualifiedPlayersList = await res.json();
+      renderAdminQualifiedPlayersTable();
+    }
+  } catch (err) {
+    console.error("Error loading qualified players:", err);
+  }
+}
+
+async function fetchSheetPlayersForSelector() {
+  if (sheetPlayersCache.length > 0) return;
+  try {
+    const res = await apiCall("/api/players?limit=100");
+    if (res && res.players) {
+      sheetPlayersCache = res.players;
+    }
+  } catch (err) {
+    console.warn("Could not prefetch sheet players:", err);
+  }
+}
+
+function onAdminSheetPlayerSearch(query) {
+  const dropdown = document.getElementById("adminSheetSearchResults");
+  if (!dropdown) return;
+
+  const q = (query || "").toLowerCase().trim();
+  if (!q || q.length < 2) {
+    dropdown.style.display = "none";
+    dropdown.innerHTML = "";
+    return;
+  }
+
+  const matches = sheetPlayersCache.filter(p =>
+    (p.name || "").toLowerCase().includes(q) ||
+    (p.scholarNo || "").toLowerCase().includes(q) ||
+    (p.course || "").toLowerCase().includes(q) ||
+    (p.sport || "").toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if (matches.length === 0) {
+    dropdown.innerHTML = `<div style="padding: 12px; font-size: 13px; color: var(--text-muted); text-align: center;">No matching player found in Google Sheet. You can fill details manually below.</div>`;
+    dropdown.style.display = "block";
+    return;
+  }
+
+  dropdown.innerHTML = matches.map(p => `
+    <div style="padding: 10px 14px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
+         onmouseover="this.style.background='var(--surface-hover)'" 
+         onmouseout="this.style.background='transparent'"
+         onclick='selectAdminSheetPlayer(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+      <div>
+        <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${p.name || 'Unnamed'}</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Scholar: ${p.scholarNo || 'N/A'} • ${p.course || ''}</div>
+      </div>
+      <div style="text-align: right;">
+        <span class="badge" style="background: rgba(255,188,1,0.15); color: #e0a500; font-size: 11px;">${p.mandalName || p.mandal || 'General'}</span>
+        ${p.sport ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${p.sport}</div>` : ''}
+      </div>
+    </div>
+  `).join("");
+  dropdown.style.display = "block";
+}
+
+function selectAdminSheetPlayer(player) {
+  document.getElementById("adminQpName").value = player.name || "";
+  document.getElementById("adminQpScholarNo").value = player.scholarNo || "";
+  if (player.course) document.getElementById("adminQpCourse").value = player.course;
+  
+  // Set Mandal
+  const mandalName = player.mandalName || player.mandal || "";
+  if (mandalName) {
+    const mandalSelect = document.getElementById("adminQpMandal");
+    if (mandalSelect) {
+      for (let i = 0; i < mandalSelect.options.length; i++) {
+        if (mandalSelect.options[i].value.toLowerCase().includes(mandalName.toLowerCase()) || mandalName.toLowerCase().includes(mandalSelect.options[i].value.toLowerCase())) {
+          mandalSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  }
+
+  // Set Sport if present
+  if (player.sport) {
+    const sportSelect = document.getElementById("adminQpSportSelect");
+    if (sportSelect) {
+      for (let i = 0; i < sportSelect.options.length; i++) {
+        if (sportSelect.options[i].value.toLowerCase().includes(player.sport.toLowerCase()) || player.sport.toLowerCase().includes(sportSelect.options[i].value.toLowerCase())) {
+          sportSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  }
+
+  const dropdown = document.getElementById("adminSheetSearchResults");
+  if (dropdown) dropdown.style.display = "none";
+  document.getElementById("adminSheetPlayerSearch").value = "";
+}
+
+// ── Photo Upload and Preview Handlers ──
+function handleAdminQpPhotoFile(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      document.getElementById("adminQpPhotoUrl").value = dataUrl;
+      updateAdminQpPhotoPreview(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function updateAdminQpPhotoPreview(url) {
+  const previewBox = document.getElementById("adminQpPhotoPreviewBox");
+  const previewImg = document.getElementById("adminQpPhotoPreviewImg");
+  if (!previewBox || !previewImg) return;
+
+  const cleanUrl = (url || "").trim();
+  if (cleanUrl) {
+    previewImg.src = cleanUrl;
+    previewBox.style.display = "flex";
+  } else {
+    previewBox.style.display = "none";
+  }
+}
+
+function clearAdminQpPhoto() {
+  const fileInput = document.getElementById("adminQpPhotoFile");
+  if (fileInput) fileInput.value = "";
+  const urlInput = document.getElementById("adminQpPhotoUrl");
+  if (urlInput) urlInput.value = "";
+  const previewBox = document.getElementById("adminQpPhotoPreviewBox");
+  if (previewBox) previewBox.style.display = "none";
+}
+
+function clearAdminQpForm() {
+  document.getElementById("adminQpEditId").value = "";
+  document.getElementById("adminQpName").value = "";
+  document.getElementById("adminQpScholarNo").value = "";
+  document.getElementById("adminQpCourse").value = "";
+  clearAdminQpPhoto();
+  document.getElementById("adminQpStage").value = "Semi-Final";
+  document.getElementById("adminSheetPlayerSearch").value = "";
+  const dropdown = document.getElementById("adminSheetSearchResults");
+  if (dropdown) dropdown.style.display = "none";
+}
+
+async function saveAdminQualifiedPlayer() {
+  const editId = document.getElementById("adminQpEditId").value;
+  const sportName = document.getElementById("adminQpSportSelect").value;
+  const name = document.getElementById("adminQpName").value.trim();
+  const scholarNo = document.getElementById("adminQpScholarNo").value.trim();
+  const mandal = document.getElementById("adminQpMandal").value;
+  const course = document.getElementById("adminQpCourse").value.trim();
+  const stage = document.getElementById("adminQpStage").value;
+  const photoUrl = document.getElementById("adminQpPhotoUrl").value.trim();
+
+  if (!name || !scholarNo || !sportName) {
+    alert("Please enter Player Name, Scholar No, and select Sport Category.");
+    return;
+  }
+
+  try {
+    const payload = { id: editId || undefined, sportName, name, scholarNo, mandal, course, stage, photoUrl };
+    const res = await apiCall("/api/qualified-players", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    if (res && res.success) {
+      clearAdminQpForm();
+      await loadAdminQualifiedPlayers();
+      alert(`Player "${name}" saved as ${stage} Qualifier for ${sportName} successfully!`);
+    }
+  } catch (err) {
+    console.error("Error saving qualified player:", err);
+    alert("Failed to save qualified player: " + err.message);
+  }
+}
+
+async function toggleAdminPlayerStage(id, currentStage) {
+  const newStage = currentStage === "Final" ? "Semi-Final" : "Final";
+  const player = adminQualifiedPlayersList.find(p => p.id === id);
+  if (!player) return;
+
+  try {
+    const res = await apiCall("/api/qualified-players", {
+      method: "POST",
+      body: JSON.stringify({ ...player, stage: newStage })
+    });
+    if (res && res.success) {
+      await loadAdminQualifiedPlayers();
+    }
+  } catch (err) {
+    alert("Error updating stage: " + err.message);
+  }
+}
+
+async function deleteAdminQualifiedPlayer(id, name) {
+  if (!confirm(`Are you sure you want to remove "${name || 'this player'}" from Qualified Players?`)) return;
+
+  try {
+    const res = await apiCall(`/api/qualified-players/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+    if (res && res.success) {
+      await loadAdminQualifiedPlayers();
+    }
+  } catch (err) {
+    alert("Error deleting player: " + err.message);
+  }
+}
+
+function editAdminQualifiedPlayer(id) {
+  const player = adminQualifiedPlayersList.find(p => p.id === id);
+  if (!player) return;
+
+  document.getElementById("adminQpEditId").value = player.id;
+  document.getElementById("adminQpName").value = player.name || "";
+  document.getElementById("adminQpScholarNo").value = player.scholarNo || "";
+  document.getElementById("adminQpCourse").value = player.course || "";
+  document.getElementById("adminQpPhotoUrl").value = player.photoUrl || "";
+  updateAdminQpPhotoPreview(player.photoUrl || "");
+  document.getElementById("adminQpStage").value = player.stage || "Semi-Final";
+
+  const sportSelect = document.getElementById("adminQpSportSelect");
+  if (sportSelect && player.sportName) {
+    sportSelect.value = player.sportName;
+  }
+  
+  const mandalSelect = document.getElementById("adminQpMandal");
+  if (mandalSelect && player.mandal) {
+    for (let i = 0; i < mandalSelect.options.length; i++) {
+      if (mandalSelect.options[i].value.toLowerCase().includes(player.mandal.toLowerCase())) {
+        mandalSelect.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  const tab = document.getElementById("tab-semifinals");
+  if (tab) {
+    tab.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
+function renderAdminQualifiedPlayersTable() {
+  const tbody = document.getElementById("adminQpTableBody");
+  const countEl = document.getElementById("adminQpCount");
+  const filterSport = document.getElementById("adminQpSportFilter") ? document.getElementById("adminQpSportFilter").value : "ALL";
+  const filterInput = document.getElementById("adminQpFilterInput");
+  const filterQuery = filterInput ? filterInput.value.toLowerCase().trim() : "";
+
+  let list = adminQualifiedPlayersList;
+
+  if (filterSport && filterSport !== "ALL") {
+    list = list.filter(p => (p.sportName || "").toLowerCase() === filterSport.toLowerCase());
+  }
+
+  if (filterQuery) {
+    list = list.filter(p =>
+      (p.name || "").toLowerCase().includes(filterQuery) ||
+      (p.scholarNo || "").toLowerCase().includes(filterQuery) ||
+      (p.mandal || "").toLowerCase().includes(filterQuery) ||
+      (p.course || "").toLowerCase().includes(filterQuery) ||
+      (p.sportName || "").toLowerCase().includes(filterQuery) ||
+      (p.stage || "").toLowerCase().includes(filterQuery)
+    );
+  }
+
+  if (countEl) countEl.textContent = list.length;
+  if (!tbody) return;
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">No qualified players found. Use the form above to add qualifiers from the Google Sheet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(player => {
+    const isFinal = (player.stage || "").toLowerCase() === "final";
+    const stageBadge = isFinal
+      ? `<span class="badge badge-success" style="font-weight:800;"><i class="ri-trophy-line"></i> FINAL</span>`
+      : `<span class="badge badge-warning" style="font-weight:800;"><i class="ri-medal-line"></i> SEMI-FINAL</span>`;
+
+    const avatarUrl = player.photoUrl && player.photoUrl.trim().length > 5
+      ? player.photoUrl
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || 'Player')}&background=ffbc01&color=000&bold=true`;
+
+    return `
+      <tr>
+        <td>
+          <img src="${avatarUrl}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || 'P')}&background=ffbc01&color=000'">
+        </td>
+        <td style="font-weight: 700; color: var(--text-main);">${player.name || '-'}</td>
+        <td style="font-family: monospace; font-weight: 600;">${player.scholarNo || '-'}</td>
+        <td><span class="badge badge-primary" style="font-size: 11px;">${player.sportName || 'General'}</span></td>
+        <td><span class="badge badge-secondary">${player.mandal || 'General'}</span></td>
+        <td>${player.course || '-'}</td>
+        <td>${stageBadge}</td>
+        <td style="text-align: right;">
+          <div style="display: inline-flex; gap: 6px; align-items: center;">
+            <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" title="Switch Stage" onclick="toggleAdminPlayerStage('${player.id}', '${player.stage || 'Semi-Final'}')">
+              <i class="ri-swap-line"></i> ${isFinal ? 'Set Semi' : 'Set Final'}
+            </button>
+            <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" title="Edit" onclick="editAdminQualifiedPlayer('${player.id}')">
+              <i class="ri-edit-line"></i>
+            </button>
+            <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" title="Delete" onclick="deleteAdminQualifiedPlayer('${player.id}', '${player.name || ''}')">
+              <i class="ri-delete-bin-line"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// Socket listener for qualified players updates
+socket.on("qualifiedPlayersUpdate", ({ players }) => {
+  if (Array.isArray(players)) {
+    adminQualifiedPlayersList = players;
+    renderAdminQualifiedPlayersTable();
+  } else {
+    loadAdminQualifiedPlayers();
+  }
+});
+
 // Global window bindings for admin inline event handlers
 window.initAdminSemiFinals = initAdminSemiFinals;
 window.onAdminSemiSportChange = onAdminSemiSportChange;
@@ -3182,6 +3539,21 @@ window.addAdminSemiQualifierRow = addAdminSemiQualifierRow;
 window.saveSemiFinalData = saveSemiFinalData;
 window.deleteSemiFinalData = deleteSemiFinalData;
 window.resetSemiFinalForm = resetSemiFinalForm;
+
+// Qualified players bindings
+window.populateAdminQpSportSelects = populateAdminQpSportSelects;
+window.loadAdminQualifiedPlayers = loadAdminQualifiedPlayers;
+window.onAdminSheetPlayerSearch = onAdminSheetPlayerSearch;
+window.selectAdminSheetPlayer = selectAdminSheetPlayer;
+window.clearAdminQpForm = clearAdminQpForm;
+window.saveAdminQualifiedPlayer = saveAdminQualifiedPlayer;
+window.toggleAdminPlayerStage = toggleAdminPlayerStage;
+window.deleteAdminQualifiedPlayer = deleteAdminQualifiedPlayer;
+window.editAdminQualifiedPlayer = editAdminQualifiedPlayer;
+window.renderAdminQualifiedPlayersTable = renderAdminQualifiedPlayersTable;
+window.handleAdminQpPhotoFile = handleAdminQpPhotoFile;
+window.updateAdminQpPhotoPreview = updateAdminQpPhotoPreview;
+window.clearAdminQpPhoto = clearAdminQpPhoto;
 
 
 
