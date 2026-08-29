@@ -389,6 +389,12 @@
     </div>
 
 
+    <!-- Filter Buttons -->
+    <div class="filter-tabs">
+      <button class="filter-btn active" onclick="setFilter('ALL')">All Media</button>
+      <button class="filter-btn" onclick="setFilter('IMAGE')"><i class="ri-image-line"></i> Photos</button>
+      <button class="filter-btn" onclick="setFilter('VIDEO')"><i class="ri-video-line"></i> Videos</button>
+    </div>
 
     <!-- Gallery Grid -->
     <div class="gallery-grid-custom" id="galleryContainer">
@@ -478,7 +484,10 @@
       const container = document.getElementById("galleryContainer");
       container.innerHTML = "";
 
-      const filtered = mediaAssets;
+      const filtered = mediaAssets.filter(item => {
+        if (currentFilter === "ALL") return true;
+        return item.type === currentFilter;
+      });
 
       if (filtered.length === 0) {
         container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 60px;">No media items loaded in this category.</div>`;
@@ -526,8 +535,23 @@
       });
     }
 
-
-
+    function setFilter(filterVal) {
+      currentFilter = filterVal;
+      const buttons = document.querySelectorAll(".filter-btn");
+      buttons.forEach(btn => {
+        const lowerText = btn.textContent.toLowerCase();
+        if (filterVal === "ALL" && lowerText.includes("all")) {
+          btn.classList.add("active");
+        } else if (filterVal === "IMAGE" && lowerText.includes("photo")) {
+          btn.classList.add("active");
+        } else if (filterVal === "VIDEO" && lowerText.includes("video")) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+      renderGallery();
+    }
 
     function openLightbox(url, type, caption) {
       const modal = document.getElementById("lightboxModal");

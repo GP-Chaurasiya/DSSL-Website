@@ -1,125 +1,77 @@
-const fs = require("fs");
-const { google } = require("googleapis");
+/**
+ * google-drive.js
+ * Lists photos and videos from a public Google Drive folder using API key auth.
+ * Photos are served via direct lh3.googleusercontent.com URLs.
+ * Videos are proxied through /api/drive/stream/:fileId to support Range requests.
+ */
 
+const https = require("https");
+
+const DRIVE_API_KEY = process.env.GOOGLE_DRIVE_API_KEY || "AIzaSyA85lx66T1E4QqDkVyj759HF2IM5p1JQWE";
 const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "16o6pBVa0A6ozFDumES5sUtrIfPp8N0nN";
 
-function getServiceAccountCredentials() {
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    try {
-      return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-    } catch (error) {
-      throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON");
-    }
-  }
-
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-    return {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, "\n")
-    };
-  }
-
-  return null;
-}
-
 function isDriveConfigured() {
-  return Boolean(getServiceAccountCredentials() || process.env.GOOGLE_API_KEY);
-}
-
-function getDriveClient() {
-  const credentials = getServiceAccountCredentials();
-  if (credentials) {
-    const auth = new google.auth.JWT({
-      email: credentials.client_email,
-      key: credentials.private_key,
-      scopes: ["https://www.googleapis.com/auth/drive.readonly"]
-    });
-    return google.drive({ version: "v3", auth });
-  }
-
-  if (process.env.GOOGLE_API_KEY) {
-    return google.drive({ version: "v3", auth: process.env.GOOGLE_API_KEY });
-  }
-
-  return null;
+  return !!(DRIVE_API_KEY && DRIVE_FOLDER_ID);
 }
 
 /**
- * Fetch all media files directly from the Google Drive Folder
+ * Fetches the list of all media files (images + videos) from the Drive folder.
+ * Returns an array of normalized media objects compatible with the /api/media response format.
  */
 async function listDriveMedia() {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || DRIVE_FOLDER_ID;
+  if (!isDriveConfigured()) return [];
 
-  if (apiKey) {
-    // Direct REST API fetch with API Key
-    const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,mimeType,thumbnailLink,webContentLink,createdTime)&key=${apiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Google Drive API error (${res.status}): ${errText}`);
-    }
-    const data = await res.json();
-    return (data.files || []).map(file => formatDriveFile(file));
-  }
+  const mimeFilter = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/webm",
+  ].map(m => `mimeType='${m}'`).join(" or ");
 
-  const drive = getDriveClient();
-  if (!drive) return [];
+  const query = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and (${mimeFilter}) and trashed=false`);
+  const fields = encodeURIComponent("files(id,name,mimeType,createdTime)");
+  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=200&key=${DRIVE_API_KEY}`;
 
-  const response = await drive.files.list({
-    q: `'${folderId}' in parents and trashed = false`,
-    fields: "files(id, name, mimeType, thumbnailLink, webContentLink, createdTime)"
-  });
+  const data = await fetchJson(url);
+  const files = data.files || [];
 
-  return (response.data.files || []).map(file => formatDriveFile(file));
-}
-
-function formatDriveFile(file) {
-  const isVideo = (file.mimeType || "").startsWith("video/");
-  return {
-    id: `gdrive_${file.id}`,
-    driveId: file.id,
-    title: file.name ? file.name.replace(/\.[^/.]+$/, "") : "Tournament Highlight",
-    type: isVideo ? "VIDEO" : "IMAGE",
-    mimeType: file.mimeType,
-    // Google Drive direct embed / stream URL
-    url: isVideo
-      ? `/api/drive/stream/${file.id}`
-      : `https://lh3.googleusercontent.com/u/0/d/${file.id}=w1600`,
-    thumbnail: file.thumbnailLink || `https://lh3.googleusercontent.com/u/0/d/${file.id}=w800`,
-    createdAt: file.createdTime || new Date().toISOString(),
-    isDrive: true
-  };
-}
-
-async function uploadMediaToDrive(filePath, fileName, mimeType) {
-  const drive = getDriveClient();
-  if (!drive) throw new Error("Google Drive credentials are not configured");
-
-  const uploaded = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      parents: [DRIVE_FOLDER_ID]
-    },
-    media: {
-      mimeType,
-      body: fs.createReadStream(filePath)
-    },
-    fields: "id,name,mimeType"
-  });
-
-  const fileId = uploaded.data.id;
-  await drive.permissions.create({
-    fileId,
-    requestBody: { type: "anyone", role: "reader" }
-  });
-
-  return formatDriveFile({
-    id: fileId,
-    name: uploaded.data.name,
-    mimeType: uploaded.data.mimeType
+  return files.map(file => {
+    const isVideo = file.mimeType.startsWith("video/");
+    return {
+      id: `drive_${file.id}`,
+      driveFileId: file.id,
+      type: isVideo ? "VIDEO" : "IMAGE",
+      title: file.name.replace(/\.[^/.]+$/, ""), // strip extension from title
+      createdAt: file.createdTime,
+      // Photos: direct high-res URL; Videos: proxied through server
+      url: isVideo
+        ? `/api/drive/stream/${file.id}`
+        : `https://lh3.googleusercontent.com/u/0/d/${file.id}=w1600`,
+    };
   });
 }
 
-module.exports = { isDriveConfigured, listDriveMedia, uploadMediaToDrive };
+/**
+ * Simple promise-based HTTPS GET that returns parsed JSON.
+ */
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let body = "";
+      res.on("data", chunk => (body += chunk));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (e) {
+          reject(new Error("Failed to parse Drive API response: " + body.slice(0, 200)));
+        }
+      });
+    }).on("error", reject);
+  });
+}
+
+module.exports = { isDriveConfigured, listDriveMedia };
