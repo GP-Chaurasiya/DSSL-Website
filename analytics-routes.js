@@ -127,18 +127,100 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
 
   // ============================================================
+  // ============================================================
   // SHARED LIVE GOOGLE SHEET DATA FETCHER
   // All analytics endpoints use this single cached helper
   // Cache TTL: 15 seconds to avoid rate limits
   // ============================================================
 
   const SHEET_ID = "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
-  const SPORT_SHEETS = [
-    "Chess", "Table Tennis", "Badminton", "Badminton Singles", "Basketball",
-    "Volleyball", "Football", "Cricket", "Kho Kho", "Tug Of War", "Relay Race",
-    "Athletics (100 m)", "Athletics (200 m)", "Athletics (400 m)", "Long Jump",
-    "High Jump", "Javelin Throw", "Discus Throw", "Shot Put", "7 Stones"
+
+  // Canonical list of all 21 DSSL Tournament Sports
+  const ALL_TOURNAMENT_SPORTS = [
+    "Basketball",
+    "Football",
+    "Cricket",
+    "Volleyball",
+    "Badminton (Doubles)",
+    "Badminton (Singles)",
+    "Table Tennis",
+    "Athletics (100m)",
+    "Athletics (200m)",
+    "Athletics (400m)",
+    "Athletics (Relay)",
+    "Kho-Kho",
+    "Chess",
+    "High Jump",
+    "Tug of War",
+    "Long Jump",
+    "Javelin Throw",
+    "Discus Throw",
+    "Shot Put",
+    "7 Stones",
+    "Kabaddi"
   ];
+
+  // Exact sheet tab names in the Google Sheet / Excel workbook
+  const ALL_SHEET_TABS = [
+    "Input",
+    "Badminton (double)",
+    "Badminton (Singles)",
+    "Chess",
+    "Table Tennis",
+    "Basketball",
+    "Volleyball",
+    "Football",
+    "Cricket",
+    "Kho Kho",
+    "Tug Of War",
+    "Relay Race",
+    "7 Stones",
+    "100 m",
+    "200 m",
+    "400 m",
+    "Long Jump",
+    "High Jump",
+    "Shot Put",
+    "Javelin Throw",
+    "Discus Throw",
+    "Kabaddi"
+  ];
+
+  function normalizeSportName(raw, fallbackSheetName) {
+    const s = String(raw || fallbackSheetName || "").trim().toLowerCase();
+    
+    if (s.includes("badminton") && (s.includes("single") || s.includes("singles"))) return "Badminton (Singles)";
+    if (s.includes("badminton") && (s.includes("doubl") || s.includes("double") || s.includes("doubles"))) return "Badminton (Doubles)";
+    if (s === "badminton") return "Badminton (Singles)";
+
+    if (s.includes("100") && (s.includes("m") || s.includes("athletics") || s.includes("race"))) return "Athletics (100m)";
+    if (s.includes("200") && (s.includes("m") || s.includes("athletics") || s.includes("race"))) return "Athletics (200m)";
+    if (s.includes("400") && (s.includes("m") || s.includes("athletics") || s.includes("race"))) return "Athletics (400m)";
+    if (s.includes("relay") || s.includes("relay race")) return "Athletics (Relay)";
+
+    if (s.includes("kho")) return "Kho-Kho";
+    if (s.includes("tug")) return "Tug of War";
+    if (s.includes("7 stone") || s.includes("seven stone") || s.includes("7stones")) return "7 Stones";
+    if (s.includes("table tennis") || s.includes("tt")) return "Table Tennis";
+    if (s.includes("basket")) return "Basketball";
+    if (s.includes("volley")) return "Volleyball";
+    if (s.includes("foot")) return "Football";
+    if (s.includes("cricket")) return "Cricket";
+    if (s.includes("kabaddi")) return "Kabaddi";
+    if (s.includes("chess")) return "Chess";
+    if (s.includes("high jump")) return "High Jump";
+    if (s.includes("long jump")) return "Long Jump";
+    if (s.includes("javelin")) return "Javelin Throw";
+    if (s.includes("discus")) return "Discus Throw";
+    if (s.includes("shot put")) return "Shot Put";
+
+    for (const c of ALL_TOURNAMENT_SPORTS) {
+      if (c.toLowerCase() === s) return c;
+    }
+
+    return raw || fallbackSheetName || "Other";
+  }
+
   const MANDAL_ALIASES = {
     "Vashishta Mandal": ["vashishta", "vasistha", "vashishtha"],
     "Vishwamitra Mandal": ["vishwamitra", "viswamitra"],
@@ -219,12 +301,11 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     const activeSports = new Set();
     let idCounter = 0;
 
-    const results = await Promise.allSettled(
-      SPORT_SHEETS.map(async (sheetName) => {
-        const data = await fetchSheetTab(sheetName);
-        const table = data?.table;
-        if (!table || !Array.isArray(table.rows)) return;
-
+    // 1. Process "Input" tab FIRST (master registrations)
+    try {
+      const inputData = await fetchSheetTab("Input");
+      if (inputData?.table?.rows) {
+        const table = inputData.table;
         const mandalCol = findColIndex(table, ["mandal"]);
         const scholarCol = findColIndex(table, ["scholar", "roll"]);
         const nameCol = findColIndex(table, ["name", "student"]);
@@ -234,26 +315,24 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
         const phoneCol = findColIndex(table, ["phone", "mobile", "contact"]);
         const emailCol = findColIndex(table, ["email", "mail"]);
         const regIdCol = findColIndex(table, ["registration", "reg id"]);
+        const sportCol = findColIndex(table, ["sport", "category", "game"]);
         const dateCol = findColIndex(table, ["date", "timestamp", "time"]);
-        const roleCol = findColIndex(table, ["role", "captain"]);
 
-        const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, dateCol, roleCol].some(c => c.headerInRow);
+        const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, sportCol, dateCol].some(c => c.headerInRow);
         const startRow = headerInRow ? 1 : 0;
 
-        // Use detected indices or fallback defaults
         const mIdx = mandalCol.index !== -1 ? mandalCol.index : 7;
         const scIdx = scholarCol.index !== -1 ? scholarCol.index : 3;
         const nIdx = nameCol.index !== -1 ? nameCol.index : 2;
         const cIdx = courseCol.index !== -1 ? courseCol.index : 4;
         const sIdx = semCol.index !== -1 ? semCol.index : 5;
+        const spIdx = sportCol.index !== -1 ? sportCol.index : 6;
         const gIdx = genderCol.index !== -1 ? genderCol.index : 10;
         const pIdx = phoneCol.index !== -1 ? phoneCol.index : 9;
         const eIdx = emailCol.index !== -1 ? emailCol.index : 8;
         const rIdx = regIdCol.index !== -1 ? regIdCol.index : 1;
         const dIdx = dateCol.index !== -1 ? dateCol.index : 11;
-        const rlIdx = roleCol.index !== -1 ? roleCol.index : 1;
 
-        let sheetValid = 0;
         for (let i = startRow; i < table.rows.length; i++) {
           const row = table.rows[i];
           if (!row || !Array.isArray(row.c)) continue;
@@ -265,6 +344,8 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           const scholarNo = getV(scIdx);
           if (!name && !scholarNo) continue;
 
+          const rawSport = getV(spIdx);
+          const normSport = normalizeSportName(rawSport, "Badminton (Singles)");
           const rawDate = getV(dIdx);
           const parsedDate = parseGoogleDate(rawDate);
 
@@ -278,29 +359,122 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
             gender: normalizeGender(getV(gIdx)),
             phone: getV(pIdx),
             email: getV(eIdx),
-            sport: sheetName,
+            sport: normSport,
             teamRegistrationId: getV(rIdx),
-            teamRole: getV(rlIdx) || "Player",
+            teamRole: "Player",
             registrationDate: rawDate,
             registrationDateParsed: parsedDate
           };
 
           allRegistrations.push(rec);
-          sheetValid++;
+          activeSports.add(normSport);
 
           const uniqueKey = scholarNo || (name.toLowerCase() + "_" + rec.mandalName);
           if (!uniqueMap.has(uniqueKey)) {
-            uniqueMap.set(uniqueKey, { ...rec, sports: [sheetName] });
+            uniqueMap.set(uniqueKey, { ...rec, sports: [normSport] });
           } else {
             const existing = uniqueMap.get(uniqueKey);
-            if (!existing.sports.includes(sheetName)) existing.sports.push(sheetName);
+            if (!existing.sports.includes(normSport)) existing.sports.push(normSport);
             if (!existing.registrationDateParsed && parsedDate) {
               existing.registrationDateParsed = parsedDate;
               existing.registrationDate = rawDate;
             }
           }
         }
-        if (sheetValid > 0) activeSports.add(sheetName);
+      }
+    } catch (err) {
+      console.warn("Error fetching Input sheet:", err.message);
+    }
+
+    // 2. Also check individual sport tabs for any direct registrations not in Input
+    await Promise.allSettled(
+      ALL_SHEET_TABS.map(async (sheetName) => {
+        if (sheetName === "Input") return;
+        try {
+          const data = await fetchSheetTab(sheetName);
+          const table = data?.table;
+          if (!table || !Array.isArray(table.rows) || table.rows.length <= 1) return;
+
+          const mandalCol = findColIndex(table, ["mandal"]);
+          const scholarCol = findColIndex(table, ["scholar", "roll"]);
+          const nameCol = findColIndex(table, ["name", "student"]);
+          const courseCol = findColIndex(table, ["course", "dept", "branch"]);
+          const semCol = findColIndex(table, ["semester", "sem"]);
+          const genderCol = findColIndex(table, ["gender", "sex"]);
+          const phoneCol = findColIndex(table, ["phone", "mobile", "contact"]);
+          const emailCol = findColIndex(table, ["email", "mail"]);
+          const regIdCol = findColIndex(table, ["registration", "reg id"]);
+          const roleCol = findColIndex(table, ["role", "captain"]);
+          const dateCol = findColIndex(table, ["date", "timestamp", "time"]);
+
+          const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, dateCol, roleCol].some(c => c.headerInRow);
+          const startRow = headerInRow ? 1 : 0;
+
+          const mIdx = mandalCol.index !== -1 ? mandalCol.index : 7;
+          const scIdx = scholarCol.index !== -1 ? scholarCol.index : 4;
+          const nIdx = nameCol.index !== -1 ? nameCol.index : 3;
+          const cIdx = courseCol.index !== -1 ? courseCol.index : 5;
+          const sIdx = semCol.index !== -1 ? semCol.index : 6;
+          const gIdx = genderCol.index !== -1 ? genderCol.index : 10;
+          const pIdx = phoneCol.index !== -1 ? phoneCol.index : 9;
+          const eIdx = emailCol.index !== -1 ? emailCol.index : 8;
+          const rIdx = regIdCol.index !== -1 ? regIdCol.index : 0;
+          const rlIdx = roleCol.index !== -1 ? roleCol.index : 2;
+          const dIdx = dateCol.index !== -1 ? dateCol.index : 11;
+
+          const normSport = normalizeSportName("", sheetName);
+
+          for (let i = startRow; i < table.rows.length; i++) {
+            const row = table.rows[i];
+            if (!row || !Array.isArray(row.c)) continue;
+            const getV = (idx) => (row.c[idx]?.v != null ? String(row.c[idx].v).trim() : "");
+
+            const mandalRaw = getV(mIdx);
+            if (!mandalRaw || mandalRaw.toLowerCase() === "mandal") continue;
+            const name = getV(nIdx);
+            const scholarNo = getV(scIdx);
+            if (!name && !scholarNo) continue;
+
+            const uniqueKey = scholarNo || (name.toLowerCase() + "_" + normalizeMandal(mandalRaw));
+
+            if (uniqueMap.has(uniqueKey)) {
+              const existing = uniqueMap.get(uniqueKey);
+              if (!existing.sports.includes(normSport)) {
+                existing.sports.push(normSport);
+                allRegistrations.push({
+                  ...existing,
+                  id: ++idCounter,
+                  sport: normSport
+                });
+                activeSports.add(normSport);
+              }
+            } else {
+              const rawDate = getV(dIdx);
+              const parsedDate = parseGoogleDate(rawDate);
+              const rec = {
+                id: ++idCounter,
+                name,
+                scholarNo: scholarNo || name.toLowerCase().replace(/\s+/g, "_"),
+                course: getV(cIdx) || "Other",
+                semester: getV(sIdx) || "",
+                mandalName: normalizeMandal(mandalRaw),
+                gender: normalizeGender(getV(gIdx)),
+                phone: getV(pIdx),
+                email: getV(eIdx),
+                sport: normSport,
+                teamRegistrationId: getV(rIdx),
+                teamRole: getV(rlIdx) || "Player",
+                registrationDate: rawDate,
+                registrationDateParsed: parsedDate
+              };
+              allRegistrations.push(rec);
+              activeSports.add(normSport);
+              uniqueMap.set(uniqueKey, { ...rec, sports: [normSport] });
+            }
+          }
+        } catch (err) {
+          // ignore missing sheet
+        }
       })
     );
 
@@ -501,15 +675,15 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   // ============================================================
   // SPORT DISTRIBUTION — from LIVE Google Sheets
-  // Includes all tournament sports dynamically with live counts
+  // Includes all 21 tournament sports with live counts
   // ============================================================
 
   app.get("/api/analytics/sport-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const { allRegistrations } = await getLiveSheetData();
       const counts = {};
-      // Initialize all tournament sport sheets to 0
-      SPORT_SHEETS.forEach(s => { counts[s] = 0; });
+      // Initialize all 21 canonical tournament sports to 0
+      ALL_TOURNAMENT_SPORTS.forEach(s => { counts[s] = 0; });
       // Count actual live registrations
       allRegistrations.forEach(r => {
         counts[r.sport] = (counts[r.sport] || 0) + 1;
