@@ -204,6 +204,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      transition: opacity 0.18s ease, transform 0.18s ease;
     }
 
     .lightbox-content img,
@@ -453,6 +454,8 @@
   <script>
     let mediaAssets = [];
     let currentFilter = "ALL";
+    let currentIndex = -1;
+    let filteredCache = [];
 
     // Theme Switch
     const themeBtn = document.getElementById("themeBtn");
@@ -494,11 +497,13 @@
         return;
       }
 
-      filtered.forEach((item) => {
+      filteredCache = filtered;
+
+      filtered.forEach((item, idx) => {
         const card = document.createElement("div");
         card.className = "gallery-card-custom";
         const mediaUrl = item.url || `/api/media/file/${item.id}`;
-        card.onclick = () => openLightbox(mediaUrl, item.type, item.title);
+        card.onclick = () => openLightbox(idx);
 
         const isVideo = item.type === "VIDEO";
 
@@ -553,20 +558,36 @@
       renderGallery();
     }
 
-    function openLightbox(url, type, caption) {
+    function openLightbox(idx) {
+      if (!filteredCache.length) return;
+      currentIndex = (idx + filteredCache.length) % filteredCache.length;
+      const item = filteredCache[currentIndex];
+      const url = item.url || `/api/media/file/${item.id}`;
+      const type = item.type;
+      const caption = item.title;
+
       const modal = document.getElementById("lightboxModal");
       const img = document.getElementById("lightboxImg");
       const video = document.getElementById("lightboxVideo");
       const cap = document.getElementById("lightboxCaption");
+      const content = document.querySelector(".lightbox-content");
 
       modal.style.display = "flex";
       cap.textContent = caption || "Tournament highlights";
+
+      // Fade transition
+      content.style.opacity = "0";
+      content.style.transform = "scale(0.97)";
+      setTimeout(() => {
+        content.style.opacity = "1";
+        content.style.transform = "scale(1)";
+      }, 20);
 
       if (type === "VIDEO") {
         img.style.display = "none";
         video.style.display = "block";
         video.onerror = () => {
-          alert(caption ? `"${caption}" is unavailable. The video file may need to be re-uploaded.` : "This video is unavailable. The file may need to be re-uploaded.");
+          alert(caption ? `"${caption}" is unavailable.` : "This video is unavailable.");
           closeLightbox();
         };
         video.src = url;
@@ -582,6 +603,11 @@
       }
     }
 
+    function navigate(dir) {
+      if (!filteredCache.length) return;
+      openLightbox(currentIndex + dir);
+    }
+
     function closeLightbox() {
       const modal = document.getElementById("lightboxModal");
       const video = document.getElementById("lightboxVideo");
@@ -590,15 +616,53 @@
         video.src = "";
       }
       modal.style.display = "none";
+      currentIndex = -1;
     }
 
-    // Close lightbox on Escape key or backdrop click
+    // Keyboard navigation
     document.addEventListener("keydown", (e) => {
+      const modal = document.getElementById("lightboxModal");
+      if (modal.style.display !== "flex") return;
       if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowLeft") navigate(-1);
+      if (e.key === "ArrowRight") navigate(1);
     });
+
+    // Backdrop click to close
     document.getElementById("lightboxModal").addEventListener("click", (e) => {
       if (e.target.id === "lightboxModal") closeLightbox();
     });
+
+    // Touch swipe + Mouse drag navigation (mobile & desktop)
+    (function () {
+      let startX = 0;
+      let isDragging = false;
+      const modal = document.getElementById("lightboxModal");
+
+      // --- Touch (mobile) ---
+      modal.addEventListener("touchstart", (e) => {
+        startX = e.changedTouches[0].clientX;
+      }, { passive: true });
+      modal.addEventListener("touchend", (e) => {
+        const dx = e.changedTouches[0].clientX - startX;
+        if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1);
+      }, { passive: true });
+
+      // --- Mouse drag (desktop) ---
+      modal.addEventListener("mousedown", (e) => {
+        startX = e.clientX;
+        isDragging = false;
+      });
+      modal.addEventListener("mousemove", (e) => {
+        if (Math.abs(e.clientX - startX) > 10) isDragging = true;
+      });
+      modal.addEventListener("mouseup", (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1);
+        isDragging = false;
+      });
+    })();
 
     // Socket realtime integrations
     socket.on("mediaUpdate", (media) => {
