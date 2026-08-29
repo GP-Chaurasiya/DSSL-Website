@@ -862,61 +862,6 @@ app.post("/api/upload", authenticateToken, upload.single("file"), async (req, re
   }
 });
 
-// ── Google Drive Video Stream Proxy ──────────────────────────────────────────
-// Proxies Google Drive videos with range support so HTML5 <video> can play/seek without CORS or cookie block
-app.get("/api/drive/stream/:fileId", async (req, res) => {
-  const { fileId } = req.params;
-  if (!fileId) return res.status(400).send("File ID required");
-
-  // Tell intermediate proxies / Express compression not to re-encode this stream
-  res.set("Cache-Control", "no-transform");
-  // NOTE: Do NOT set Content-Encoding header here — absence means identity (RFC 7231).
-  // Explicitly setting Content-Encoding: identity causes Chrome/Edge to reject the
-  // video element with a media decode error even though the bytes are valid.
-
-  try {
-    const driveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download`;
-    const fetchHeaders = { "Accept-Encoding": "identity" };
-    if (req.headers.range) {
-      fetchHeaders["Range"] = req.headers.range;
-    }
-
-    const driveRes = await fetch(driveUrl, { headers: fetchHeaders });
-    // 200 = full, 206 = partial — both are fine; anything else is an error
-    if (driveRes.status !== 200 && driveRes.status !== 206) {
-      console.error(`Drive stream: upstream returned ${driveRes.status} for fileId=${fileId}`);
-      return res.status(driveRes.status).send("Failed to stream video from Google Drive");
-    }
-
-    res.status(driveRes.status);
-    const passHeaders = ["content-type", "content-length", "content-range", "accept-ranges"];
-    passHeaders.forEach(h => {
-      const v = driveRes.headers.get(h);
-      if (v) res.set(h, v);
-    });
-
-    if (!res.get("Content-Type")) {
-      res.set("Content-Type", "video/mp4");
-    }
-
-    // Ensure range requests are advertised so the browser can seek
-    if (!res.get("Accept-Ranges")) {
-      res.set("Accept-Ranges", "bytes");
-    }
-
-    const { Readable } = require("stream");
-    const nodeStream = Readable.fromWeb(driveRes.body);
-    nodeStream.on("error", (err) => {
-      console.error("Drive stream pipe error:", err.message);
-      if (!res.headersSent) res.status(500).end();
-    });
-    nodeStream.pipe(res);
-  } catch (error) {
-    console.error("Drive stream error:", error.message);
-    if (!res.headersSent) res.status(500).send("Error streaming video");
-  }
-});
-
 // ── Gallery / Media Upload APIs ─────────────────────────────────────────────────
 
 // Serve media files directly from PostgreSQL (persistent, survives server restarts)
@@ -931,8 +876,6 @@ app.get("/api/media/file/:id", async (req, res) => {
     });
 
     if (!media) {
-      const fallbackLogo = path.join(ROOT, "DSSL_LOGO.png");
-      if (fs.existsSync(fallbackLogo)) return res.sendFile(fallbackLogo);
       return res.status(404).send("Media not found");
     }
 
@@ -944,73 +887,47 @@ app.get("/api/media/file/:id", async (req, res) => {
       return res.send(Buffer.from(media.data));
     }
 
-    // If the media URL points to /uploads/ and the file exists on disk, send file
-    if (media.url && typeof media.url === "string") {
-      if (media.url.startsWith("/uploads/")) {
-        const diskPath = path.join(ROOT, media.url);
-        if (fs.existsSync(diskPath)) {
-          return res.sendFile(diskPath);
-        }
-        console.warn(`Media file missing on disk for id=${id}: ${diskPath}`);
-      } else if (media.url.startsWith("http://") || media.url.startsWith("https://")) {
-        return res.redirect(media.url);
+    // If the media URL points to /uploads/ and the file exists on disk, redirect or send file
+    if (media.url && typeof media.url === "string" && media.url.startsWith("/uploads/")) {
+      const diskPath = path.join(ROOT, media.url);
+      if (fs.existsSync(diskPath)) {
+        return res.sendFile(diskPath);
       }
+      console.warn(`Media file missing on disk for id=${id}: ${diskPath}`);
     }
 
-    // Graceful fallback image for images instead of breaking with 404
-    if (media.type !== "VIDEO") {
-      const fallbackImage = path.join(ROOT, "dssl_banner.jpg");
-      if (fs.existsSync(fallbackImage)) return res.sendFile(fallbackImage);
+    // Graceful fallback image instead of breaking with 404
+    const fallbackImage = path.join(ROOT, "dssl_banner.jpg");
+    if (fs.existsSync(fallbackImage)) {
+      return res.sendFile(fallbackImage);
+    }
+    const fallbackLogo = path.join(ROOT, "DSSL_LOGO.png");
+    if (fs.existsSync(fallbackLogo)) {
+      return res.sendFile(fallbackLogo);
     }
 
-    return res.status(404).send("Video/Media file not available on server");
+    return res.status(404).send("Media binary not available");
   } catch (error) {
     console.error("Media serve error:", error);
     res.status(500).send("Error serving media");
   }
 });
 
-// List all media — merges Google Drive folder media with PostgreSQL/Supabase media
+// List all media — always returns /api/media/file/:id as url (permanent Supabase-backed URL)
 app.get("/api/media", async (req, res) => {
   try {
-    let driveMedia = [];
-    try {
-      if (isDriveConfigured()) {
-        driveMedia = await listDriveMedia();
-      }
-    } catch (driveErr) {
-      console.warn("Google Drive fetch error:", driveErr.message);
-    }
-
-    const dbMedia = await prisma.media.findMany({
+    const media = await prisma.media.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, type: true, url: true, title: true, createdAt: true, data: true }
+      select: { id: true, type: true, url: true, title: true, createdAt: true }
     });
-
-    const normalizedDb = dbMedia
-      .filter(m => {
-        // Skip DB video records whose upload file is missing on disk (avoids broken card)
-        if (m.type === "VIDEO" && m.url && m.url.startsWith("/uploads/")) {
-          const diskPath = path.join(ROOT, m.url);
-          return fs.existsSync(diskPath);
-        }
-        return true;
-      })
-      .map(m => ({
-        id: m.id,
-        type: m.type,
-        title: m.title,
-        createdAt: m.createdAt,
-        // If binary data is in DB, use /api/media/file/:id; otherwise use direct URL (e.g. /uploads/video.mp4 or Drive URL)
-        url: (m.data && m.data.length > 0)
-          ? `/api/media/file/${m.id}`
-          : (m.url && m.url !== "pending" ? m.url : `/api/media/file/${m.id}`)
-      }));
-
-    // Return combined media list with Drive files at top
-    res.json([...driveMedia, ...normalizedDb]);
+    // Always expose the /api/media/file/:id URL so images are served from
+    // Supabase binary data — survives server restarts and disk wipes
+    const normalized = media.map(m => ({
+      ...m,
+      url: `/api/media/file/${m.id}`
+    }));
+    res.json(normalized);
   } catch (error) {
-    console.error("Media list error:", error);
     res.status(500).json({ error: "Error fetching media list" });
   }
 });

@@ -390,13 +390,6 @@
 
 
 
-    <!-- Filter Buttons -->
-    <div class="filter-tabs">
-      <button class="filter-btn active" onclick="setFilter('ALL')">All Media</button>
-      <button class="filter-btn" onclick="setFilter('IMAGE')"><i class="ri-image-line"></i> Photos</button>
-      <button class="filter-btn" onclick="setFilter('VIDEO')"><i class="ri-video-line"></i> Videos</button>
-    </div>
-
     <!-- Gallery Grid -->
     <div class="gallery-grid-custom" id="galleryContainer">
       <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px;">
@@ -410,14 +403,10 @@
   <!-- Lightbox Modal -->
   <div class="lightbox-modal" id="lightboxModal">
     <div class="lightbox-content">
-      <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
-      <img id="lightboxImg" src="" alt="Enlarged view">
+      <button class="lightbox-close" onclick="closeLightbox()"><i class="ri-close-line"></i></button>
+      <img id="lightboxImg" src="" style="display: none;">
       <video id="lightboxVideo" src="" controls style="display: none;"></video>
-      <div id="lightboxError" style="display:none; flex-direction:column; align-items:center; justify-content:center; color:#f87171; padding:40px; text-align:center; gap:12px;">
-        <i class="ri-video-off-line" style="font-size:52px; opacity:0.7;"></i>
-        <p id="lightboxErrorMsg" style="margin:0; font-size:15px; opacity:0.85;">This video is currently unavailable.</p>
-      </div>
-      <div class="lightbox-caption" id="lightboxCaption"></div>
+      <div class="lightbox-caption" id="lightboxCaption">Media Asset</div>
     </div>
   </div>
 
@@ -442,10 +431,10 @@
       <div class="footer-box">
         <h3>Follow Us</h3>
         <div class="social-icons">
-          <a href="#" target="_blank"><i class="fab fa-facebook-f"></i></a>
-          <a href="#" target="_blank"><i class="fab fa-instagram"></i></a>
-          <a href="#" target="_blank"><i class="fab fa-youtube"></i></a>
-          <a href="#" target="_blank"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
         </div>
       </div>
     </div>
@@ -489,10 +478,7 @@
       const container = document.getElementById("galleryContainer");
       container.innerHTML = "";
 
-      const filtered = mediaAssets.filter(item => {
-        if (currentFilter === "ALL") return true;
-        return item.type === currentFilter;
-      });
+      const filtered = mediaAssets;
 
       if (filtered.length === 0) {
         container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 60px;">No media items loaded in this category.</div>`;
@@ -540,47 +526,24 @@
       });
     }
 
-    function setFilter(filterVal) {
-      currentFilter = filterVal;
-      const buttons = document.querySelectorAll(".filter-btn");
-      buttons.forEach(btn => {
-        const lowerText = btn.textContent.toLowerCase();
-        if (filterVal === "ALL" && lowerText.includes("all")) {
-          btn.classList.add("active");
-        } else if (filterVal === "IMAGE" && lowerText.includes("photo")) {
-          btn.classList.add("active");
-        } else if (filterVal === "VIDEO" && lowerText.includes("video")) {
-          btn.classList.add("active");
-        } else {
-          btn.classList.remove("active");
-        }
-      });
-      renderGallery();
-    }
+
+
 
     function openLightbox(url, type, caption) {
       const modal = document.getElementById("lightboxModal");
       const img = document.getElementById("lightboxImg");
       const video = document.getElementById("lightboxVideo");
       const cap = document.getElementById("lightboxCaption");
-      const errBox = document.getElementById("lightboxError");
-      const errMsg = document.getElementById("lightboxErrorMsg");
 
       modal.style.display = "flex";
       cap.textContent = caption || "Tournament highlights";
-
-      // Reset error state
-      errBox.style.display = "none";
 
       if (type === "VIDEO") {
         img.style.display = "none";
         video.style.display = "block";
         video.onerror = () => {
-          video.style.display = "none";
-          errMsg.textContent = caption
-            ? `“${caption}” could not be played. The video may still be processing on Google Drive.`
-            : "This video is currently unavailable.";
-          errBox.style.display = "flex";
+          alert(caption ? `"${caption}" is unavailable. The video file may need to be re-uploaded.` : "This video is unavailable. The file may need to be re-uploaded.");
+          closeLightbox();
         };
         video.src = url;
         video.load();
@@ -598,13 +561,10 @@
     function closeLightbox() {
       const modal = document.getElementById("lightboxModal");
       const video = document.getElementById("lightboxVideo");
-      const errBox = document.getElementById("lightboxError");
       if (video) {
         video.pause();
         video.src = "";
-        video.onerror = null;
       }
-      if (errBox) errBox.style.display = "none";
       modal.style.display = "none";
     }
 
