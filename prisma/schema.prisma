@@ -134,6 +134,7 @@ model QualifiedPlayer {
   mandal    String   @default("General")
   course    String   @default("")
   stage     String   @default("Semi-Final")
+  gender    String   @default("Boys")
   photoUrl  String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

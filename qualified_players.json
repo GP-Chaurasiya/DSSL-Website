@@ -7,6 +7,7 @@
     "mandal": "Vashishta Mandal",
     "course": "B.Sc IT",
     "stage": "Semi-Final",
+    "gender": "Boys",
     "photoUrl": "",
     "createdAt": "2026-09-02T09:20:04.821Z",
     "updatedAt": "2026-09-02T09:20:07.927Z"
@@ -19,6 +20,7 @@
     "mandal": "Kashyap Mandal",
     "course": "M.Sc HCYS",
     "stage": "Semi-Final",
+    "gender": "Boys",
     "photoUrl": "",
     "createdAt": "2026-09-02T08:45:35.465Z",
     "updatedAt": "2026-09-02T08:45:35.465Z"
@@ -31,6 +33,7 @@
     "mandal": "Kashyap Mandal",
     "course": "MA Yoga Therapy (MA YT)",
     "stage": "Semi-Final",
+    "gender": "Boys",
     "photoUrl": "",
     "createdAt": "2026-09-02T08:45:21.623Z",
     "updatedAt": "2026-09-02T08:45:21.623Z"
@@ -43,6 +46,7 @@
     "mandal": "Vashishta Mandal",
     "course": "BCA",
     "stage": "Semi-Final",
+    "gender": "Boys",
     "photoUrl": "",
     "createdAt": "2026-09-02T08:11:10.288Z",
     "updatedAt": "2026-09-02T08:11:10.288Z"
@@ -55,6 +59,7 @@
     "mandal": "Vashishta Mandal",
     "course": "BCA",
     "stage": "Semi-Final",
+    "gender": "Boys",
     "photoUrl": "",
     "createdAt": "2026-08-29T03:04:08.932Z",
     "updatedAt": "2026-09-02T07:59:32.360Z"

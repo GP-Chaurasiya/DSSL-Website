@@ -1285,6 +1285,7 @@ async function syncQualifiedPlayersOnStartup() {
                 mandal: localP.mandal || "General",
                 course: localP.course || "",
                 stage: localP.stage || "Semi-Final",
+                gender: localP.gender || "Boys",
                 photoUrl: localP.photoUrl || ""
               }
             });
@@ -1305,10 +1306,10 @@ async function syncQualifiedPlayersOnStartup() {
   }
 }
 
-// Public: Get all qualified players (supports sport, search, stage, and mandal filters)
+// Public: Get all qualified players (supports sport, search, stage, gender, and mandal filters)
 app.get("/api/qualified-players", async (req, res) => {
-  const { sport, search, stage, mandal } = req.query;
-  const hasFilters = (sport && sport !== "ALL") || (stage && stage !== "ALL") || (mandal && mandal !== "ALL") || (search && search.trim().length > 0);
+  const { sport, search, stage, gender, mandal } = req.query;
+  const hasFilters = (sport && sport !== "ALL") || (stage && stage !== "ALL") || (gender && gender !== "ALL") || (mandal && mandal !== "ALL") || (search && search.trim().length > 0);
 
   try {
     const where = {};
@@ -1317,6 +1318,9 @@ app.get("/api/qualified-players", async (req, res) => {
     }
     if (stage && stage !== "ALL") {
       where.stage = { equals: stage, mode: "insensitive" };
+    }
+    if (gender && gender !== "ALL") {
+      where.gender = { equals: gender, mode: "insensitive" };
     }
     if (mandal && mandal !== "ALL") {
       where.mandal = { contains: mandal, mode: "insensitive" };
@@ -1352,6 +1356,9 @@ app.get("/api/qualified-players", async (req, res) => {
     if (stage && stage !== "ALL") {
       fallbackList = fallbackList.filter(p => (p.stage || "").toLowerCase() === stage.toLowerCase());
     }
+    if (gender && gender !== "ALL") {
+      fallbackList = fallbackList.filter(p => (p.gender || "boys").toLowerCase() === gender.toLowerCase());
+    }
     if (mandal && mandal !== "ALL") {
       fallbackList = fallbackList.filter(p => (p.mandal || "").toLowerCase().includes(mandal.toLowerCase()));
     }
@@ -1371,13 +1378,14 @@ app.get("/api/qualified-players", async (req, res) => {
 // Admin: Add or update a qualified player
 app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   try {
-    const { id, sportName, name, scholarNo, mandal, course, stage, photoUrl } = req.body;
+    const { id, sportName, name, scholarNo, mandal, course, stage, gender, photoUrl } = req.body;
     if (!name || !scholarNo) {
       return res.status(400).json({ error: "Player name and Scholar No are required" });
     }
 
     const targetSport = (sportName || "Basketball").trim();
     const normalizedStage = stage === "Final" ? "Final" : "Semi-Final";
+    const normalizedGender = (gender && (gender.toLowerCase().includes("girl") || gender.toLowerCase().includes("female") || gender.toLowerCase() === "f")) ? "Girls" : "Boys";
     let playerEntry = null;
 
     // Check if Prisma model is available on this environment
@@ -1395,6 +1403,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
                 mandal: mandal ? mandal.trim() : existing.mandal,
                 course: course ? course.trim() : existing.course,
                 stage: normalizedStage,
+                gender: normalizedGender,
                 photoUrl: photoUrl !== undefined ? photoUrl.trim() : existing.photoUrl
               }
             });
@@ -1422,6 +1431,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
               mandal: mandal ? mandal.trim() : duplicate.mandal,
               course: course ? course.trim() : duplicate.course,
               stage: normalizedStage,
+              gender: normalizedGender,
               photoUrl: photoUrl !== undefined ? photoUrl.trim() : duplicate.photoUrl
             }
           });
@@ -1434,6 +1444,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
               mandal: mandal ? mandal.trim() : "General",
               course: course ? course.trim() : "DSSL Athlete",
               stage: normalizedStage,
+              gender: normalizedGender,
               photoUrl: photoUrl ? photoUrl.trim() : ""
             }
           });
@@ -1461,6 +1472,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
           mandal: mandal ? mandal.trim() : list[idx].mandal,
           course: course ? course.trim() : list[idx].course,
           stage: normalizedStage,
+          gender: normalizedGender,
           photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[idx].photoUrl,
           updatedAt: new Date().toISOString()
         };
@@ -1483,6 +1495,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
           mandal: mandal ? mandal.trim() : list[existingIdx].mandal,
           course: course ? course.trim() : list[existingIdx].course,
           stage: normalizedStage,
+          gender: normalizedGender,
           photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[existingIdx].photoUrl,
           updatedAt: new Date().toISOString()
         };
@@ -1496,6 +1509,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
           mandal: mandal ? mandal.trim() : "General",
           course: course ? course.trim() : "DSSL Athlete",
           stage: normalizedStage,
+          gender: normalizedGender,
           photoUrl: photoUrl ? photoUrl.trim() : "",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()

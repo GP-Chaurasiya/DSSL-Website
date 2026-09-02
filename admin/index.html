@@ -2213,6 +2213,13 @@
                 <input type="text" id="adminQpScholarNo" class="input" placeholder="e.g. 2424001" required>
               </div>
               <div class="form-group">
+                <label>Gender / Category <span style="color:red;">*</span></label>
+                <select id="adminQpGender" class="input" style="font-weight: 700;">
+                  <option value="Boys">Boys</option>
+                  <option value="Girls">Girls</option>
+                </select>
+              </div>
+              <div class="form-group">
                 <label>Mandal / Dal <span style="color:red;">*</span></label>
                 <select id="adminQpMandal" class="input">
                   <option value="Vashishta Mandal">Vashishta Mandal</option>
@@ -2274,6 +2281,11 @@
                 <select id="adminQpSportFilter" class="input" style="padding: 6px 12px; font-size: 12px; width: 160px;" onchange="renderAdminQualifiedPlayersTable()">
                   <option value="ALL">All Sports</option>
                 </select>
+                <select id="adminQpGenderFilter" class="input" style="padding: 6px 12px; font-size: 12px; width: 110px;" onchange="renderAdminQualifiedPlayersTable()">
+                  <option value="ALL">All Genders</option>
+                  <option value="Boys">Boys</option>
+                  <option value="Girls">Girls</option>
+                </select>
                 <input type="text" id="adminQpFilterInput" placeholder="Filter by name/scholar..." class="input" style="padding: 6px 12px; font-size: 12px; width: 180px;" oninput="renderAdminQualifiedPlayersTable()">
               </div>
             </div>
@@ -2286,6 +2298,7 @@
                     <th>Player Name</th>
                     <th>Scholar No.</th>
                     <th>Sport</th>
+                    <th>Gender</th>
                     <th>Mandal</th>
                     <th>Course</th>
                     <th>Stage</th>
@@ -2294,7 +2307,7 @@
                 </thead>
                 <tbody id="adminQpTableBody">
                   <tr>
-                    <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                    <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">
                       <i class="ri-loader-4-line ri-spin" style="font-size: 20px;"></i> Loading qualified players...
                     </td>
                   </tr>

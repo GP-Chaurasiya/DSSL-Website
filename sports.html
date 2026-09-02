@@ -255,18 +255,16 @@
 
     /* Modal Controls & Search Bar */
     .sport-popup-controls {
-      padding: 1.25rem 1.75rem 0.75rem;
+      padding: 1.25rem 1.75rem 0.85rem;
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px;
+      flex-direction: column;
+      gap: 10px;
       background: var(--surface-color, #ffffff);
       border-bottom: 1px solid var(--border-light, #e2e8f0);
     }
 
     .popup-search-box {
-      flex: 1;
-      min-width: 260px;
+      width: 100%;
       position: relative;
     }
 
@@ -305,22 +303,23 @@
       gap: 8px;
       overflow-x: auto;
       padding-bottom: 2px;
+      width: 100%;
     }
 
     .popup-tab-btn {
-      padding: 8px 16px;
+      padding: 9px 18px;
       border-radius: 12px;
-      border: 1px solid var(--border-color, #e2e8f0);
+      border: 1.5px solid var(--border-color, #e2e8f0);
       background: var(--surface-alt, #f8fafc);
       color: var(--text-muted, #64748b);
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
     }
 
     .popup-tab-btn:hover {
@@ -335,6 +334,13 @@
       box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
     }
 
+    .popup-tab-btn.active-semi {
+      background: #8b5cf6;
+      color: #ffffff;
+      border-color: #8b5cf6;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+    }
+
     .popup-tab-btn.active-final {
       background: #10b981;
       color: #ffffff;
@@ -342,11 +348,94 @@
       box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
     }
 
-    .popup-tab-btn.active-semi {
-      background: #8b5cf6;
+    /* Sub-Filter Bar Contextual to Active Stage Tab */
+    .popup-subfilter-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 14px;
+      background: var(--surface-alt, #f8fafc);
+      border: 1.5px solid var(--border-color, #e2e8f0);
+      border-radius: 14px;
+      flex-wrap: wrap;
+    }
+
+    [data-theme="dark"] .popup-subfilter-bar {
+      background: rgba(30, 41, 59, 0.7);
+      border-color: #334155;
+    }
+
+    .subfilter-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted, #64748b);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .popup-gender-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .popup-gender-btn {
+      padding: 6px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color, #e2e8f0);
+      background: var(--surface-color, #ffffff);
+      color: var(--text-muted, #64748b);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .popup-gender-btn:hover {
+      color: var(--text-color);
+      background: var(--surface-hover);
+    }
+
+    .popup-gender-btn.active-gender-all {
+      background: #334155;
       color: #ffffff;
-      border-color: #8b5cf6;
-      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+      border-color: #334155;
+      box-shadow: 0 2px 8px rgba(51, 65, 85, 0.25);
+    }
+
+    .popup-gender-btn.active-gender-boys {
+      background: #3b82f6;
+      color: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+
+    .popup-gender-btn.active-gender-girls {
+      background: #ec4899;
+      color: #ffffff;
+      border-color: #ec4899;
+      box-shadow: 0 2px 8px rgba(236, 72, 153, 0.35);
+    }
+
+    [data-theme="dark"] .popup-gender-btn {
+      background: #1e293b;
+      border-color: #334155;
+    }
+
+    [data-theme="dark"] .popup-gender-btn.active-gender-all {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #f8fafc;
     }
 
     /* Modal Scrollable Body */
@@ -587,6 +676,48 @@
       color: #7dd3fc;
     }
 
+    .badge-pill-boys {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1.5px solid #dbeafe;
+    }
+
+    .badge-pill-boys i {
+      font-size: 14px;
+      color: #2563eb;
+    }
+
+    [data-theme="dark"] .badge-pill-boys {
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.35);
+      color: #93c5fd;
+    }
+
+    [data-theme="dark"] .badge-pill-boys i {
+      color: #93c5fd;
+    }
+
+    .badge-pill-girls {
+      background: #fdf2f8;
+      color: #db2777;
+      border: 1.5px solid #fce7f3;
+    }
+
+    .badge-pill-girls i {
+      font-size: 14px;
+      color: #db2777;
+    }
+
+    [data-theme="dark"] .badge-pill-girls {
+      background: rgba(219, 39, 119, 0.15);
+      border-color: rgba(219, 39, 119, 0.35);
+      color: #f472b6;
+    }
+
+    [data-theme="dark"] .badge-pill-girls i {
+      color: #f472b6;
+    }
+
     /* Modal Empty State */
     .popup-empty-state {
       border: 1.5px dashed var(--border-color, #cbd5e1);
@@ -746,22 +877,40 @@
         </button>
       </div>
 
-      <!-- Modal Controls: Search and Stage Filter Tabs -->
+      <!-- Modal Controls: Search, Stage Filter Tabs & Gender Segregation Sub-Tabs -->
       <div class="sport-popup-controls">
         <div class="popup-search-box">
           <i class="ri-search-line"></i>
           <input type="text" id="playerSearchInput" placeholder="Search player by name, scholar no, mandal..." oninput="handlePlayerSearch(this.value)">
         </div>
+
+        <!-- Primary Stage Tabs -->
         <div class="popup-tabs-group">
           <button class="popup-tab-btn active-all" id="tabAll" onclick="switchStageTab('all')">
             <i class="ri-star-smile-fill"></i> All Qualifiers (<span id="countAll">0</span>)
           </button>
-          <button class="popup-tab-btn" id="tabFinal" onclick="switchStageTab('final')">
-            <i class="ri-trophy-fill" style="color:#10b981;"></i> Final Stage (<span id="countFinal">0</span>)
-          </button>
           <button class="popup-tab-btn" id="tabSemi" onclick="switchStageTab('semi')">
             <i class="ri-medal-fill" style="color:#8b5cf6;"></i> Semi Final Stage (<span id="countSemi">0</span>)
           </button>
+          <button class="popup-tab-btn" id="tabFinal" onclick="switchStageTab('final')">
+            <i class="ri-trophy-fill" style="color:#10b981;"></i> Final Stage (<span id="countFinal">0</span>)
+          </button>
+        </div>
+
+        <!-- Secondary Gender Sub-Filters directly under the Stage -->
+        <div class="popup-subfilter-bar">
+          <span class="subfilter-title" id="subfilterTitle"><i class="ri-filter-3-line"></i> Category:</span>
+          <div class="popup-gender-group">
+            <button class="popup-gender-btn active-gender-all" id="genderAll" onclick="switchGenderFilter('all')">
+              <i class="ri-group-line"></i> <span id="genderAllLabel">All</span> (<span id="genderCountAll">0</span>)
+            </button>
+            <button class="popup-gender-btn" id="genderBoys" onclick="switchGenderFilter('boys')">
+              <i class="ri-men-line" style="color:#3b82f6;"></i> <span id="genderBoysLabel">Boys</span> (<span id="genderCountBoys">0</span>)
+            </button>
+            <button class="popup-gender-btn" id="genderGirls" onclick="switchGenderFilter('girls')">
+              <i class="ri-women-line" style="color:#ec4899;"></i> <span id="genderGirlsLabel">Girls</span> (<span id="genderCountGirls">0</span>)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -959,6 +1108,7 @@
     function openSportPopup(sport) {
       selectedSport = sport;
       currentStageTab = 'all';
+      currentGenderTab = 'all';
       currentSearchTerm = '';
       
       const overlay = document.getElementById("sportPopupOverlay");
@@ -996,23 +1146,91 @@
       }
     });
 
+    let currentGenderTab = 'all';
+
     function switchStageTab(tab) {
       currentStageTab = tab;
       updateTabStyles();
       renderPopupContent();
     }
 
+    function switchGenderFilter(gender) {
+      currentGenderTab = gender;
+      updateTabStyles();
+      renderPopupContent();
+    }
+
     function updateTabStyles() {
-      const tabs = {
+      const stageTabs = {
         all: document.getElementById("tabAll"),
-        final: document.getElementById("tabFinal"),
-        semi: document.getElementById("tabSemi")
+        semi: document.getElementById("tabSemi"),
+        final: document.getElementById("tabFinal")
       };
 
-      Object.keys(tabs).forEach(k => {
-        if (!tabs[k]) return;
-        tabs[k].className = `popup-tab-btn ${k === currentStageTab ? 'active-' + k : ''}`;
+      Object.keys(stageTabs).forEach(k => {
+        if (!stageTabs[k]) return;
+        stageTabs[k].className = `popup-tab-btn ${k === currentStageTab ? 'active-' + k : ''}`;
       });
+
+      const genderTabs = {
+        all: document.getElementById("genderAll"),
+        boys: document.getElementById("genderBoys"),
+        girls: document.getElementById("genderGirls")
+      };
+
+      Object.keys(genderTabs).forEach(k => {
+        if (!genderTabs[k]) return;
+        genderTabs[k].className = `popup-gender-btn ${k === currentGenderTab ? 'active-gender-' + k : ''}`;
+      });
+
+      // Update contextual labels according to active stage
+      const allLabelEl = document.getElementById("genderAllLabel");
+      const boysLabelEl = document.getElementById("genderBoysLabel");
+      const girlsLabelEl = document.getElementById("genderGirlsLabel");
+      const subfilterTitleEl = document.getElementById("subfilterTitle");
+
+      if (currentStageTab === 'semi') {
+        if (subfilterTitleEl) subfilterTitleEl.innerHTML = `<i class="ri-medal-fill" style="color:#8b5cf6;"></i> Semi-Finalists:`;
+        if (allLabelEl) allLabelEl.textContent = 'All Semi';
+        if (boysLabelEl) boysLabelEl.textContent = 'Boys Semi';
+        if (girlsLabelEl) girlsLabelEl.textContent = 'Girls Semi';
+      } else if (currentStageTab === 'final') {
+        if (subfilterTitleEl) subfilterTitleEl.innerHTML = `<i class="ri-trophy-fill" style="color:#10b981;"></i> Finalists:`;
+        if (allLabelEl) allLabelEl.textContent = 'All Finals';
+        if (boysLabelEl) boysLabelEl.textContent = 'Boys Finals';
+        if (girlsLabelEl) girlsLabelEl.textContent = 'Girls Finals';
+      } else {
+        if (subfilterTitleEl) subfilterTitleEl.innerHTML = `<i class="ri-filter-3-line"></i> Category:`;
+        if (allLabelEl) allLabelEl.textContent = 'All Qualifiers';
+        if (boysLabelEl) boysLabelEl.textContent = 'All Boys';
+        if (girlsLabelEl) girlsLabelEl.textContent = 'All Girls';
+      }
+    }
+
+    function getPlayerGender(p) {
+      if (p.gender && (p.gender.toLowerCase().includes("girl") || p.gender.toLowerCase().includes("female") || p.gender.toLowerCase() === "f")) {
+        return "girls";
+      }
+      if (p.gender && (p.gender.toLowerCase().includes("boy") || p.gender.toLowerCase().includes("male") || p.gender.toLowerCase() === "m")) {
+        return "boys";
+      }
+
+      // Check in registered players by scholarNo or name
+      if (Array.isArray(allRegisteredPlayers) && p.scholarNo) {
+        const pScholar = p.scholarNo.toString().replace(/[^0-9a-zA-Z]/g, "").toLowerCase();
+        const match = allRegisteredPlayers.find(rp => {
+          const rScholar = (rp.scholarNo || "").toString().replace(/[^0-9a-zA-Z]/g, "").toLowerCase();
+          return rScholar === pScholar && pScholar.length > 0;
+        });
+
+        if (match && match.gender) {
+          const g = match.gender.toLowerCase();
+          if (g.includes("girl") || g.includes("female") || g === "f") return "girls";
+          return "boys";
+        }
+      }
+
+      return "boys";
     }
 
     function handlePlayerSearch(val) {
@@ -1025,21 +1243,49 @@
       const body = document.getElementById("popupContentBody");
       body.innerHTML = "";
 
-      const qualifiers = getSportQualifiers(selectedSport);
+      const rawQualifiers = getSportQualifiers(selectedSport);
+      const qualifiers = rawQualifiers.map(q => ({
+        ...q,
+        normalizedGender: getPlayerGender(q)
+      }));
 
-      const finalCount = qualifiers.filter(q => q.calculatedStage === "final").length;
-      const semiCount = qualifiers.filter(q => q.calculatedStage === "semi").length;
+      // Calculate scoped stage counts based on current gender filter
+      let stageScoped = qualifiers;
+      if (currentGenderTab === 'boys') {
+        stageScoped = stageScoped.filter(q => q.normalizedGender === "boys");
+      } else if (currentGenderTab === 'girls') {
+        stageScoped = stageScoped.filter(q => q.normalizedGender === "girls");
+      }
 
-      document.getElementById("countAll").textContent = qualifiers.length;
-      document.getElementById("countFinal").textContent = finalCount;
-      document.getElementById("countSemi").textContent = semiCount;
+      document.getElementById("countAll").textContent = stageScoped.length;
+      document.getElementById("countFinal").textContent = stageScoped.filter(q => q.calculatedStage === "final").length;
+      document.getElementById("countSemi").textContent = stageScoped.filter(q => q.calculatedStage === "semi").length;
 
+      // Calculate scoped gender counts based on current stage filter
+      let genderScoped = qualifiers;
+      if (currentStageTab === 'final') {
+        genderScoped = genderScoped.filter(q => q.calculatedStage === "final");
+      } else if (currentStageTab === 'semi') {
+        genderScoped = genderScoped.filter(q => q.calculatedStage === "semi");
+      }
+
+      document.getElementById("genderCountAll").textContent = genderScoped.length;
+      document.getElementById("genderCountBoys").textContent = genderScoped.filter(q => q.normalizedGender === "boys").length;
+      document.getElementById("genderCountGirls").textContent = genderScoped.filter(q => q.normalizedGender === "girls").length;
+
+      // Filter list by both stage AND gender
       let filtered = qualifiers;
 
       if (currentStageTab === 'final') {
         filtered = filtered.filter(q => q.calculatedStage === "final");
       } else if (currentStageTab === 'semi') {
         filtered = filtered.filter(q => q.calculatedStage === "semi");
+      }
+
+      if (currentGenderTab === 'boys') {
+        filtered = filtered.filter(q => q.normalizedGender === "boys");
+      } else if (currentGenderTab === 'girls') {
+        filtered = filtered.filter(q => q.normalizedGender === "girls");
       }
 
       if (currentSearchTerm) {
@@ -1053,11 +1299,13 @@
       }
 
       if (filtered.length === 0) {
+        const stageLabel = currentStageTab === 'final' ? 'Final Stage' : currentStageTab === 'semi' ? 'Semi Final Stage' : 'Tournament';
+        const genderLabel = currentGenderTab === 'boys' ? 'Boys' : currentGenderTab === 'girls' ? 'Girls' : 'Athletes';
         body.innerHTML = `
           <div class="popup-empty-state">
             <i class="ri-award-line popup-empty-icon"></i>
-            <h3>No Qualified Players in this View</h3>
-            <p>Qualified athletes for <strong>${selectedSport.name}</strong> will appear here as stage results are updated.</p>
+            <h3>No ${genderLabel} Qualified for ${stageLabel}</h3>
+            <p>Qualified athletes for <strong>${selectedSport.name}</strong> will appear here as stage results are finalized.</p>
           </div>
         `;
         return;
@@ -1072,7 +1320,6 @@
 
         const formattedName = (p.name || "Athlete").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
         const mandalName = p.mandal || p.mandalName || "Vashishtha Mandal";
-        const mandalColor = MANDAL_COLORS[mandalName] || "#8b5cf6";
         const initials = (formattedName || "P").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
         const scholarText = p.scholarNo ? (p.scholarNo.toString().startsWith('#') ? p.scholarNo : '#' + p.scholarNo) : '#2424096';
         const courseText = p.course ? (p.course + (p.semester ? ` • Sem ${p.semester}` : '')) : 'BCA';
@@ -1081,7 +1328,7 @@
           ? `<div class="player-card-avatar-wrap"><img class="player-avatar-img" src="${p.photoUrl}" alt="${formattedName}"></div>`
           : `<div class="player-card-avatar-wrap"><div class="player-avatar-fallback">${initials}</div></div>`;
 
-        // Dynamic stage badge based on active tab and player stage
+        // Dynamic stage badge
         const isFinal = currentStageTab === 'final' || (currentStageTab === 'all' && p.calculatedStage === 'final');
         const isSemi = currentStageTab === 'semi' || (currentStageTab === 'all' && p.calculatedStage === 'semi');
 
@@ -1108,6 +1355,15 @@
             </div>
           `;
         }
+
+        // Gender Badge
+        const isGirl = p.normalizedGender === "girls";
+        const genderBadgeHtml = `
+          <div class="stage-badge-pill ${isGirl ? 'badge-pill-girls' : 'badge-pill-boys'}">
+            <i class="${isGirl ? 'ri-women-line' : 'ri-men-line'}"></i>
+            <span>${isGirl ? 'Girls' : 'Boys'}</span>
+          </div>
+        `;
 
         card.innerHTML = `
           ${photoHtml}
@@ -1138,6 +1394,7 @@
           </div>
 
           <div class="player-card-badges">
+            ${genderBadgeHtml}
             ${stageBadgeHtml}
           </div>
         `;

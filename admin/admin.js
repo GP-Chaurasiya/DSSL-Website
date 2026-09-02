@@ -3283,6 +3283,14 @@ function selectAdminSheetPlayer(player) {
   document.getElementById("adminQpScholarNo").value = player.scholarNo || "";
   if (player.course) document.getElementById("adminQpCourse").value = player.course;
   
+  // Set Gender if present
+  if (player.gender) {
+    const genderSelect = document.getElementById("adminQpGender");
+    if (genderSelect) {
+      genderSelect.value = (player.gender.toLowerCase().includes("girl") || player.gender.toLowerCase().includes("female") || player.gender.toLowerCase() === "f") ? "Girls" : "Boys";
+    }
+  }
+
   // Set Mandal
   const mandalName = player.mandalName || player.mandal || "";
   if (mandalName) {
@@ -3383,6 +3391,8 @@ function clearAdminQpForm() {
   document.getElementById("adminQpName").value = "";
   document.getElementById("adminQpScholarNo").value = "";
   document.getElementById("adminQpCourse").value = "";
+  const genderSelect = document.getElementById("adminQpGender");
+  if (genderSelect) genderSelect.value = "Boys";
   clearAdminQpPhoto();
   document.getElementById("adminQpStage").value = "Semi-Final";
   document.getElementById("adminSheetPlayerSearch").value = "";
@@ -3395,6 +3405,7 @@ async function saveAdminQualifiedPlayer() {
   const sportName = document.getElementById("adminQpSportSelect").value;
   const name = document.getElementById("adminQpName").value.trim();
   const scholarNo = document.getElementById("adminQpScholarNo").value.trim();
+  const gender = document.getElementById("adminQpGender") ? document.getElementById("adminQpGender").value : "Boys";
   const mandal = document.getElementById("adminQpMandal").value;
   const course = document.getElementById("adminQpCourse").value.trim();
   const stage = document.getElementById("adminQpStage").value;
@@ -3406,7 +3417,7 @@ async function saveAdminQualifiedPlayer() {
   }
 
   try {
-    const payload = { id: editId || undefined, sportName, name, scholarNo, mandal, course, stage, photoUrl };
+    const payload = { id: editId || undefined, sportName, name, scholarNo, gender, mandal, course, stage, photoUrl };
     const res = await apiCall("/api/qualified-players", {
       method: "POST",
       body: JSON.stringify(payload)
@@ -3415,7 +3426,7 @@ async function saveAdminQualifiedPlayer() {
     if (res && res.success) {
       clearAdminQpForm();
       await loadAdminQualifiedPlayers();
-      alert(`Player "${name}" saved as ${stage} Qualifier for ${sportName} successfully!`);
+      alert(`Player "${name}" saved as ${gender} ${stage} Qualifier for ${sportName} successfully!`);
     }
   } catch (err) {
     console.error("Error saving qualified player:", err);
@@ -3468,6 +3479,11 @@ function editAdminQualifiedPlayer(id) {
   updateAdminQpPhotoPreview(player.photoUrl || "");
   document.getElementById("adminQpStage").value = player.stage || "Semi-Final";
 
+  const genderSelect = document.getElementById("adminQpGender");
+  if (genderSelect && player.gender) {
+    genderSelect.value = player.gender.toLowerCase().includes("girl") ? "Girls" : "Boys";
+  }
+
   const sportSelect = document.getElementById("adminQpSportSelect");
   if (sportSelect && player.sportName) {
     sportSelect.value = player.sportName;
@@ -3493,6 +3509,7 @@ function renderAdminQualifiedPlayersTable() {
   const tbody = document.getElementById("adminQpTableBody");
   const countEl = document.getElementById("adminQpCount");
   const filterSport = document.getElementById("adminQpSportFilter") ? document.getElementById("adminQpSportFilter").value : "ALL";
+  const filterGender = document.getElementById("adminQpGenderFilter") ? document.getElementById("adminQpGenderFilter").value : "ALL";
   const filterInput = document.getElementById("adminQpFilterInput");
   const filterQuery = filterInput ? filterInput.value.toLowerCase().trim() : "";
 
@@ -3502,6 +3519,10 @@ function renderAdminQualifiedPlayersTable() {
     list = list.filter(p => (p.sportName || "").toLowerCase() === filterSport.toLowerCase());
   }
 
+  if (filterGender && filterGender !== "ALL") {
+    list = list.filter(p => (p.gender || "Boys").toLowerCase() === filterGender.toLowerCase());
+  }
+
   if (filterQuery) {
     list = list.filter(p =>
       (p.name || "").toLowerCase().includes(filterQuery) ||
@@ -3509,6 +3530,7 @@ function renderAdminQualifiedPlayersTable() {
       (p.mandal || "").toLowerCase().includes(filterQuery) ||
       (p.course || "").toLowerCase().includes(filterQuery) ||
       (p.sportName || "").toLowerCase().includes(filterQuery) ||
+      (p.gender || "").toLowerCase().includes(filterQuery) ||
       (p.stage || "").toLowerCase().includes(filterQuery)
     );
   }
@@ -3517,7 +3539,7 @@ function renderAdminQualifiedPlayersTable() {
   if (!tbody) return;
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">No qualified players found. Use the form above to add qualifiers from the Google Sheet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">No qualified players found. Use the form above to add qualifiers from the Google Sheet.</td></tr>`;
     return;
   }
 
@@ -3526,6 +3548,11 @@ function renderAdminQualifiedPlayersTable() {
     const stageBadge = isFinal
       ? `<span class="badge badge-success" style="font-weight:800;"><i class="ri-trophy-line"></i> FINAL</span>`
       : `<span class="badge badge-warning" style="font-weight:800;"><i class="ri-medal-line"></i> SEMI-FINAL</span>`;
+
+    const isGirl = (player.gender || "").toLowerCase().includes("girl") || (player.gender || "").toLowerCase().includes("female");
+    const genderBadge = isGirl
+      ? `<span class="badge" style="background: rgba(236,72,153,0.15); color: #ec4899; font-weight:700;"><i class="ri-women-line"></i> Girls</span>`
+      : `<span class="badge" style="background: rgba(59,130,246,0.15); color: #3b82f6; font-weight:700;"><i class="ri-men-line"></i> Boys</span>`;
 
     const avatarUrl = player.photoUrl && player.photoUrl.trim().length > 5
       ? player.photoUrl
@@ -3539,6 +3566,7 @@ function renderAdminQualifiedPlayersTable() {
         <td style="font-weight: 700; color: var(--text-main);">${player.name || '-'}</td>
         <td style="font-family: monospace; font-weight: 600;">${player.scholarNo || '-'}</td>
         <td><span class="badge badge-primary" style="font-size: 11px;">${player.sportName || 'General'}</span></td>
+        <td>${genderBadge}</td>
         <td><span class="badge badge-secondary">${player.mandal || 'General'}</span></td>
         <td>${player.course || '-'}</td>
         <td>${stageBadge}</td>
