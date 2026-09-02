@@ -1235,15 +1235,33 @@ app.delete("/api/semifinals/:sportName", authenticateToken, requireRole(["SUPER_
   res.json({ success: true, sportName });
 });
 
-// ── Qualified Players Manager APIs (Prisma/PostgreSQL) ──────────────────────
-// NOTE: Data is stored in PostgreSQL via Prisma for reliability.
-// The qualified_players.json file is kept as a read-only legacy backup.
+// ── Qualified Players Manager APIs (Prisma/PostgreSQL + JSON cache) ─────────
+const qualifiedPlayersFilePath = path.join(ROOT, "qualified_players.json");
+
+function getLocalQualifiedPlayers() {
+  try {
+    if (fs.existsSync(qualifiedPlayersFilePath)) {
+      return JSON.parse(fs.readFileSync(qualifiedPlayersFilePath, "utf8"));
+    }
+  } catch (e) {
+    console.error("Local JSON read error:", e.message);
+  }
+  return [];
+}
+
+function syncLocalQualifiedPlayers(data) {
+  try {
+    fs.writeFileSync(qualifiedPlayersFilePath, JSON.stringify(data, null, 2), "utf8");
+  } catch (e) {
+    console.error("Local JSON sync error:", e.message);
+  }
+}
 
 // Public: Get all qualified players (supports sport, search, stage, and mandal filters)
 app.get("/api/qualified-players", async (req, res) => {
-  try {
-    const { sport, search, stage, mandal } = req.query;
+  const { sport, search, stage, mandal } = req.query;
 
+  try {
     const where = {};
     if (sport && sport !== "ALL") {
       where.sportName = { equals: sport, mode: "insensitive" };
@@ -1269,10 +1287,33 @@ app.get("/api/qualified-players", async (req, res) => {
       orderBy: { createdAt: "desc" }
     });
 
-    res.json(list);
+    // Update local cache in background
+    syncLocalQualifiedPlayers(list);
+    return res.json(list);
   } catch (err) {
-    console.error("Error fetching qualified players:", err);
-    res.status(500).json({ error: "Failed to fetch qualified players" });
+    console.warn("PostgreSQL read warning, using local cached qualifiers fallback:", err.message);
+    
+    // Resilient fallback to local cache on any database network hiccup
+    let fallbackList = getLocalQualifiedPlayers();
+    if (sport && sport !== "ALL") {
+      fallbackList = fallbackList.filter(p => (p.sportName || "").toLowerCase() === sport.toLowerCase());
+    }
+    if (stage && stage !== "ALL") {
+      fallbackList = fallbackList.filter(p => (p.stage || "").toLowerCase() === stage.toLowerCase());
+    }
+    if (mandal && mandal !== "ALL") {
+      fallbackList = fallbackList.filter(p => (p.mandal || "").toLowerCase().includes(mandal.toLowerCase()));
+    }
+    if (search) {
+      const q = search.toLowerCase().trim();
+      fallbackList = fallbackList.filter(p =>
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.scholarNo || "").toLowerCase().includes(q) ||
+        (p.course || "").toLowerCase().includes(q) ||
+        (p.mandal || "").toLowerCase().includes(q)
+      );
+    }
+    return res.json(fallbackList);
   }
 });
 
@@ -1290,7 +1331,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
 
     // If editing by ID, update that specific record
     if (id) {
-      const existing = await prisma.qualifiedPlayer.findUnique({ where: { id: String(id) } });
+      const existing = await prisma.qualifiedPlayer.findUnique({ where: { id: String(id) } }).catch(() => null);
       if (existing) {
         playerEntry = await prisma.qualifiedPlayer.update({
           where: { id: String(id) },
@@ -1305,6 +1346,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
           }
         });
         const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+        syncLocalQualifiedPlayers(allPlayers);
         io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
         return res.json({ success: true, player: playerEntry, total: allPlayers.length });
       }
@@ -1316,7 +1358,7 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
         scholarNo: { equals: scholarNo.trim(), mode: "insensitive" },
         sportName: { equals: targetSport, mode: "insensitive" }
       }
-    });
+    }).catch(() => null);
 
     if (duplicate) {
       playerEntry = await prisma.qualifiedPlayer.update({
@@ -1345,12 +1387,13 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
       });
     }
 
-    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } }).catch(() => [playerEntry]);
+    syncLocalQualifiedPlayers(allPlayers);
     io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
     res.json({ success: true, player: playerEntry, total: allPlayers.length });
   } catch (err) {
     console.error("Error saving qualified player:", err);
-    res.status(500).json({ error: "Failed to save qualified player" });
+    res.status(500).json({ error: "Failed to save qualified player: " + err.message });
   }
 });
 
@@ -1362,7 +1405,7 @@ app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_
     // Try finding by primary id first, then by scholarNo as fallback
     let target = await prisma.qualifiedPlayer.findUnique({ where: { id } }).catch(() => null);
     if (!target) {
-      target = await prisma.qualifiedPlayer.findFirst({ where: { scholarNo: id } });
+      target = await prisma.qualifiedPlayer.findFirst({ where: { scholarNo: id } }).catch(() => null);
     }
     if (!target) {
       return res.status(404).json({ error: "Qualified player not found" });
@@ -1370,7 +1413,8 @@ app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_
 
     await prisma.qualifiedPlayer.delete({ where: { id: target.id } });
 
-    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } }).catch(() => []);
+    syncLocalQualifiedPlayers(allPlayers);
     io.emit("qualifiedPlayersUpdate", { players: allPlayers, deletedId: id, sportName: target.sportName });
     res.json({ success: true, total: allPlayers.length });
   } catch (err) {
