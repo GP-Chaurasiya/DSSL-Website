@@ -1327,70 +1327,135 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
 
     const targetSport = (sportName || "Basketball").trim();
     const normalizedStage = stage === "Final" ? "Final" : "Semi-Final";
-    let playerEntry;
+    let playerEntry = null;
 
-    // If editing by ID, update that specific record
-    if (id) {
-      const existing = await prisma.qualifiedPlayer.findUnique({ where: { id: String(id) } }).catch(() => null);
-      if (existing) {
-        playerEntry = await prisma.qualifiedPlayer.update({
-          where: { id: String(id) },
-          data: {
-            sportName: targetSport,
-            name: name.trim(),
-            scholarNo: scholarNo.trim(),
-            mandal: mandal ? mandal.trim() : existing.mandal,
-            course: course ? course.trim() : existing.course,
-            stage: normalizedStage,
-            photoUrl: photoUrl !== undefined ? photoUrl.trim() : existing.photoUrl
+    // Check if Prisma model is available on this environment
+    if (prisma && prisma.qualifiedPlayer) {
+      try {
+        if (id) {
+          const existing = await prisma.qualifiedPlayer.findUnique({ where: { id: String(id) } }).catch(() => null);
+          if (existing) {
+            playerEntry = await prisma.qualifiedPlayer.update({
+              where: { id: String(id) },
+              data: {
+                sportName: targetSport,
+                name: name.trim(),
+                scholarNo: scholarNo.trim(),
+                mandal: mandal ? mandal.trim() : existing.mandal,
+                course: course ? course.trim() : existing.course,
+                stage: normalizedStage,
+                photoUrl: photoUrl !== undefined ? photoUrl.trim() : existing.photoUrl
+              }
+            });
+            const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+            syncLocalQualifiedPlayers(allPlayers);
+            io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
+            return res.json({ success: true, player: playerEntry, total: allPlayers.length });
           }
-        });
-        const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+        }
+
+        const duplicate = await prisma.qualifiedPlayer.findFirst({
+          where: {
+            scholarNo: { equals: scholarNo.trim(), mode: "insensitive" },
+            sportName: { equals: targetSport, mode: "insensitive" }
+          }
+        }).catch(() => null);
+
+        if (duplicate) {
+          playerEntry = await prisma.qualifiedPlayer.update({
+            where: { id: duplicate.id },
+            data: {
+              sportName: targetSport,
+              name: name.trim(),
+              scholarNo: scholarNo.trim(),
+              mandal: mandal ? mandal.trim() : duplicate.mandal,
+              course: course ? course.trim() : duplicate.course,
+              stage: normalizedStage,
+              photoUrl: photoUrl !== undefined ? photoUrl.trim() : duplicate.photoUrl
+            }
+          });
+        } else {
+          playerEntry = await prisma.qualifiedPlayer.create({
+            data: {
+              sportName: targetSport,
+              name: name.trim(),
+              scholarNo: scholarNo.trim(),
+              mandal: mandal ? mandal.trim() : "General",
+              course: course ? course.trim() : "DSSL Athlete",
+              stage: normalizedStage,
+              photoUrl: photoUrl ? photoUrl.trim() : ""
+            }
+          });
+        }
+
+        const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } }).catch(() => [playerEntry]);
         syncLocalQualifiedPlayers(allPlayers);
         io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
         return res.json({ success: true, player: playerEntry, total: allPlayers.length });
+      } catch (dbErr) {
+        console.warn("DB save error, falling back to local JSON:", dbErr.message);
       }
     }
 
-    // Check for duplicate (same scholarNo + same sport) and upsert
-    const duplicate = await prisma.qualifiedPlayer.findFirst({
-      where: {
-        scholarNo: { equals: scholarNo.trim(), mode: "insensitive" },
-        sportName: { equals: targetSport, mode: "insensitive" }
-      }
-    }).catch(() => null);
-
-    if (duplicate) {
-      playerEntry = await prisma.qualifiedPlayer.update({
-        where: { id: duplicate.id },
-        data: {
+    // Local JSON resilient fallback
+    let list = getLocalQualifiedPlayers();
+    if (id) {
+      const idx = list.findIndex(p => p.id === id || p.id === String(id));
+      if (idx !== -1) {
+        list[idx] = {
+          ...list[idx],
           sportName: targetSport,
           name: name.trim(),
           scholarNo: scholarNo.trim(),
-          mandal: mandal ? mandal.trim() : duplicate.mandal,
-          course: course ? course.trim() : duplicate.course,
+          mandal: mandal ? mandal.trim() : list[idx].mandal,
+          course: course ? course.trim() : list[idx].course,
           stage: normalizedStage,
-          photoUrl: photoUrl !== undefined ? photoUrl.trim() : duplicate.photoUrl
-        }
-      });
-    } else {
-      playerEntry = await prisma.qualifiedPlayer.create({
-        data: {
+          photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[idx].photoUrl,
+          updatedAt: new Date().toISOString()
+        };
+        playerEntry = list[idx];
+      }
+    }
+
+    if (!playerEntry) {
+      const existingIdx = list.findIndex(p =>
+        (p.scholarNo || "").toLowerCase() === scholarNo.toLowerCase().trim() &&
+        (p.sportName || "").toLowerCase() === targetSport.toLowerCase()
+      );
+
+      if (existingIdx !== -1) {
+        list[existingIdx] = {
+          ...list[existingIdx],
+          sportName: targetSport,
+          name: name.trim(),
+          scholarNo: scholarNo.trim(),
+          mandal: mandal ? mandal.trim() : list[existingIdx].mandal,
+          course: course ? course.trim() : list[existingIdx].course,
+          stage: normalizedStage,
+          photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[existingIdx].photoUrl,
+          updatedAt: new Date().toISOString()
+        };
+        playerEntry = list[existingIdx];
+      } else {
+        playerEntry = {
+          id: `qp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
           sportName: targetSport,
           name: name.trim(),
           scholarNo: scholarNo.trim(),
           mandal: mandal ? mandal.trim() : "General",
           course: course ? course.trim() : "DSSL Athlete",
           stage: normalizedStage,
-          photoUrl: photoUrl ? photoUrl.trim() : ""
-        }
-      });
+          photoUrl: photoUrl ? photoUrl.trim() : "",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        list.unshift(playerEntry);
+      }
     }
 
-    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } }).catch(() => [playerEntry]);
-    syncLocalQualifiedPlayers(allPlayers);
-    io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
-    res.json({ success: true, player: playerEntry, total: allPlayers.length });
+    syncLocalQualifiedPlayers(list);
+    io.emit("qualifiedPlayersUpdate", { players: list, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
+    return res.json({ success: true, player: playerEntry, total: list.length });
   } catch (err) {
     console.error("Error saving qualified player:", err);
     res.status(500).json({ error: "Failed to save qualified player: " + err.message });
@@ -1401,22 +1466,32 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
 app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   try {
     const id = req.params.id;
+    let target = null;
 
-    // Try finding by primary id first, then by scholarNo as fallback
-    let target = await prisma.qualifiedPlayer.findUnique({ where: { id } }).catch(() => null);
-    if (!target) {
-      target = await prisma.qualifiedPlayer.findFirst({ where: { scholarNo: id } }).catch(() => null);
+    if (prisma && prisma.qualifiedPlayer) {
+      try {
+        target = await prisma.qualifiedPlayer.findUnique({ where: { id } }).catch(() => null);
+        if (!target) {
+          target = await prisma.qualifiedPlayer.findFirst({ where: { scholarNo: id } }).catch(() => null);
+        }
+        if (target) {
+          await prisma.qualifiedPlayer.delete({ where: { id: target.id } });
+        }
+      } catch (e) {
+        console.warn("DB delete error, continuing with local cache:", e.message);
+      }
     }
+
+    let list = getLocalQualifiedPlayers();
     if (!target) {
-      return res.status(404).json({ error: "Qualified player not found" });
+      target = list.find(p => p.id === id || p.scholarNo === id);
     }
+    const initialLen = list.length;
+    list = list.filter(p => p.id !== id && p.scholarNo !== id);
 
-    await prisma.qualifiedPlayer.delete({ where: { id: target.id } });
-
-    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } }).catch(() => []);
-    syncLocalQualifiedPlayers(allPlayers);
-    io.emit("qualifiedPlayersUpdate", { players: allPlayers, deletedId: id, sportName: target.sportName });
-    res.json({ success: true, total: allPlayers.length });
+    syncLocalQualifiedPlayers(list);
+    io.emit("qualifiedPlayersUpdate", { players: list, deletedId: id, sportName: target?.sportName });
+    return res.json({ success: true, total: list.length });
   } catch (err) {
     console.error("Error deleting qualified player:", err);
     res.status(500).json({ error: "Failed to delete qualified player" });
