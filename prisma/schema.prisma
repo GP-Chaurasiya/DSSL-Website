@@ -125,3 +125,16 @@ model RegistrationSettings {
   sportsConfig  String   @default("{}")
   updatedAt     DateTime
 }
+
+model QualifiedPlayer {
+  id        String   @id @default(cuid())
+  sportName String
+  name      String
+  scholarNo String
+  mandal    String   @default("General")
+  course    String   @default("")
+  stage     String   @default("Semi-Final")
+  photoUrl  String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

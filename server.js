@@ -1235,55 +1235,39 @@ app.delete("/api/semifinals/:sportName", authenticateToken, requireRole(["SUPER_
   res.json({ success: true, sportName });
 });
 
-// ── Qualified Players Manager APIs ──────────────────────────────────────────
-const qualifiedPlayersFilePath = path.join(ROOT, "qualified_players.json");
-
-function getQualifiedPlayersData() {
-  try {
-    if (fs.existsSync(qualifiedPlayersFilePath)) {
-      const data = fs.readFileSync(qualifiedPlayersFilePath, "utf8");
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error("Error reading qualified_players.json:", err);
-  }
-  return [];
-}
-
-function saveQualifiedPlayersData(data) {
-  try {
-    fs.writeFileSync(qualifiedPlayersFilePath, JSON.stringify(data, null, 2), "utf8");
-    return true;
-  } catch (err) {
-    console.error("Error saving qualified_players.json:", err);
-    return false;
-  }
-}
+// ── Qualified Players Manager APIs (Prisma/PostgreSQL) ──────────────────────
+// NOTE: Data is stored in PostgreSQL via Prisma for reliability.
+// The qualified_players.json file is kept as a read-only legacy backup.
 
 // Public: Get all qualified players (supports sport, search, stage, and mandal filters)
-app.get("/api/qualified-players", (req, res) => {
+app.get("/api/qualified-players", async (req, res) => {
   try {
-    let list = getQualifiedPlayersData();
     const { sport, search, stage, mandal } = req.query;
 
+    const where = {};
     if (sport && sport !== "ALL") {
-      list = list.filter(p => (p.sportName || "").toLowerCase() === sport.toLowerCase());
+      where.sportName = { equals: sport, mode: "insensitive" };
     }
     if (stage && stage !== "ALL") {
-      list = list.filter(p => (p.stage || "").toLowerCase() === stage.toLowerCase());
+      where.stage = { equals: stage, mode: "insensitive" };
     }
     if (mandal && mandal !== "ALL") {
-      list = list.filter(p => (p.mandal || "").toLowerCase().includes(mandal.toLowerCase()));
+      where.mandal = { contains: mandal, mode: "insensitive" };
     }
     if (search) {
-      const q = search.toLowerCase().trim();
-      list = list.filter(p =>
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.scholarNo || "").toLowerCase().includes(q) ||
-        (p.course || "").toLowerCase().includes(q) ||
-        (p.mandal || "").toLowerCase().includes(q)
-      );
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { scholarNo: { contains: q, mode: "insensitive" } },
+        { course: { contains: q, mode: "insensitive" } },
+        { mandal: { contains: q, mode: "insensitive" } }
+      ];
     }
+
+    const list = await prisma.qualifiedPlayer.findMany({
+      where,
+      orderBy: { createdAt: "desc" }
+    });
 
     res.json(list);
   } catch (err) {
@@ -1293,75 +1277,77 @@ app.get("/api/qualified-players", (req, res) => {
 });
 
 // Admin: Add or update a qualified player
-app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   try {
     const { id, sportName, name, scholarNo, mandal, course, stage, photoUrl } = req.body;
     if (!name || !scholarNo) {
       return res.status(400).json({ error: "Player name and Scholar No are required" });
     }
 
-    let list = getQualifiedPlayersData();
-    let playerEntry = null;
+    const targetSport = (sportName || "Basketball").trim();
+    const normalizedStage = stage === "Final" ? "Final" : "Semi-Final";
+    let playerEntry;
 
+    // If editing by ID, update that specific record
     if (id) {
-      const idx = list.findIndex(p => p.id === id || p.id === String(id));
-      if (idx !== -1) {
-        list[idx] = {
-          ...list[idx],
-          sportName: sportName ? sportName.trim() : list[idx].sportName || "Basketball",
-          name: name.trim(),
-          scholarNo: scholarNo.trim(),
-          mandal: mandal ? mandal.trim() : list[idx].mandal,
-          course: course ? course.trim() : list[idx].course,
-          stage: stage === "Final" ? "Final" : "Semi-Final",
-          photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[idx].photoUrl,
-          updatedAt: new Date().toISOString()
-        };
-        playerEntry = list[idx];
+      const existing = await prisma.qualifiedPlayer.findUnique({ where: { id: String(id) } });
+      if (existing) {
+        playerEntry = await prisma.qualifiedPlayer.update({
+          where: { id: String(id) },
+          data: {
+            sportName: targetSport,
+            name: name.trim(),
+            scholarNo: scholarNo.trim(),
+            mandal: mandal ? mandal.trim() : existing.mandal,
+            course: course ? course.trim() : existing.course,
+            stage: normalizedStage,
+            photoUrl: photoUrl !== undefined ? photoUrl.trim() : existing.photoUrl
+          }
+        });
+        const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+        io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
+        return res.json({ success: true, player: playerEntry, total: allPlayers.length });
       }
     }
 
-    if (!playerEntry) {
-      // Check if player with same scholarNo and sportName already exists
-      const targetSport = sportName ? sportName.trim() : "Basketball";
-      const existingIdx = list.findIndex(p => 
-        (p.scholarNo || "").toLowerCase() === scholarNo.toLowerCase().trim() &&
-        (p.sportName || "").toLowerCase() === targetSport.toLowerCase()
-      );
+    // Check for duplicate (same scholarNo + same sport) and upsert
+    const duplicate = await prisma.qualifiedPlayer.findFirst({
+      where: {
+        scholarNo: { equals: scholarNo.trim(), mode: "insensitive" },
+        sportName: { equals: targetSport, mode: "insensitive" }
+      }
+    });
 
-      if (existingIdx !== -1) {
-        list[existingIdx] = {
-          ...list[existingIdx],
+    if (duplicate) {
+      playerEntry = await prisma.qualifiedPlayer.update({
+        where: { id: duplicate.id },
+        data: {
           sportName: targetSport,
           name: name.trim(),
           scholarNo: scholarNo.trim(),
-          mandal: mandal ? mandal.trim() : list[existingIdx].mandal,
-          course: course ? course.trim() : list[existingIdx].course,
-          stage: stage === "Final" ? "Final" : "Semi-Final",
-          photoUrl: photoUrl !== undefined ? photoUrl.trim() : list[existingIdx].photoUrl,
-          updatedAt: new Date().toISOString()
-        };
-        playerEntry = list[existingIdx];
-      } else {
-        playerEntry = {
-          id: `qp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          mandal: mandal ? mandal.trim() : duplicate.mandal,
+          course: course ? course.trim() : duplicate.course,
+          stage: normalizedStage,
+          photoUrl: photoUrl !== undefined ? photoUrl.trim() : duplicate.photoUrl
+        }
+      });
+    } else {
+      playerEntry = await prisma.qualifiedPlayer.create({
+        data: {
           sportName: targetSport,
           name: name.trim(),
           scholarNo: scholarNo.trim(),
           mandal: mandal ? mandal.trim() : "General",
           course: course ? course.trim() : "DSSL Athlete",
-          stage: stage === "Final" ? "Final" : "Semi-Final",
-          photoUrl: photoUrl ? photoUrl.trim() : "",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        list.unshift(playerEntry);
-      }
+          stage: normalizedStage,
+          photoUrl: photoUrl ? photoUrl.trim() : ""
+        }
+      });
     }
 
-    saveQualifiedPlayersData(list);
-    io.emit("qualifiedPlayersUpdate", { players: list, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
-    res.json({ success: true, player: playerEntry, total: list.length });
+    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+    io.emit("qualifiedPlayersUpdate", { players: allPlayers, updatedPlayer: playerEntry, sportName: playerEntry.sportName });
+    res.json({ success: true, player: playerEntry, total: allPlayers.length });
   } catch (err) {
     console.error("Error saving qualified player:", err);
     res.status(500).json({ error: "Failed to save qualified player" });
@@ -1369,21 +1355,24 @@ app.post("/api/qualified-players", authenticateToken, requireRole(["SUPER_ADMIN"
 });
 
 // Admin: Delete a qualified player
-app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
   try {
     const id = req.params.id;
-    let list = getQualifiedPlayersData();
-    const targetPlayer = list.find(p => p.id === id || p.scholarNo === id);
-    const initialLen = list.length;
-    list = list.filter(p => p.id !== id && p.scholarNo !== id);
 
-    if (list.length === initialLen) {
+    // Try finding by primary id first, then by scholarNo as fallback
+    let target = await prisma.qualifiedPlayer.findUnique({ where: { id } }).catch(() => null);
+    if (!target) {
+      target = await prisma.qualifiedPlayer.findFirst({ where: { scholarNo: id } });
+    }
+    if (!target) {
       return res.status(404).json({ error: "Qualified player not found" });
     }
 
-    saveQualifiedPlayersData(list);
-    io.emit("qualifiedPlayersUpdate", { players: list, deletedId: id, sportName: targetPlayer?.sportName });
-    res.json({ success: true, total: list.length });
+    await prisma.qualifiedPlayer.delete({ where: { id: target.id } });
+
+    const allPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+    io.emit("qualifiedPlayersUpdate", { players: allPlayers, deletedId: id, sportName: target.sportName });
+    res.json({ success: true, total: allPlayers.length });
   } catch (err) {
     console.error("Error deleting qualified player:", err);
     res.status(500).json({ error: "Failed to delete qualified player" });
