@@ -1264,15 +1264,15 @@ function syncLocalQualifiedPlayers(data) {
 async function syncQualifiedPlayersOnStartup() {
   try {
     if (prisma && prisma.qualifiedPlayer) {
-      const dbPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+      let dbPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
       const localPlayers = getLocalQualifiedPlayers();
 
       // If local cache has entries not in DB, migrate them into DB
       for (const localP of localPlayers) {
-        if (!localP.scholarNo) continue;
+        if (!localP.scholarNo && !localP.name) continue;
         const existsInDb = dbPlayers.some(dp => 
-          dp.scholarNo.toLowerCase() === (localP.scholarNo || "").toLowerCase() &&
-          dp.sportName.toLowerCase() === (localP.sportName || "").toLowerCase()
+          (localP.scholarNo && dp.scholarNo.toLowerCase() === localP.scholarNo.toLowerCase()) ||
+          (localP.name && dp.name.toLowerCase() === localP.name.toLowerCase() && dp.sportName.toLowerCase() === (localP.sportName || "").toLowerCase())
         );
         if (!existsInDb) {
           try {
@@ -1281,7 +1281,7 @@ async function syncQualifiedPlayersOnStartup() {
                 id: localP.id || undefined,
                 sportName: localP.sportName || "Basketball",
                 name: localP.name || "Athlete",
-                scholarNo: localP.scholarNo,
+                scholarNo: localP.scholarNo || `QP-${Math.floor(Math.random() * 10000)}`,
                 mandal: localP.mandal || "General",
                 course: localP.course || "",
                 stage: localP.stage || "Semi-Final",
@@ -1294,6 +1294,43 @@ async function syncQualifiedPlayersOnStartup() {
             console.warn(`[Auto-Sync] Could not migrate qualifier ${localP.name}:`, createErr.message);
           }
         }
+      }
+
+      // Also migrate any custom qualifiers from semifinal_players.json
+      try {
+        const sfData = getSemiFinalsData();
+        for (const [sName, sEntry] of Object.entries(sfData)) {
+          if (sEntry && Array.isArray(sEntry.customQualifiers)) {
+            for (const cq of sEntry.customQualifiers) {
+              if (!cq.name || cq.name.trim().length === 0) continue;
+              const exists = dbPlayers.some(dp =>
+                dp.name.toLowerCase().trim() === cq.name.toLowerCase().trim() &&
+                dp.sportName.toLowerCase().trim() === sName.toLowerCase().trim()
+              );
+              if (!exists) {
+                try {
+                  await prisma.qualifiedPlayer.create({
+                    data: {
+                      sportName: sName,
+                      name: cq.name.trim(),
+                      scholarNo: cq.scholarNo ? cq.scholarNo.trim() : `SF-${Math.floor(100000 + Math.random() * 900000)}`,
+                      mandal: cq.mandal || "General",
+                      course: cq.course || cq.role || "Athlete",
+                      stage: (cq.status && cq.status.toLowerCase().includes("final")) ? "Final" : "Semi-Final",
+                      gender: sEntry.gender || "Boys",
+                      photoUrl: ""
+                    }
+                  });
+                  console.log(`[Auto-Sync] Migrated semifinal qualifier: ${cq.name} (${sName})`);
+                } catch (e) {
+                  console.warn(`[Auto-Sync] Error migrating semifinal qualifier ${cq.name}:`, e.message);
+                }
+              }
+            }
+          }
+        }
+      } catch (sfErr) {
+        console.warn("[Auto-Sync] Semifinals sync error:", sfErr.message);
       }
 
       // Re-fetch all and update local cache with complete DB records
