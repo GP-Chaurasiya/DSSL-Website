@@ -3210,12 +3210,17 @@ async function loadAdminQualifiedPlayers() {
 
   try {
     const res = await fetch("/api/qualified-players");
-    if (res.ok) {
-      adminQualifiedPlayersList = await res.json();
-      renderAdminQualifiedPlayersTable();
+    if (!res.ok) {
+      throw new Error(`Server returned status ${res.status}`);
     }
+    const data = await res.json();
+    adminQualifiedPlayersList = Array.isArray(data) ? data : [];
+    renderAdminQualifiedPlayersTable();
   } catch (err) {
     console.error("Error loading qualified players:", err);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--danger);"><i class="ri-error-warning-line"></i> Failed to load qualified players: ${err.message}. <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px; margin-left: 8px;" onclick="loadAdminQualifiedPlayers()">Retry</button></td></tr>`;
+    }
   }
 }
 
