@@ -3225,14 +3225,25 @@ async function loadAdminQualifiedPlayers() {
 }
 
 async function fetchSheetPlayersForSelector() {
-  if (sheetPlayersCache.length > 0) return;
   try {
-    const res = await apiCall("/api/players?limit=100");
+    const res = await apiCall("/api/players?limit=1000").catch(() => null);
     if (res && res.players) {
       sheetPlayersCache = res.players;
+    } else {
+      const pubRes = await fetch("/api/public/players?limit=1000").then(r => r.json()).catch(() => null);
+      if (pubRes && pubRes.players) {
+        sheetPlayersCache = pubRes.players;
+      }
     }
   } catch (err) {
     console.warn("Could not prefetch sheet players:", err);
+  }
+}
+
+function onAdminQpSportSelectChange() {
+  const searchInput = document.getElementById("adminSheetPlayerSearch");
+  if (searchInput && searchInput.value.trim().length >= 2) {
+    onAdminSheetPlayerSearch(searchInput.value);
   }
 }
 
@@ -3247,15 +3258,25 @@ function onAdminSheetPlayerSearch(query) {
     return;
   }
 
-  const matches = sheetPlayersCache.filter(p =>
+  const selectedSport = (document.getElementById("adminQpSportSelect")?.value || "").trim();
+
+  // Filter sheet players by the sport currently selected in the form
+  const sportFiltered = sheetPlayersCache.filter(p => {
+    if (!selectedSport) return true;
+    const pS = (p.sport || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const tS = selectedSport.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return pS.includes(tS) || tS.includes(pS);
+  });
+
+  const matches = sportFiltered.filter(p =>
     (p.name || "").toLowerCase().includes(q) ||
     (p.scholarNo || "").toLowerCase().includes(q) ||
-    (p.course || "").toLowerCase().includes(q) ||
-    (p.sport || "").toLowerCase().includes(q)
+    (p.course || "").toLowerCase().includes(q)
   ).slice(0, 10);
 
   if (matches.length === 0) {
-    dropdown.innerHTML = `<div style="padding: 12px; font-size: 13px; color: var(--text-muted); text-align: center;">No matching player found in Google Sheet. You can fill details manually below.</div>`;
+    const sportLabel = selectedSport ? ` for "${selectedSport}"` : "";
+    dropdown.innerHTML = `<div style="padding: 12px; font-size: 13px; color: var(--text-muted); text-align: center;">No matching player registered in Google Sheet${sportLabel}. (${sportFiltered.length} total registered for this sport). You can fill details manually below.</div>`;
     dropdown.style.display = "block";
     return;
   }
@@ -3611,6 +3632,7 @@ window.resetSemiFinalForm = resetSemiFinalForm;
 // Qualified players bindings
 window.populateAdminQpSportSelects = populateAdminQpSportSelects;
 window.loadAdminQualifiedPlayers = loadAdminQualifiedPlayers;
+window.onAdminQpSportSelectChange = onAdminQpSportSelectChange;
 window.onAdminSheetPlayerSearch = onAdminSheetPlayerSearch;
 window.selectAdminSheetPlayer = selectAdminSheetPlayer;
 window.clearAdminQpForm = clearAdminQpForm;

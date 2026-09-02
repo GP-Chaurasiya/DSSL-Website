@@ -2187,9 +2187,9 @@
               <i class="ri-user-add-line" style="color: var(--primary);"></i> Add or Edit Qualified Player from Google Sheet
             </h4>
 
-            <!-- Google Sheet Search Input with Autocomplete -->
+            <!-- Google Sheet Search Input with Autocomplete (Filtered by selected Sport) -->
             <div class="form-group" style="position: relative; margin-bottom: 1.25rem;">
-              <input type="text" id="adminSheetPlayerSearch" class="input" placeholder="Type player name or scholar number from Google Sheet to auto-fill..." oninput="onAdminSheetPlayerSearch(this.value)" autocomplete="off">
+              <input type="text" id="adminSheetPlayerSearch" class="input" placeholder="Type player name or scholar number (filtered by selected sport)..." oninput="onAdminSheetPlayerSearch(this.value)" autocomplete="off">
               <div id="adminSheetSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; max-height: 240px; overflow-y: auto; z-index: 100; box-shadow: var(--shadow); margin-top: 4px;">
                 <!-- Populated dynamically -->
               </div>
@@ -2200,7 +2200,7 @@
             <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1rem;">
               <div class="form-group">
                 <label>Sport Category <span style="color:red;">*</span></label>
-                <select id="adminQpSportSelect" class="input" style="font-weight: 700;">
+                <select id="adminQpSportSelect" class="input" style="font-weight: 700;" onchange="onAdminQpSportSelectChange()">
                   <!-- Populated dynamically with SPORTS -->
                 </select>
               </div>
