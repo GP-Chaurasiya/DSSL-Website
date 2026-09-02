@@ -1241,7 +1241,8 @@ const qualifiedPlayersFilePath = path.join(ROOT, "qualified_players.json");
 function getLocalQualifiedPlayers() {
   try {
     if (fs.existsSync(qualifiedPlayersFilePath)) {
-      return JSON.parse(fs.readFileSync(qualifiedPlayersFilePath, "utf8"));
+      const content = fs.readFileSync(qualifiedPlayersFilePath, "utf8").trim();
+      return content ? JSON.parse(content) : [];
     }
   } catch (e) {
     console.error("Local JSON read error:", e.message);
@@ -1251,15 +1252,63 @@ function getLocalQualifiedPlayers() {
 
 function syncLocalQualifiedPlayers(data) {
   try {
-    fs.writeFileSync(qualifiedPlayersFilePath, JSON.stringify(data, null, 2), "utf8");
+    if (Array.isArray(data)) {
+      fs.writeFileSync(qualifiedPlayersFilePath, JSON.stringify(data, null, 2), "utf8");
+    }
   } catch (e) {
     console.error("Local JSON sync error:", e.message);
+  }
+}
+
+// Auto-sync PostgreSQL Qualified Players with local cache on server start
+async function syncQualifiedPlayersOnStartup() {
+  try {
+    if (prisma && prisma.qualifiedPlayer) {
+      const dbPlayers = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+      const localPlayers = getLocalQualifiedPlayers();
+
+      // If local cache has entries not in DB, migrate them into DB
+      for (const localP of localPlayers) {
+        if (!localP.scholarNo) continue;
+        const existsInDb = dbPlayers.some(dp => 
+          dp.scholarNo.toLowerCase() === (localP.scholarNo || "").toLowerCase() &&
+          dp.sportName.toLowerCase() === (localP.sportName || "").toLowerCase()
+        );
+        if (!existsInDb) {
+          try {
+            await prisma.qualifiedPlayer.create({
+              data: {
+                id: localP.id || undefined,
+                sportName: localP.sportName || "Basketball",
+                name: localP.name || "Athlete",
+                scholarNo: localP.scholarNo,
+                mandal: localP.mandal || "General",
+                course: localP.course || "",
+                stage: localP.stage || "Semi-Final",
+                photoUrl: localP.photoUrl || ""
+              }
+            });
+            console.log(`[Auto-Sync] Migrated local qualifier to DB: ${localP.name} (${localP.sportName})`);
+          } catch (createErr) {
+            console.warn(`[Auto-Sync] Could not migrate qualifier ${localP.name}:`, createErr.message);
+          }
+        }
+      }
+
+      // Re-fetch all and update local cache with complete DB records
+      const allSynced = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+      syncLocalQualifiedPlayers(allSynced);
+      console.log(`[Auto-Sync] Qualified Players synced with DB. Total: ${allSynced.length}`);
+    }
+  } catch (e) {
+    console.warn("[Auto-Sync] Database sync warning for qualified players:", e.message);
   }
 }
 
 // Public: Get all qualified players (supports sport, search, stage, and mandal filters)
 app.get("/api/qualified-players", async (req, res) => {
   const { sport, search, stage, mandal } = req.query;
+  const hasFilters = (sport && sport !== "ALL") || (stage && stage !== "ALL") || (mandal && mandal !== "ALL") || (search && search.trim().length > 0);
 
   try {
     const where = {};
@@ -1287,13 +1336,15 @@ app.get("/api/qualified-players", async (req, res) => {
       orderBy: { createdAt: "desc" }
     });
 
-    // Update local cache in background
-    syncLocalQualifiedPlayers(list);
+    // ONLY update local full cache when no filters were applied! Never overwrite full cache with a filtered subset!
+    if (!hasFilters) {
+      syncLocalQualifiedPlayers(list);
+    }
     return res.json(list);
   } catch (err) {
     console.warn("PostgreSQL read warning, using local cached qualifiers fallback:", err.message);
     
-    // Resilient fallback to local cache on any database network hiccup
+    // Resilient fallback to local cache on database hiccup
     let fallbackList = getLocalQualifiedPlayers();
     if (sport && sport !== "ALL") {
       fallbackList = fallbackList.filter(p => (p.sportName || "").toLowerCase() === sport.toLowerCase());
@@ -1467,6 +1518,7 @@ app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_
   try {
     const id = req.params.id;
     let target = null;
+    let remainingList = null;
 
     if (prisma && prisma.qualifiedPlayer) {
       try {
@@ -1477,21 +1529,25 @@ app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_
         if (target) {
           await prisma.qualifiedPlayer.delete({ where: { id: target.id } });
         }
+        remainingList = await prisma.qualifiedPlayer.findMany({ orderBy: { createdAt: "desc" } });
+        syncLocalQualifiedPlayers(remainingList);
       } catch (e) {
         console.warn("DB delete error, continuing with local cache:", e.message);
       }
     }
 
-    let list = getLocalQualifiedPlayers();
-    if (!target) {
-      target = list.find(p => p.id === id || p.scholarNo === id);
+    if (!remainingList) {
+      let list = getLocalQualifiedPlayers();
+      if (!target) {
+        target = list.find(p => p.id === id || p.scholarNo === id);
+      }
+      list = list.filter(p => p.id !== id && p.scholarNo !== id);
+      syncLocalQualifiedPlayers(list);
+      remainingList = list;
     }
-    const initialLen = list.length;
-    list = list.filter(p => p.id !== id && p.scholarNo !== id);
 
-    syncLocalQualifiedPlayers(list);
-    io.emit("qualifiedPlayersUpdate", { players: list, deletedId: id, sportName: target?.sportName });
-    return res.json({ success: true, total: list.length });
+    io.emit("qualifiedPlayersUpdate", { players: remainingList, deletedId: id, sportName: target?.sportName });
+    return res.json({ success: true, total: remainingList.length });
   } catch (err) {
     console.error("Error deleting qualified player:", err);
     res.status(500).json({ error: "Failed to delete qualified player" });
@@ -1564,6 +1620,7 @@ process.on("uncaughtException", (err) => {
 // Start Server
 server.listen(PORT, () => {
   console.log(`DSSL Server running at http://localhost:${PORT}`);
+  syncQualifiedPlayersOnStartup().catch(e => console.warn("Startup QP sync warning:", e.message));
 });
 
 server.on("error", (err) => {

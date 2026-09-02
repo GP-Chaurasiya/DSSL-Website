@@ -1,5 +1,53 @@
 [
   {
+    "id": "cmtjvxwb80002r5gd82d0yln8",
+    "sportName": "Badminton (Singles)",
+    "name": "Om prakash podiyam",
+    "scholarNo": "2626155",
+    "mandal": "Vashishta Mandal",
+    "course": "B.Sc IT",
+    "stage": "Semi-Final",
+    "photoUrl": "",
+    "createdAt": "2026-09-02T09:20:04.821Z",
+    "updatedAt": "2026-09-02T09:20:07.927Z"
+  },
+  {
+    "id": "cmtjupjl50001r5gda5vasv0t",
+    "sportName": "Badminton (Singles)",
+    "name": "Sahitya kashyap",
+    "scholarNo": "2525189",
+    "mandal": "Kashyap Mandal",
+    "course": "M.Sc HCYS",
+    "stage": "Semi-Final",
+    "photoUrl": "",
+    "createdAt": "2026-09-02T08:45:35.465Z",
+    "updatedAt": "2026-09-02T08:45:35.465Z"
+  },
+  {
+    "id": "cmtjup8wn0000r5gdsq6965i3",
+    "sportName": "Badminton (Singles)",
+    "name": "Tarpan mishra",
+    "scholarNo": "2626325",
+    "mandal": "Kashyap Mandal",
+    "course": "MA Yoga Therapy (MA YT)",
+    "stage": "Semi-Final",
+    "photoUrl": "",
+    "createdAt": "2026-09-02T08:45:21.623Z",
+    "updatedAt": "2026-09-02T08:45:21.623Z"
+  },
+  {
+    "id": "cmtjtha340001xw6xnk7204l0",
+    "sportName": "Badminton (Singles)",
+    "name": "Ashutosh kumar",
+    "scholarNo": "2424010",
+    "mandal": "Vashishta Mandal",
+    "course": "BCA",
+    "stage": "Semi-Final",
+    "photoUrl": "",
+    "createdAt": "2026-09-02T08:11:10.288Z",
+    "updatedAt": "2026-09-02T08:11:10.288Z"
+  },
+  {
     "id": "qp_1787972648932_708",
     "sportName": "Badminton (Singles)",
     "name": "Sem prakash sahu",
@@ -9,6 +57,6 @@
     "stage": "Semi-Final",
     "photoUrl": "",
     "createdAt": "2026-08-29T03:04:08.932Z",
-    "updatedAt": "2026-08-30T03:41:52.668Z"
+    "updatedAt": "2026-09-02T07:59:32.360Z"
   }
 ]
