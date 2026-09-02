@@ -182,8 +182,17 @@ async function apiCall(url, options = {}) {
   }
   
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || "Request failed");
+    let errorMsg = `Request failed with status ${response.status}`;
+    try {
+      const data = await response.json();
+      errorMsg = data.error || errorMsg;
+    } catch {
+      try {
+        const text = await response.text();
+        if (text && text.length < 150) errorMsg = text;
+      } catch {}
+    }
+    throw new Error(errorMsg);
   }
 
   return response.json();
@@ -3307,9 +3316,35 @@ function handleAdminQpPhotoFile(input) {
     const file = input.files[0];
     const reader = new FileReader();
     reader.onload = function(e) {
-      const dataUrl = e.target.result;
-      document.getElementById("adminQpPhotoUrl").value = dataUrl;
-      updateAdminQpPhotoPreview(dataUrl);
+      const img = new Image();
+      img.onload = function() {
+        // Compress / resize to max 400x400 for high quality, fast loading, and compact storage
+        const maxDim = 400;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        document.getElementById("adminQpPhotoUrl").value = compressedDataUrl;
+        updateAdminQpPhotoPreview(compressedDataUrl);
+      };
+      img.onerror = function() {
+        document.getElementById("adminQpPhotoUrl").value = e.target.result;
+        updateAdminQpPhotoPreview(e.target.result);
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
