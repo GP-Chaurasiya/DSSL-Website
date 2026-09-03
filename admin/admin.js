@@ -279,6 +279,19 @@ function callAnalyticsExport() {
   }
 }
 
+function callAnalyticsExportPDF() {
+  const iframe = document.getElementById("analyticsIframe");
+  if (iframe && iframe.contentWindow && typeof iframe.contentWindow.exportAnalyticsPDF === "function") {
+    iframe.contentWindow.exportAnalyticsPDF();
+  } else {
+    alert("Analytics dashboard is not loaded yet. Please wait a moment and try again.");
+  }
+}
+
+window.callAnalyticsSync = callAnalyticsSync;
+window.callAnalyticsExport = callAnalyticsExport;
+window.callAnalyticsExportPDF = callAnalyticsExportPDF;
+
 // Fetch lists
 async function loadMatches() {
   allMatches = await apiCall("/api/matches");

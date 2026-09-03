@@ -740,8 +740,125 @@ function getChartImageDataUrl(canvasId) {
   return tempCanvas.toDataURL("image/png");
 }
 
+let cachedPdfLogos = null;
+
+function loadImageAsDataUrl(url, maxWidth = 320, maxHeight = 260) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      try {
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (w > maxWidth || h > maxHeight) {
+          const ratio = Math.min(maxWidth / w, maxHeight / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({ dataUrl: canvas.toDataURL("image/png"), width: w, height: h });
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function preloadPdfLogos() {
+  if (cachedPdfLogos) return cachedPdfLogos;
+  try {
+    const [dsvv, dssl] = await Promise.all([
+      loadImageAsDataUrl("/analytics/dsvv_logo.png", 320, 260),
+      loadImageAsDataUrl("/analytics/dssl_logo.png", 320, 220)
+    ]);
+    cachedPdfLogos = { dsvv: dsvv?.dataUrl, dssl: dssl?.dataUrl };
+  } catch (e) {
+    console.warn("PDF Logo preload warning:", e);
+    cachedPdfLogos = {};
+  }
+  return cachedPdfLogos;
+}
+
+// ── Shared DSVV & DSSL Official Template Header ─────────────────────────────
+function applyTemplateHeader(doc, logos, options = {}) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = options.margin || 14;
+
+  // 1. Top-Left: DSVV circular emblem logo
+  if (logos && logos.dsvv) {
+    try {
+      doc.addImage(logos.dsvv, "PNG", margin, 6.5, 14, 11.1);
+    } catch (e) {}
+  }
+
+  // 2. Vertical separator line (|)
+  doc.setDrawColor(156, 163, 175); // Grey #9ca3af
+  doc.setLineWidth(0.35);
+  doc.line(margin + 16, 6.5, margin + 16, 18.5);
+
+  // 3. Header text: DEV SANSKRITI VISHWAVIDYALAYA
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(26, 32, 44);
+  doc.text("DEV SANSKRITI", margin + 18.5, 11.2);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(55, 65, 81);
+  doc.text("VISHWAVIDYALAYA", margin + 18.5, 16.2);
+
+  // 4. Top-Right: DSSL League Crest logo
+  if (logos && logos.dssl) {
+    try {
+      doc.addImage(logos.dssl, "PNG", pageWidth - margin - 17, 5.5, 17, 11.3);
+    } catch (e) {}
+  }
+
+  // 5. Olive/Gold decorative horizontal bar
+  doc.setDrawColor(148, 130, 57); // Olive Gold #948239
+  doc.setLineWidth(0.65);
+  doc.line(margin - 4, 21.5, pageWidth - margin + 4, 21.5);
+}
+
+// ── Shared Template Footer: Department of Sports & Arogyam Health Club ───────
+function applyTemplateFooters(doc) {
+  const totalPages = doc.internal.getNumberOfPages();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerHeight = 13;
+  const footerY = pageHeight - footerHeight;
+
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+
+    // Forest green solid banner
+    doc.setFillColor(27, 77, 34); // #1b4d22
+    doc.rect(0, footerY, pageWidth, footerHeight, "F");
+
+    // Golden centered text
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(245, 196, 69); // #f5c445
+    doc.text("Department of Sports & Arogyam Health Club", pageWidth / 2, footerY + 8.5, { align: "center" });
+
+    // Multi-page number indicator
+    if (totalPages > 1) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(200, 235, 205);
+      doc.text(`${i} / ${totalPages}`, pageWidth - 10, footerY + 8.5, { align: "right" });
+    }
+  }
+}
+
 async function exportAnalyticsPDF() {
-  const btn = document.getElementById("an-pdf-btn");
+  const btn = document.getElementById("an-pdf-btn") || (window.parent && window.parent.document ? window.parent.document.getElementById("admin-export-pdf-btn") : null);
   const originalHtml = btn ? btn.innerHTML : "";
   if (btn) {
     btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Generating PDF...';
@@ -754,6 +871,9 @@ async function exportAnalyticsPDF() {
       throw new Error("PDF generation library (jsPDF) is loading. Please try again in a moment.");
     }
 
+    // Preload logos
+    const logos = await preloadPdfLogos();
+
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "mm",
@@ -764,71 +884,46 @@ async function exportAnalyticsPDF() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
     const contentWidth = pageWidth - margin * 2;
-    let y = 14;
+    let y = 28;
 
-    const primaryColor = [255, 188, 1]; // #ffbc01
-    const darkNavy = [11, 15, 25]; // #0b0f19
     const brandBlue = [0, 62, 138]; // #003e8a
     const textDark = [30, 41, 59];
     const textMuted = [100, 116, 139];
 
-    // Helper: Add header banner
-    function addHeader(title, subtitle) {
-      // Top header band
-      doc.setFillColor(darkNavy[0], darkNavy[1], darkNavy[2]);
-      doc.rect(0, 0, pageWidth, 28, "F");
-
-      // Accent gold strip
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(0, 28, pageWidth, 2.5, "F");
-
-      // Header text
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.text("DEV SANSKRITI SPORTS LEAGUE (DSSL) 2026", margin, 12);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(title || "Official Analytics & Performance Report", margin, 19);
-
-      doc.setFontSize(8.5);
-      doc.setTextColor(180, 195, 215);
-      const dateStr = `Generated: ${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`;
-      doc.text(dateStr, pageWidth - margin, 19, { align: "right" });
-
-      y = 36;
-    }
-
-    // Helper: Footer
-    function addFooters() {
-      const totalPages = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setDrawColor(226, 232, 240);
-        doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
-        doc.text("Dev Sanskriti Vishwavidyalaya · DSSL 2026 Analytics Dashboard", margin, pageHeight - 7);
-        doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 7, { align: "right" });
-      }
-    }
-
     // Helper: Check page break
-    function checkPageBreak(requiredHeight) {
-      if (y + requiredHeight > pageHeight - 18) {
+    function checkPageBreak(requiredHeight, pageTitle) {
+      if (y + requiredHeight > pageHeight - 16) {
         doc.addPage();
-        addHeader("Executive Analytics Report (Continued)");
+        applyTemplateHeader(doc, logos, { margin });
+        y = 28;
+        if (pageTitle) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(11);
+          doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+          doc.text(pageTitle, margin, y);
+          y += 6;
+        }
         return true;
       }
       return false;
     }
 
-    // --- PAGE 1: Executive Summary & KPIs ---
-    addHeader("Official Analytics & Performance Executive Report");
+    // --- PAGE 1: Header Template & Subtitle ---
+    applyTemplateHeader(doc, logos, { margin });
+
+    // Section Subtitle & Timestamp
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12.5);
+    doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+    doc.text("OFFICIAL ANALYTICS & EXECUTIVE PERFORMANCE REPORT", margin, y);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+    const dateStr = `Generated: ${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`;
+    doc.text(dateStr, pageWidth - margin, y, { align: "right" });
+
+    y += 7;
 
     // Fetch Overview Data
     let overview = {};
@@ -943,7 +1038,13 @@ async function exportAnalyticsPDF() {
 
     // --- PAGE 2: More Visualizations & Team Standings ---
     doc.addPage();
-    addHeader("Detailed Distributions & Team Performance");
+    applyTemplateHeader(doc, logos, { margin });
+    y = 28;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+    doc.text("Detailed Distributions & Team Performance", margin, y);
+    y += 7;
 
     // Course & Semester Side-by-side
     const courseImg = getChartImageDataUrl("an-chart-course");
@@ -1067,8 +1168,8 @@ async function exportAnalyticsPDF() {
       y = doc.lastAutoTable.finalY + 10;
     }
 
-    // Finalize Footers
-    addFooters();
+    // Finalize Footers with official template
+    applyTemplateFooters(doc);
 
     // Save PDF
     const timestamp = new Date().toISOString().split("T")[0];
@@ -1078,13 +1179,13 @@ async function exportAnalyticsPDF() {
     alert("Could not generate PDF: " + err.message);
   } finally {
     if (btn) {
-      btn.innerHTML = originalHtml || '<i class="ri-file-pdf-2-line"></i> Export Analytics (PDF)';
+      btn.innerHTML = originalHtml || '<i class="ri-file-pdf-line"></i> Export PDF';
       btn.disabled = false;
     }
   }
 }
 
-// Export Filtered Players Directory as PDF
+// Export Filtered Players Directory as PDF (Official Template)
 async function exportPlayersPDF() {
   const btn = document.getElementById("an-export-players-pdf-btn");
   const originalHtml = btn ? btn.innerHTML : "";
@@ -1098,6 +1199,9 @@ async function exportPlayersPDF() {
     if (!jsPDF) {
       throw new Error("jsPDF library not available.");
     }
+
+    // Preload logos
+    const logos = await preloadPdfLogos();
 
     const p = new URLSearchParams({ page: 1, limit: 1000 });
     if (analyticsFilters.mandal) p.set("mandal", analyticsFilters.mandal);
@@ -1117,34 +1221,28 @@ async function exportPlayersPDF() {
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 12;
 
-    // Header
-    doc.setFillColor(11, 15, 25);
-    doc.rect(0, 0, pageWidth, 24, "F");
-    doc.setFillColor(255, 188, 1);
-    doc.rect(0, 24, pageWidth, 2, "F");
+    // Apply Official Template Header
+    applyTemplateHeader(doc, logos, { margin });
 
+    // Section Subtitle & Filter Details
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255);
-    doc.text("DEV SANSKRITI SPORTS LEAGUE (DSSL) 2026 — PLAYER DIRECTORY", margin, 11);
+    doc.setFontSize(12);
+    doc.setTextColor(0, 62, 138);
+    doc.text("DEV SANSKRITI SPORTS LEAGUE 2026 — PLAYER DIRECTORY", margin, 27);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(255, 188, 1);
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 116, 139);
     const filterDesc = [
       analyticsFilters.mandal || "All Mandals",
       analyticsFilters.course || "All Courses",
       analyticsFilters.sport || "All Sports",
       analyticsFilters.gender || "All Genders"
     ].filter(Boolean).join(" · ");
-    doc.text(`Filter: ${filterDesc} | Total Players: ${players.length}`, margin, 18);
-
-    doc.setFontSize(8);
-    doc.setTextColor(180, 195, 215);
-    doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageWidth - margin, 18, { align: "right" });
+    doc.text(`Filter: ${filterDesc} | Total: ${players.length} registered players`, margin, 32);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageWidth - margin, 32, { align: "right" });
 
     const tableRows = players.map((p, idx) => [
       idx + 1,
@@ -1160,13 +1258,13 @@ async function exportPlayersPDF() {
     ]);
 
     doc.autoTable({
-      startY: 30,
+      startY: 36,
       head: [["#", "Player Name", "Scholar ID", "Course", "Sem", "Mandal", "Gender", "Sport", "Phone", "Reg. Date"]],
       body: tableRows,
       theme: "grid",
       headStyles: {
-        fillColor: [17, 24, 39],
-        textColor: [255, 188, 1],
+        fillColor: [27, 77, 34],
+        textColor: [245, 196, 69],
         fontStyle: "bold",
         fontSize: 8.5
       },
@@ -1185,13 +1283,16 @@ async function exportPlayersPDF() {
         6: { cellWidth: 16, halign: "center" },
         7: { cellWidth: 34 }
       },
-      margin: { left: margin, right: margin, bottom: 14 },
+      margin: { left: margin, right: margin, top: 24, bottom: 16 },
       didDrawPage: function (data) {
-        doc.setFontSize(7.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`DSSL 2026 Directory · Page ${doc.internal.getNumberOfPages()}`, margin, pageHeight - 6);
+        if (data.pageNumber > 1) {
+          applyTemplateHeader(doc, logos, { margin });
+        }
       }
     });
+
+    // Apply Official Green Footer to all pages
+    applyTemplateFooters(doc);
 
     const timestamp = new Date().toISOString().split("T")[0];
     doc.save(`DSSL_2026_Players_Directory_${timestamp}.pdf`);
