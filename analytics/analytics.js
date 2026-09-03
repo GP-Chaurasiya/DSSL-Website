@@ -79,8 +79,9 @@ async function loadTrend(days) {
   try {
     const data = await anApiCall(`/api/analytics/registration-trend?days=${days}`);
     const labels = data.map(d => {
-      const dt = new Date(d.date);
-      return `${dt.getDate()}/${dt.getMonth() + 1}`;
+      // Parse YYYY-MM-DD parts directly to avoid UTC-to-local timezone shift
+      const [, , mm, dd] = d.date.split("-");
+      return `${parseInt(dd)}/${parseInt(mm)}`;
     });
     const counts = data.map(d => d.count);
 
@@ -705,7 +706,10 @@ function exportPlayers() {
   const btn = document.getElementById("an-export-btn");
   if (btn) { btn.innerHTML = '<i class="ri-loader-4-line"></i> Exporting...'; btn.disabled = true; }
   fetch(`/api/analytics/export?${p.toString()}`)
-    .then(r => r.blob()).then(blob => {
+    .then(r => {
+      if (!r.ok) throw new Error("Export failed");
+      return r.blob();
+    }).then(blob => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -716,6 +720,490 @@ function exportPlayers() {
     .finally(() => {
       if (btn) { btn.innerHTML = '<i class="ri-download-2-line"></i> Export CSV'; btn.disabled = false; }
     });
+}
+
+// Convert canvas chart to high quality image data URL with white background
+function getChartImageDataUrl(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+  
+  // Create an offscreen canvas to render with white background
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  const tCtx = tempCanvas.getContext("2d");
+  
+  tCtx.fillStyle = "#ffffff";
+  tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+  tCtx.drawImage(canvas, 0, 0);
+  
+  return tempCanvas.toDataURL("image/png");
+}
+
+async function exportAnalyticsPDF() {
+  const btn = document.getElementById("an-pdf-btn");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Generating PDF...';
+    btn.disabled = true;
+  }
+
+  try {
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) {
+      throw new Error("PDF generation library (jsPDF) is loading. Please try again in a moment.");
+    }
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 14;
+
+    const primaryColor = [255, 188, 1]; // #ffbc01
+    const darkNavy = [11, 15, 25]; // #0b0f19
+    const brandBlue = [0, 62, 138]; // #003e8a
+    const textDark = [30, 41, 59];
+    const textMuted = [100, 116, 139];
+
+    // Helper: Add header banner
+    function addHeader(title, subtitle) {
+      // Top header band
+      doc.setFillColor(darkNavy[0], darkNavy[1], darkNavy[2]);
+      doc.rect(0, 0, pageWidth, 28, "F");
+
+      // Accent gold strip
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 28, pageWidth, 2.5, "F");
+
+      // Header text
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.text("DEV SANSKRITI SPORTS LEAGUE (DSSL) 2026", margin, 12);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(title || "Official Analytics & Performance Report", margin, 19);
+
+      doc.setFontSize(8.5);
+      doc.setTextColor(180, 195, 215);
+      const dateStr = `Generated: ${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`;
+      doc.text(dateStr, pageWidth - margin, 19, { align: "right" });
+
+      y = 36;
+    }
+
+    // Helper: Footer
+    function addFooters() {
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(226, 232, 240);
+        doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+        doc.text("Dev Sanskriti Vishwavidyalaya · DSSL 2026 Analytics Dashboard", margin, pageHeight - 7);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 7, { align: "right" });
+      }
+    }
+
+    // Helper: Check page break
+    function checkPageBreak(requiredHeight) {
+      if (y + requiredHeight > pageHeight - 18) {
+        doc.addPage();
+        addHeader("Executive Analytics Report (Continued)");
+        return true;
+      }
+      return false;
+    }
+
+    // --- PAGE 1: Executive Summary & KPIs ---
+    addHeader("Official Analytics & Performance Executive Report");
+
+    // Fetch Overview Data
+    let overview = {};
+    try {
+      overview = await anApiCall("/api/analytics/overview");
+    } catch (e) {
+      console.warn("Could not fetch overview for PDF:", e);
+    }
+
+    const totalPlayers = overview.totalPlayers ?? document.getElementById("an-kpi-total")?.textContent ?? "—";
+    const malePlayers = overview.maleCount ?? document.getElementById("an-kpi-male")?.textContent ?? "—";
+    const femalePlayers = overview.femaleCount ?? document.getElementById("an-kpi-female")?.textContent ?? "—";
+    const registeredToday = overview.todayRegistrations ?? document.getElementById("an-kpi-today")?.textContent ?? "—";
+    const totalMandals = overview.totalMandals ?? document.getElementById("an-kpi-mandals")?.textContent ?? "—";
+    const totalSports = overview.totalSports ?? document.getElementById("an-kpi-sports")?.textContent ?? "—";
+    const liveMatches = overview.matches?.live ?? document.getElementById("an-kpi-live")?.textContent ?? "—";
+    const completedMatches = overview.matches?.completed ?? document.getElementById("an-kpi-completed")?.textContent ?? "—";
+
+    // Section title: KPI
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+    doc.text("1. Executive Summary & Key Performance Indicators", margin, y);
+    y += 6;
+
+    // KPI Cards Grid (4 columns x 2 rows)
+    const kpis = [
+      { label: "Total Players", val: String(totalPlayers), bg: [255, 251, 235], border: [255, 188, 1], text: [180, 83, 9] },
+      { label: "Male Players", val: String(malePlayers), bg: [239, 246, 255], border: [59, 130, 246], text: [29, 78, 216] },
+      { label: "Female Players", val: String(femalePlayers), bg: [253, 242, 248], border: [236, 72, 153], text: [190, 24, 93] },
+      { label: "Registered Today", val: String(registeredToday), bg: [236, 253, 245], border: [16, 185, 129], text: [4, 120, 87] },
+      { label: "Active Mandals", val: String(totalMandals), bg: [245, 243, 255], border: [139, 92, 246], text: [109, 40, 217] },
+      { label: "Total Sports", val: String(totalSports), bg: [255, 247, 237], border: [249, 115, 22], text: [194, 65, 12] },
+      { label: "Live Matches", val: String(liveMatches), bg: [254, 242, 242], border: [239, 68, 68], text: [185, 28, 28] },
+      { label: "Completed Matches", val: String(completedMatches), bg: [236, 254, 255], border: [6, 182, 212], text: [14, 116, 144] }
+    ];
+
+    const cardWidth = (contentWidth - 9) / 4;
+    const cardHeight = 18;
+
+    kpis.forEach((kpi, idx) => {
+      const col = idx % 4;
+      const row = Math.floor(idx / 4);
+      const cx = margin + col * (cardWidth + 3);
+      const cy = y + row * (cardHeight + 3);
+
+      doc.setFillColor(kpi.bg[0], kpi.bg[1], kpi.bg[2]);
+      doc.setDrawColor(kpi.border[0], kpi.border[1], kpi.border[2]);
+      doc.roundedRect(cx, cy, cardWidth, cardHeight, 2, 2, "FD");
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+      doc.text(kpi.label.toUpperCase(), cx + 4, cy + 6);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(kpi.text[0], kpi.text[1], kpi.text[2]);
+      doc.text(kpi.val, cx + 4, cy + 14);
+    });
+
+    y += 2 * (cardHeight + 3) + 6;
+
+    // --- CHARTS SECTION (Page 1 Charts) ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+    doc.text("2. Registration Trends & Demographics", margin, y);
+    y += 6;
+
+    // Trend Chart (Full width)
+    const trendImg = getChartImageDataUrl("an-chart-trend");
+    if (trendImg) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text("Registration Timeline Trend", margin, y);
+      y += 3;
+
+      const chartW = contentWidth;
+      const chartH = 46;
+      doc.addImage(trendImg, "PNG", margin, y, chartW, chartH);
+      y += chartH + 7;
+    }
+
+    // Mandal & Gender Side-by-Side Charts
+    const mandalImg = getChartImageDataUrl("an-chart-mandal");
+    const genderImg = getChartImageDataUrl("an-chart-gender");
+
+    if (mandalImg || genderImg) {
+      const colW = (contentWidth - 6) / 2;
+      const colH = 46;
+
+      if (mandalImg) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.text("Players by Mandal", margin, y);
+        doc.addImage(mandalImg, "PNG", margin, y + 3, colW, colH);
+      }
+
+      if (genderImg) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.text("Gender Distribution", margin + colW + 6, y);
+        doc.addImage(genderImg, "PNG", margin + colW + 6, y + 3, colW, colH);
+      }
+
+      y += colH + 9;
+    }
+
+    // --- PAGE 2: More Visualizations & Team Standings ---
+    doc.addPage();
+    addHeader("Detailed Distributions & Team Performance");
+
+    // Course & Semester Side-by-side
+    const courseImg = getChartImageDataUrl("an-chart-course");
+    const semesterImg = getChartImageDataUrl("an-chart-semester");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+    doc.text("3. Academic Demographics & Sports Distribution", margin, y);
+    y += 6;
+
+    if (courseImg || semesterImg) {
+      const colW = (contentWidth - 6) / 2;
+      const colH = 46;
+
+      if (courseImg) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.text("Course Distribution (Top 10)", margin, y);
+        doc.addImage(courseImg, "PNG", margin, y + 3, colW, colH);
+      }
+
+      if (semesterImg) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.text("Semester Distribution", margin + colW + 6, y);
+        doc.addImage(semesterImg, "PNG", margin + colW + 6, y + 3, colW, colH);
+      }
+
+      y += colH + 8;
+    }
+
+    // Sport Distribution Chart
+    const sportImg = getChartImageDataUrl("an-chart-sport");
+    if (sportImg) {
+      checkPageBreak(55);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text("Sports Participation Breakdown", margin, y);
+      y += 3;
+
+      const chartH = 48;
+      doc.addImage(sportImg, "PNG", margin, y, contentWidth, chartH);
+      y += chartH + 8;
+    }
+
+    // Mandal x Gender Cross Chart
+    const crossImg = getChartImageDataUrl("an-chart-mandal-gender");
+    if (crossImg) {
+      checkPageBreak(55);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text("Mandal × Gender Cross Analysis", margin, y);
+      y += 3;
+
+      const chartH = 48;
+      doc.addImage(crossImg, "PNG", margin, y, contentWidth, chartH);
+      y += chartH + 8;
+    }
+
+    // --- TEAM LEADERBOARD TABLE ---
+    checkPageBreak(60);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(brandBlue[0], brandBlue[1], brandBlue[2]);
+    doc.text("4. Team Leaderboard & Performance Stats", margin, y);
+    y += 4;
+
+    let teamStats = [];
+    try {
+      teamStats = await anApiCall("/api/analytics/team-stats");
+    } catch (e) {
+      console.warn("Could not fetch team stats for PDF:", e);
+    }
+
+    if (teamStats && teamStats.length > 0) {
+      const tableRows = teamStats.map((t, idx) => [
+        `#${idx + 1}`,
+        t.name || "—",
+        String(t.playerCount ?? 0),
+        String(t.matchesPlayed ?? 0),
+        String(t.wins ?? 0),
+        String(t.losses ?? 0),
+        String(t.draws ?? 0),
+        String(t.points ?? 0)
+      ]);
+
+      doc.autoTable({
+        startY: y,
+        head: [["Rank", "Mandal Name", "Players", "Matches", "Wins", "Losses", "Draws", "Points"]],
+        body: tableRows,
+        theme: "striped",
+        headStyles: {
+          fillColor: [17, 24, 39],
+          textColor: [255, 188, 1],
+          fontStyle: "bold",
+          fontSize: 8.5
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.5,
+          font: "helvetica"
+        },
+        columnStyles: {
+          0: { cellWidth: 14, halign: "center", fontStyle: "bold" },
+          1: { fontStyle: "bold" },
+          2: { halign: "center" },
+          3: { halign: "center" },
+          4: { halign: "center", textColor: [16, 185, 129], fontStyle: "bold" },
+          5: { halign: "center", textColor: [239, 68, 68] },
+          6: { halign: "center" },
+          7: { halign: "center", textColor: [0, 62, 138], fontStyle: "bold" }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      y = doc.lastAutoTable.finalY + 10;
+    }
+
+    // Finalize Footers
+    addFooters();
+
+    // Save PDF
+    const timestamp = new Date().toISOString().split("T")[0];
+    doc.save(`DSSL_2026_Analytics_Report_${timestamp}.pdf`);
+  } catch (err) {
+    console.error("PDF Export Error:", err);
+    alert("Could not generate PDF: " + err.message);
+  } finally {
+    if (btn) {
+      btn.innerHTML = originalHtml || '<i class="ri-file-pdf-2-line"></i> Export Analytics (PDF)';
+      btn.disabled = false;
+    }
+  }
+}
+
+// Export Filtered Players Directory as PDF
+async function exportPlayersPDF() {
+  const btn = document.getElementById("an-export-players-pdf-btn");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Preparing PDF...';
+    btn.disabled = true;
+  }
+
+  try {
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) {
+      throw new Error("jsPDF library not available.");
+    }
+
+    const p = new URLSearchParams({ page: 1, limit: 1000 });
+    if (analyticsFilters.mandal) p.set("mandal", analyticsFilters.mandal);
+    if (analyticsFilters.course) p.set("course", analyticsFilters.course);
+    if (analyticsFilters.semester) p.set("semester", analyticsFilters.semester);
+    if (analyticsFilters.gender) p.set("gender", analyticsFilters.gender);
+    if (analyticsFilters.sport) p.set("sport", analyticsFilters.sport);
+    if (analyticsFilters.search) p.set("search", analyticsFilters.search);
+
+    const result = await anApiCall(`/api/players?${p.toString()}`);
+    const players = result.players || [];
+
+    if (!players.length) {
+      alert("No player records found matching current filters to export.");
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 12;
+
+    // Header
+    doc.setFillColor(11, 15, 25);
+    doc.rect(0, 0, pageWidth, 24, "F");
+    doc.setFillColor(255, 188, 1);
+    doc.rect(0, 24, pageWidth, 2, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text("DEV SANSKRITI SPORTS LEAGUE (DSSL) 2026 — PLAYER DIRECTORY", margin, 11);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(255, 188, 1);
+    const filterDesc = [
+      analyticsFilters.mandal || "All Mandals",
+      analyticsFilters.course || "All Courses",
+      analyticsFilters.sport || "All Sports",
+      analyticsFilters.gender || "All Genders"
+    ].filter(Boolean).join(" · ");
+    doc.text(`Filter: ${filterDesc} | Total Players: ${players.length}`, margin, 18);
+
+    doc.setFontSize(8);
+    doc.setTextColor(180, 195, 215);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, pageWidth - margin, 18, { align: "right" });
+
+    const tableRows = players.map((p, idx) => [
+      idx + 1,
+      p.name || "—",
+      p.scholarNo || "—",
+      p.course || "—",
+      p.semester ? `Sem ${p.semester}` : "—",
+      (p.mandalName || "—").replace(" Mandal", ""),
+      p.gender || "—",
+      p.sport || "—",
+      maskPhone(p.phone),
+      formatDate(p.registrationDate)
+    ]);
+
+    doc.autoTable({
+      startY: 30,
+      head: [["#", "Player Name", "Scholar ID", "Course", "Sem", "Mandal", "Gender", "Sport", "Phone", "Reg. Date"]],
+      body: tableRows,
+      theme: "grid",
+      headStyles: {
+        fillColor: [17, 24, 39],
+        textColor: [255, 188, 1],
+        fontStyle: "bold",
+        fontSize: 8.5
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 2,
+        font: "helvetica"
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { fontStyle: "bold" },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 14, halign: "center" },
+        5: { cellWidth: 32 },
+        6: { cellWidth: 16, halign: "center" },
+        7: { cellWidth: 34 }
+      },
+      margin: { left: margin, right: margin, bottom: 14 },
+      didDrawPage: function (data) {
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`DSSL 2026 Directory · Page ${doc.internal.getNumberOfPages()}`, margin, pageHeight - 6);
+      }
+    });
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    doc.save(`DSSL_2026_Players_Directory_${timestamp}.pdf`);
+  } catch (err) {
+    console.error("Directory PDF Error:", err);
+    alert("Could not export directory PDF: " + err.message);
+  } finally {
+    if (btn) {
+      btn.innerHTML = originalHtml || '<i class="ri-file-pdf-line"></i> Export Directory PDF';
+      btn.disabled = false;
+    }
+  }
 }
 
 async function loadPlayers() {
@@ -1020,6 +1508,8 @@ window.loadTrend = loadTrend;
 window.applyFilters = applyFilters;
 window.resetFilters = resetFilters;
 window.exportPlayers = exportPlayers;
+window.exportAnalyticsPDF = exportAnalyticsPDF;
+window.exportPlayersPDF = exportPlayersPDF;
 window.syncGoogleSheets = syncGoogleSheets;
 window.debounceFilter = debounceFilter;
 window.goPage = goPage;

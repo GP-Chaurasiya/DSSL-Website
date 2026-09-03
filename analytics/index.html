@@ -347,6 +347,27 @@
   <!-- Main Analytics Viewport -->
   <main class="analytics-container">
     
+    <!-- Top Action Toolbar -->
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+      <div>
+        <h2 style="font-size: 22px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 10px;">
+          <i class="ri-dashboard-3-line" style="color: var(--primary);"></i>
+          Analytics Overview & Reports
+        </h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+          Comprehensive sports registration, player demographics, and team performance metrics.
+        </p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <button class="an-filter-btn secondary" id="an-sync-btn" onclick="syncGoogleSheets()">
+          <i class="ri-refresh-line"></i> Sync Google Sheets
+        </button>
+        <button class="an-filter-btn primary" id="an-pdf-btn" onclick="exportAnalyticsPDF()" style="box-shadow: 0 4px 14px rgba(255,188,1,0.25);">
+          <i class="ri-file-pdf-2-line"></i> Export Analytics (PDF)
+        </button>
+      </div>
+    </div>
+    
     <!-- ── KPI Cards ── -->
     <div class="an-kpi-grid" id="an-kpi-grid">
       <div class="an-kpi">
@@ -465,9 +486,17 @@
     <div class="an-section">
       <div class="an-section-head">
         <h3><i class="ri-database-2-line"></i> Player Directory</h3>
-        <button class="an-filter-btn primary" onclick="openAddPlayerModal()">
-          <i class="ri-user-add-line"></i> Add Player Record
-        </button>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button class="an-filter-btn secondary" id="an-export-btn" onclick="exportPlayers()">
+            <i class="ri-download-2-line"></i> Export CSV
+          </button>
+          <button class="an-filter-btn secondary" id="an-export-players-pdf-btn" onclick="exportPlayersPDF()">
+            <i class="ri-file-pdf-line"></i> Export Directory PDF
+          </button>
+          <button class="an-filter-btn primary" onclick="openAddPlayerModal()">
+            <i class="ri-user-add-line"></i> Add Player Record
+          </button>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -607,6 +636,9 @@
 
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- jsPDF & autoTable CDN for PDF Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- Analytics Application Logic -->
   <script src="/analytics/analytics.js"></script>
   <script>
