@@ -1,0 +1,20 @@
+{
+  "overview": "DSSL Scoreboard is an inter-dal sports tournament management app with live scoring, leaderboards, and medal tallies backed by canister storage.",
+  "features": [
+    "Store match records in canister state with full CRUD",
+    "Compute leaderboard and medal tally from match results on the backend",
+    "Live match scoring with timer controls",
+    "Import and export match data",
+    "Stable variable persistence across upgrades",
+    "Responsive dashboard with schedule, reports, and per-sport scoreboards"
+  ],
+  "category": "sports-management",
+  "tags": [
+    "sports",
+    "tournament",
+    "scoreboard",
+    "leaderboard",
+    "live-scoring"
+  ],
+  "last_updated": "2026-06-29T11:23:28.957Z"
+}
