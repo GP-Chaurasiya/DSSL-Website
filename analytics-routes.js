@@ -1,6 +1,21 @@
 module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateToken, requireRole }) {
-  // Allow all logged-in admin dashboard users to view analytics
-  const adminReadAccess = [authenticateToken];
+  // Soft auth for read access: attaches req.user if token is valid, but doesn't block read-only analytics if expired/absent
+  function optionalAuth(req, res, next) {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    if (token) {
+      const jwt = require("jsonwebtoken");
+      const JWT_SECRET = process.env.JWT_SECRET || "DSSL_super_secret_jwt_key_2026_DSSL";
+      jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (!err) req.user = user;
+        next();
+      });
+    } else {
+      next();
+    }
+  }
+
+  const adminReadAccess = [optionalAuth];
   const adminWriteAccess = [authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM", "CREATOR_TEAM", "MEDIA_TEAM"])];
 
   async function resolveMandalId(mandalName) {
@@ -283,6 +298,99 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     return "Unknown";
   }
 
+  function normalizeCourse(raw) {
+    if (!raw) return "Other";
+    let s = String(raw).trim();
+    if (/^\d+$/.test(s) || s.length < 2) return "Other";
+
+    const lower = s.toLowerCase().replace(/[\.\s\-_/]/g, "");
+
+    // 1. Post-Graduate Yoga & allied therapies
+    if (lower.includes("hcys") || lower === "mahc" || lower === "mscyc" || lower === "mchcys") {
+      return "M.Sc HCYS";
+    }
+    if (lower.includes("mayt") || lower.includes("mscyt") || lower.includes("yogatherapy") || lower === "mayoga" || lower === "mscyog") {
+      return "MA Yoga Therapy (MA YT)";
+    }
+
+    // 2. Under-Graduate Yoga / Yogic Science (B.SC YOGA, BSC YOGA, B.SC YOG, B.Sc Yogic Science, BSC YE, BSC YT, etc.)
+    if (
+      lower.includes("bscyog") ||
+      lower.includes("bscyoga") ||
+      lower.includes("yogicscience") ||
+      lower === "bscye" ||
+      lower === "bscyt" ||
+      lower === "bayog" ||
+      lower === "bayoga" ||
+      lower === "bayogicscience"
+    ) {
+      return "B.Sc Yogic Science";
+    }
+
+    // 3. Computer Science / Applications & IT
+    if (lower === "bca") return "BCA";
+    if (lower === "mca") return "MCA";
+    if (lower === "bscit" || lower.includes("bscit")) return "B.Sc IT";
+    if (lower === "mscit" || lower.includes("mscit")) return "M.Sc IT";
+
+    // 4. Management & Vocational
+    if (lower.startsWith("bba")) return "BBA";
+    if (lower.startsWith("mba")) return "MBA";
+    if (lower.startsWith("bvoc")) return "B.Voc";
+    if (lower === "bed") return "B.Ed";
+    if (lower === "brs") return "BRS";
+
+    // 5. Mathematics
+    if (lower.includes("bscmath") || lower.includes("bscmathematics")) return "B.Sc Maths";
+    if (lower.includes("mscmath") || lower.includes("mscmathematics")) return "M.Sc Maths";
+
+    // 6. Journalism & Mass Communication (BAJMC, BJAMC, B.A JMC, MAJMC)
+    if (lower.includes("jmc") || lower.includes("journalism") || lower === "bjamc") {
+      return lower.startsWith("m") ? "MAJMC" : "BAJMC";
+    }
+
+    // 7. Humanities / Social Sciences
+    if (lower.includes("psy")) {
+      return lower.startsWith("m") ? "MA Psychology" : "BA Psychology";
+    }
+    if (lower.includes("his")) {
+      return lower.startsWith("m") ? "MA History" : "BA History";
+    }
+    if (lower.includes("mus") || lower.includes("muci") || lower.includes("musci")) {
+      return lower.startsWith("m") ? "MA Music" : "BA Music";
+    }
+    if (lower.includes("san") || lower.includes("sanskrit")) {
+      return lower.startsWith("m") ? "MA Sanskrit" : "BA Sanskrit";
+    }
+    if (lower.includes("hin") || lower.includes("hindi")) {
+      return lower.startsWith("m") ? "MA Hindi" : "BA Hindi";
+    }
+    if (lower.includes("eng") || lower.includes("english")) {
+      return lower.startsWith("m") ? "MA English" : "BA English";
+    }
+
+    return s;
+  }
+
+  function normalizeSemester(raw) {
+    if (!raw) return "";
+    const s = String(raw).trim().toLowerCase();
+    if (s === "—" || s === "-" || s === "n/a" || s.includes("player")) return "";
+
+    const cleaned = s.replace(/[^0-9a-z]/g, "");
+    const match = cleaned.match(/^(?:sem|semester)?([1-8])(?:st|nd|rd|th)?(?:sem|semester)?$/);
+    if (match) {
+      return match[1];
+    }
+
+    const directDigitMatch = s.match(/^([1-8])(?:\s*(?:st|nd|rd|th)?\s*(?:sem|semester)?)?$/);
+    if (directDigitMatch) {
+      return directDigitMatch[1];
+    }
+
+    return "";
+  }
+
   function parseGoogleDate(val) {
     if (!val) return null;
 
@@ -418,8 +526,8 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
             id: ++idCounter,
             name,
             scholarNo: scholarNo || name.toLowerCase().replace(/\s+/g, "_"),
-            course: getV(cIdx) || "Other",
-            semester: getV(sIdx) || "",
+            course: normalizeCourse(getV(cIdx)),
+            semester: normalizeSemester(getV(sIdx)),
             mandalName: normalizeMandal(mandalRaw),
             gender: normalizeGender(getV(gIdx)),
             phone: getV(pIdx),
@@ -520,8 +628,8 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
                 id: ++idCounter,
                 name,
                 scholarNo: scholarNo || name.toLowerCase().replace(/\s+/g, "_"),
-                course: getV(cIdx) || "Other",
-                semester: getV(sIdx) || "",
+                course: normalizeCourse(getV(cIdx)),
+                semester: normalizeSemester(getV(sIdx)),
                 mandalName: normalizeMandal(mandalRaw),
                 gender: normalizeGender(getV(gIdx)),
                 phone: getV(pIdx),
@@ -704,8 +812,13 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     try {
       const { uniquePlayers } = await getLiveSheetData();
       const counts = {};
-      uniquePlayers.forEach(p => { counts[p.course || "Unknown"] = (counts[p.course || "Unknown"] || 0) + 1; });
-      const total = uniquePlayers.length;
+      uniquePlayers.forEach(p => {
+        const c = normalizeCourse(p.course);
+        if (c && c !== "Other") {
+          counts[c] = (counts[c] || 0) + 1;
+        }
+      });
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
       const result = Object.entries(counts)
         .map(([course, count]) => ({ course, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
         .sort((a, b) => b.count - a.count);
@@ -723,8 +836,13 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     try {
       const { uniquePlayers } = await getLiveSheetData();
       const counts = {};
-      uniquePlayers.forEach(p => { counts[p.semester || "Unknown"] = (counts[p.semester || "Unknown"] || 0) + 1; });
-      const total = uniquePlayers.length;
+      uniquePlayers.forEach(p => {
+        const s = normalizeSemester(p.semester);
+        if (s && /^[1-8]$/.test(s)) {
+          counts[s] = (counts[s] || 0) + 1;
+        }
+      });
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
       const result = Object.entries(counts)
         .map(([semester, count]) => ({ semester, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
         .sort((a, b) => {

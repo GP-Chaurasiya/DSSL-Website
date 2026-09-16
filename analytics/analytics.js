@@ -26,6 +26,19 @@ async function anApiCall(url) {
   const headers = {};
   if (tk) headers["Authorization"] = `Bearer ${tk}`;
   const r = await fetch(url, { headers });
+  if (r.status === 401 || r.status === 403) {
+    try {
+      localStorage.removeItem("DSSL_token");
+      localStorage.removeItem("dsspl_token");
+      if (window.parent && window.parent.localStorage) {
+        window.parent.localStorage.removeItem("DSSL_token");
+        window.parent.localStorage.removeItem("dsspl_token");
+      }
+    } catch (e) {}
+    const err = new Error(`API error ${r.status}`);
+    err.status = r.status;
+    throw err;
+  }
   if (!r.ok) throw new Error(`API error ${r.status}`);
   return r.json();
 }
@@ -206,7 +219,10 @@ async function loadSemesterChart() {
     analyticsCharts["an-chart-semester"] = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: data.map(d => `Sem ${d.semester}`),
+        labels: data.map(d => {
+          const sem = String(d.semester || "").trim();
+          return sem.toLowerCase().startsWith("sem") ? sem : `Sem ${sem}`;
+        }),
         datasets: [{
           label: "Players",
           data: data.map(d => d.count),
@@ -1383,7 +1399,20 @@ async function loadPlayers() {
       paginationEl.innerHTML = pHtml;
     }
   } catch (e) {
-    resultsEl.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--danger)">Error loading players: ${e.message}</div>`;
+    const isAuthErr = e.status === 401 || e.status === 403 || String(e.message).includes("403") || String(e.message).includes("401");
+    if (isAuthErr) {
+      resultsEl.innerHTML = `
+        <div style="text-align:center;padding:2.5rem 1rem;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:12px;margin:1rem 0;">
+          <i class="ri-lock-line" style="font-size:36px;color:var(--warning);display:block;margin-bottom:10px;"></i>
+          <h4 style="margin:0 0 6px 0;font-size:16px;color:var(--text);font-weight:700">Authentication Required or Expired</h4>
+          <p style="margin:0 0 16px 0;font-size:13px;color:var(--text-muted)">Your session has expired or requires authentication. Please sign in to view player details.</p>
+          <a href="/admin/login.html" target="_top" style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:var(--primary);color:#000;text-decoration:none;border-radius:6px;font-weight:700;font-size:13px;">
+            <i class="ri-login-box-line"></i> Sign In to Admin
+          </a>
+        </div>`;
+    } else {
+      resultsEl.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--danger)">Error loading players: ${e.message}</div>`;
+    }
   }
 }
 
