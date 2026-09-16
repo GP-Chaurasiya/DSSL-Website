@@ -497,11 +497,33 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     return isNaN(pd.getTime()) ? null : pd;
   }
 
+  function getStudentKey(scholarNo, name, mandalName, email, phone, regId) {
+    const sc = scholarNo ? String(scholarNo).trim().toUpperCase() : "";
+    if (sc && !sc.includes("_") && sc.length >= 2) {
+      return `SCHOLAR:${sc}`;
+    }
+    const em = email ? String(email).trim().toLowerCase() : "";
+    if (em && em.includes("@")) {
+      return `EMAIL:${em}`;
+    }
+    const ph = phone ? String(phone).replace(/\D/g, "") : "";
+    if (ph && ph.length >= 10) {
+      return `PHONE:${ph}`;
+    }
+    const rid = regId ? String(regId).trim().toUpperCase() : "";
+    if (rid && rid.startsWith("DSSL-")) {
+      return `REG:${rid}`;
+    }
+    const nm = (name || "").trim().toLowerCase();
+    const mn = (mandalName || "").trim().toLowerCase();
+    return `NAME_MANDAL:${nm}_${mn}`;
+  }
+
   async function getLiveSheetData() {
     const now = Date.now();
     if (_sheetCache && now < _sheetCacheExpiry) return _sheetCache;
 
-    const uniqueMap = new Map(); // key = scholarNo or name+mandal
+    const uniqueMap = new Map(); // key = student unique key
     const allRegistrations = [];
     const activeSports = new Set();
     let idCounter = 0;
@@ -579,7 +601,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           allRegistrations.push(rec);
           activeSports.add(normSport);
 
-          const uniqueKey = scholarNo || (name.toLowerCase() + "_" + rec.mandalName);
+          const uniqueKey = getStudentKey(scholarNo, name, rec.mandalName, rec.email, rec.phone, rec.teamRegistrationId);
           if (!uniqueMap.has(uniqueKey)) {
             uniqueMap.set(uniqueKey, { ...rec, sports: [normSport] });
           } else {
@@ -645,7 +667,10 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
             const scholarNo = getV(scIdx);
             if (!name && !scholarNo) continue;
 
-            const uniqueKey = scholarNo || (name.toLowerCase() + "_" + normalizeMandal(mandalRaw));
+            const email = getV(eIdx);
+            const phone = getV(pIdx);
+            const regId = getV(rIdx);
+            const uniqueKey = getStudentKey(scholarNo, name, normalizeMandal(mandalRaw), email, phone, regId);
 
             if (uniqueMap.has(uniqueKey)) {
               const existing = uniqueMap.get(uniqueKey);
@@ -669,10 +694,10 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
                 semester: normalizeSemester(getV(sIdx)),
                 mandalName: normalizeMandal(mandalRaw),
                 gender: normalizeGender(getV(gIdx)),
-                phone: getV(pIdx),
-                email: getV(eIdx),
+                phone: phone,
+                email: email,
                 sport: normSport,
-                teamRegistrationId: getV(rIdx),
+                teamRegistrationId: regId,
                 teamRole: getV(rlIdx) || "Player",
                 registrationDate: rawDate,
                 registrationDateParsed: parsedDate
@@ -689,10 +714,26 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     );
 
     const uniquePlayers = Array.from(uniqueMap.values());
+    let multiSportStudentsCount = 0;
+    let singleSportStudentsCount = 0;
 
-    _sheetCache = { uniquePlayers, allRegistrations, activeSports: Array.from(activeSports) };
+    uniquePlayers.forEach(p => {
+      if (p.sports && p.sports.length > 1) {
+        multiSportStudentsCount++;
+      } else {
+        singleSportStudentsCount++;
+      }
+    });
+
+    _sheetCache = {
+      uniquePlayers,
+      allRegistrations,
+      activeSports: Array.from(activeSports),
+      multiSportStudentsCount,
+      singleSportStudentsCount
+    };
     _sheetCacheExpiry = Date.now() + 15000; // 15 second cache
-    console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players, ${activeSports.size} active sports`);
+    console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players (${multiSportStudentsCount} multi-sport), ${activeSports.size} active sports`);
     return _sheetCache;
   }
 
@@ -754,7 +795,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   app.get("/api/analytics/overview", ...adminReadAccess, async (req, res) => {
     try {
-      const { allRegistrations, uniquePlayers, activeSports } = await getLiveSheetData();
+      const { allRegistrations, uniquePlayers, activeSports, multiSportStudentsCount, singleSportStudentsCount } = await getLiveSheetData();
       const today = new Date();
 
       let maleCount = 0, femaleCount = 0, otherGenderCount = 0, todayRegistrations = 0;
@@ -779,15 +820,21 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
       console.log("================================");
       console.log("LIVE GOOGLE SHEET ANALYTICS");
-      console.log("Unique players:", uniquePlayers.length);
-      console.log("Total sport registrations:", allRegistrations.length);
+      console.log("Unique students:", uniquePlayers.length);
+      console.log("Total sport entries:", allRegistrations.length);
+      console.log("Multi-sport students:", multiSportStudentsCount);
+      console.log("Single-sport students:", singleSportStudentsCount);
       console.log("Male:", maleCount, "Female:", femaleCount, "Other:", otherGenderCount);
       console.log("Active sports:", activeSports.length);
       console.log("================================");
 
       res.json({
         totalPlayers: uniquePlayers.length,
+        uniqueStudentsCount: uniquePlayers.length,
         totalSportRegistrations: allRegistrations.length,
+        totalSportEntries: allRegistrations.length,
+        multiSportStudentsCount: multiSportStudentsCount || 0,
+        singleSportStudentsCount: singleSportStudentsCount || 0,
         maleCount, femaleCount, otherGenderCount, todayRegistrations,
         totalMandals,
         totalSports: activeSports.length,

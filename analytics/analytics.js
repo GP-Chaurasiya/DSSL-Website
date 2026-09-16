@@ -65,7 +65,16 @@ async function loadAllAnalytics() {
 async function loadOverview() {
   try {
     const d = await anApiCall("/api/analytics/overview");
-    setText("an-kpi-total", d.totalPlayers ?? 0);
+    const uniqueStudents = d.uniqueStudentsCount ?? d.totalPlayers ?? 0;
+    const sportEntries = d.totalSportEntries ?? d.totalSportRegistrations ?? 0;
+    const multiSport = d.multiSportStudentsCount ?? 0;
+    const singleSport = d.singleSportStudentsCount ?? (uniqueStudents - multiSport);
+
+    // KPI grid elements
+    setText("an-kpi-unique", uniqueStudents);
+    setText("an-kpi-sport-entries", sportEntries);
+    setText("an-kpi-multi", multiSport);
+    setText("an-kpi-total", uniqueStudents);
     setText("an-kpi-male", d.maleCount ?? 0);
     setText("an-kpi-female", d.femaleCount ?? 0);
     setText("an-kpi-today", d.todayRegistrations ?? 0);
@@ -73,6 +82,12 @@ async function loadOverview() {
     setText("an-kpi-sports", d.totalSports ?? 0);
     setText("an-kpi-live", d.matches?.live ?? 0);
     setText("an-kpi-completed", d.matches?.completed ?? 0);
+
+    // Summary section elements
+    setText("an-summary-unique", uniqueStudents);
+    setText("an-summary-entries", sportEntries);
+    setText("an-summary-multi", multiSport);
+    setText("an-summary-single", singleSport);
   } catch (e) {
     console.error("Overview error:", e);
   }
@@ -974,14 +989,14 @@ async function exportAnalyticsPDF() {
       console.warn("Could not fetch overview for PDF:", e);
     }
 
-    const totalPlayers = overview.totalPlayers ?? document.getElementById("an-kpi-total")?.textContent ?? "—";
+    const uniqueStudents = overview.uniqueStudentsCount ?? overview.totalPlayers ?? document.getElementById("an-kpi-unique")?.textContent ?? "—";
+    const totalSportEntries = overview.totalSportEntries ?? overview.totalSportRegistrations ?? document.getElementById("an-kpi-sport-entries")?.textContent ?? "—";
+    const multiSportStudents = overview.multiSportStudentsCount ?? document.getElementById("an-kpi-multi")?.textContent ?? "—";
     const malePlayers = overview.maleCount ?? document.getElementById("an-kpi-male")?.textContent ?? "—";
     const femalePlayers = overview.femaleCount ?? document.getElementById("an-kpi-female")?.textContent ?? "—";
     const registeredToday = overview.todayRegistrations ?? document.getElementById("an-kpi-today")?.textContent ?? "—";
     const totalMandals = overview.totalMandals ?? document.getElementById("an-kpi-mandals")?.textContent ?? "—";
     const totalSports = overview.totalSports ?? document.getElementById("an-kpi-sports")?.textContent ?? "—";
-    const liveMatches = overview.matches?.live ?? document.getElementById("an-kpi-live")?.textContent ?? "—";
-    const completedMatches = overview.matches?.completed ?? document.getElementById("an-kpi-completed")?.textContent ?? "—";
 
     // Section title: KPI
     doc.setFont("helvetica", "bold");
@@ -992,14 +1007,14 @@ async function exportAnalyticsPDF() {
 
     // KPI Cards Grid (4 columns x 2 rows)
     const kpis = [
-      { label: "Total Players", val: String(totalPlayers), bg: [255, 251, 235], border: [255, 188, 1], text: [180, 83, 9] },
+      { label: "Unique Students", val: String(uniqueStudents), bg: [255, 251, 235], border: [255, 188, 1], text: [180, 83, 9] },
+      { label: "Total Sport Entries", val: String(totalSportEntries), bg: [238, 242, 255], border: [99, 102, 241], text: [67, 56, 202] },
+      { label: "Multi-Sport Students", val: String(multiSportStudents), bg: [250, 245, 255], border: [168, 85, 247], text: [126, 34, 206] },
       { label: "Male Players", val: String(malePlayers), bg: [239, 246, 255], border: [59, 130, 246], text: [29, 78, 216] },
       { label: "Female Players", val: String(femalePlayers), bg: [253, 242, 248], border: [236, 72, 153], text: [190, 24, 93] },
       { label: "Registered Today", val: String(registeredToday), bg: [236, 253, 245], border: [16, 185, 129], text: [4, 120, 87] },
       { label: "Active Mandals", val: String(totalMandals), bg: [245, 243, 255], border: [139, 92, 246], text: [109, 40, 217] },
-      { label: "Total Sports", val: String(totalSports), bg: [255, 247, 237], border: [249, 115, 22], text: [194, 65, 12] },
-      { label: "Live Matches", val: String(liveMatches), bg: [254, 242, 242], border: [239, 68, 68], text: [185, 28, 28] },
-      { label: "Completed Matches", val: String(completedMatches), bg: [236, 254, 255], border: [6, 182, 212], text: [14, 116, 144] }
+      { label: "Total Sports", val: String(totalSports), bg: [255, 247, 237], border: [249, 115, 22], text: [194, 65, 12] }
     ];
 
     const cardWidth = (contentWidth - 9) / 4;

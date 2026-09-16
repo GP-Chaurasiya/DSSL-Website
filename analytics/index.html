@@ -361,8 +361,16 @@
     <!-- ── KPI Cards ── -->
     <div class="an-kpi-grid" id="an-kpi-grid">
       <div class="an-kpi">
-        <div class="an-kpi-icon" style="background:rgba(255,188,1,0.15);color:var(--primary)"><i class="ri-group-line"></i></div>
-        <div class="an-kpi-body"><h4>Total Players</h4><div class="an-kpi-val" id="an-kpi-total">—</div></div>
+        <div class="an-kpi-icon" style="background:rgba(255,188,1,0.15);color:var(--primary)"><i class="ri-user-star-line"></i></div>
+        <div class="an-kpi-body"><h4>Unique Students</h4><div class="an-kpi-val" id="an-kpi-unique">—</div></div>
+      </div>
+      <div class="an-kpi">
+        <div class="an-kpi-icon" style="background:rgba(99,102,241,0.15);color:#6366f1"><i class="ri-file-list-3-line"></i></div>
+        <div class="an-kpi-body"><h4>Total Sport Entries</h4><div class="an-kpi-val" id="an-kpi-sport-entries">—</div></div>
+      </div>
+      <div class="an-kpi">
+        <div class="an-kpi-icon" style="background:rgba(168,85,247,0.15);color:#a855f7"><i class="ri-node-tree"></i></div>
+        <div class="an-kpi-body"><h4>Multi-Sport Students</h4><div class="an-kpi-val" id="an-kpi-multi">—</div></div>
       </div>
       <div class="an-kpi">
         <div class="an-kpi-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6"><i class="ri-men-line"></i></div>
@@ -384,13 +392,49 @@
         <div class="an-kpi-icon" style="background:rgba(249,115,22,0.15);color:#f97316"><i class="ri-trophy-line"></i></div>
         <div class="an-kpi-body"><h4>Sports</h4><div class="an-kpi-val" id="an-kpi-sports">—</div></div>
       </div>
-      <div class="an-kpi">
-        <div class="an-kpi-icon" style="background:rgba(239,68,68,0.15);color:#ef4444"><i class="ri-broadcast-line"></i></div>
-        <div class="an-kpi-body"><h4>Live Matches</h4><div class="an-kpi-val" id="an-kpi-live">—</div></div>
+    </div>
+
+    <!-- ── Unique Student vs Sport Entry Participation Breakdown ── -->
+    <div class="an-section" style="background: linear-gradient(135deg, rgba(255,188,1,0.06), rgba(99,102,241,0.06)); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i class="ri-user-shared-line" style="color: var(--primary); font-size: 18px;"></i>
+            Student Participation & Cross-Sport Breakdown
+          </h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">
+            Actual unique individual students vs. total sport-wise registration entries (deduplicated by Student ID / Roll No, Email, & Phone)
+          </p>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; padding: 4px 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px; color: var(--text-muted);">
+          <i class="ri-shield-check-line" style="color: #10b981;"></i> Student ID Deduplicated
+        </div>
       </div>
-      <div class="an-kpi">
-        <div class="an-kpi-icon" style="background:rgba(6,182,212,0.15);color:#06b6d4"><i class="ri-verified-badge-line"></i></div>
-        <div class="an-kpi-body"><h4>Completed</h4><div class="an-kpi-val" id="an-kpi-completed">—</div></div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; border-left: 4px solid var(--primary);">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Unique Students</span>
+          <span style="font-size: 26px; font-weight: 800; color: var(--primary); margin-top: 4px;" id="an-summary-unique">—</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Actual individual participants</span>
+        </div>
+
+        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Total Sport Entries</span>
+          <span style="font-size: 26px; font-weight: 800; color: #6366f1; margin-top: 4px;" id="an-summary-entries">—</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">All entries across sports</span>
+        </div>
+
+        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Multiple-Sport Students</span>
+          <span style="font-size: 26px; font-weight: 800; color: #a855f7; margin-top: 4px;" id="an-summary-multi">—</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Played in 2+ sports</span>
+        </div>
+
+        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Single-Sport Students</span>
+          <span style="font-size: 26px; font-weight: 800; color: #10b981; margin-top: 4px;" id="an-summary-single">—</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Played in exactly 1 sport</span>
+        </div>
       </div>
     </div>
 
