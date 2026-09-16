@@ -240,14 +240,47 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     return raw || fallbackSheetName || "Other";
   }
 
+  const CANONICAL_MANDALS = [
+    "Vashishta Mandal",
+    "Vishwamitra Mandal",
+    "Atrey Mandal",
+    "Gautam Mandal",
+    "Bharadwaj Mandal",
+    "Jamdagni Mandal",
+    "Kashyap Mandal"
+  ];
+
   const MANDAL_ALIASES = {
-    "Vashishta Mandal": ["vashishta", "vasistha", "vashishtha"],
-    "Vishwamitra Mandal": ["vishwamitra", "viswamitra"],
-    "Atrey Mandal": ["atrey", "atreyi", "atri"],
-    "Gautam Mandal": ["gautam", "gautama"],
-    "Bharadwaj Mandal": ["bharadwaj", "bhardwaj", "bharadwaja"],
-    "Jamdagni Mandal": ["jamdagni", "jamdagani", "jamadagni"],
-    "Kashyap Mandal": ["kashyap", "kasyap", "kashyapa"]
+    "Vashishta Mandal": [
+      "vashishta", "vasistha", "vashishtha", "vashistha",
+      "वशिष्ठ"
+    ],
+    "Vishwamitra Mandal": [
+      "vishwamitra", "viswamitra", "vishvamitra",
+      "विश्वामित्र"
+    ],
+    "Atrey Mandal": [
+      "atrey", "atreyi", "atri", "atreya",
+      "अत्रि", "अत्रेय"
+    ],
+    "Gautam Mandal": [
+      "gautam", "gautama", "gotam",
+      "गौतम"
+    ],
+    "Bharadwaj Mandal": [
+      "bharadwaj", "bhardwaj", "bharadwaja",
+      "bhargava", "bhargav", "bhrigu",
+      "bharadvaj", "bhradwaj",
+      "भारद्वाज", "भार्गव"
+    ],
+    "Jamdagni Mandal": [
+      "jamdagni", "jamdagani", "jamadagni", "jamadagani",
+      "जमदग्नि", "जामदग्नि"
+    ],
+    "Kashyap Mandal": [
+      "kashyap", "kasyap", "kashyapa", "kashyapa",
+      "कश्यप"
+    ]
   };
 
   let _sheetCache = null;
@@ -284,10 +317,14 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   function normalizeMandal(raw) {
     const lower = (raw || "").toLowerCase().trim();
+    if (!lower || lower === "—" || lower === "-" || lower === "unknown") return null;
     for (const [canonical, aliases] of Object.entries(MANDAL_ALIASES)) {
       if (aliases.some(a => lower.includes(a))) return canonical;
     }
-    return raw || "Unknown";
+    // If the raw value already matches a canonical name exactly, return it
+    const directMatch = CANONICAL_MANDALS.find(m => m.toLowerCase() === lower);
+    if (directMatch) return directMatch;
+    return null; // Unknown mandal — discard
   }
 
   function normalizeGender(raw) {
@@ -774,11 +811,22 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
   app.get("/api/analytics/mandal-distribution", ...adminReadAccess, async (req, res) => {
     try {
       const { uniquePlayers } = await getLiveSheetData();
+      // Merge all players into the 7 canonical mandals only
       const counts = {};
-      uniquePlayers.forEach(p => { counts[p.mandalName] = (counts[p.mandalName] || 0) + 1; });
+      CANONICAL_MANDALS.forEach(m => { counts[m] = 0; }); // seed with 0
+      uniquePlayers.forEach(p => {
+        const canon = normalizeMandal(p.mandalName);
+        if (canon && counts.hasOwnProperty(canon)) {
+          counts[canon]++;
+        }
+      });
       const total = uniquePlayers.length;
-      const result = Object.entries(counts)
-        .map(([mandal, count]) => ({ mandal, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
+      const result = CANONICAL_MANDALS
+        .map(mandal => ({
+          mandal,
+          count: counts[mandal],
+          percentage: total > 0 ? Math.round((counts[mandal] / total) * 100) : 0
+        }))
         .sort((a, b) => b.count - a.count);
       res.json(result);
     } catch (error) {

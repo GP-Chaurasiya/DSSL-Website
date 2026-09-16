@@ -91,12 +91,18 @@ async function loadTrend(days) {
 
   try {
     const data = await anApiCall(`/api/analytics/registration-trend?days=${days}`);
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const labels = data.map(d => {
       // Parse YYYY-MM-DD parts directly to avoid UTC-to-local timezone shift
-      const [, , mm, dd] = d.date.split("-");
-      return `${parseInt(dd)}/${parseInt(mm)}`;
+      const parts = d.date.split("-");
+      const mm = parts[1];   // month
+      const dd = parts[2];   // day
+      return `${parseInt(dd, 10)} ${MONTHS[parseInt(mm, 10) - 1]}`;
     });
     const counts = data.map(d => d.count);
+
+    // Decide how many X-axis labels to show based on date range
+    const maxTicks = days <= 7 ? 7 : days <= 30 ? 10 : 15;
 
     destroyChart("an-chart-trend");
     const ctx = document.getElementById("an-chart-trend");
@@ -118,7 +124,22 @@ async function loadTrend(days) {
           tension: 0.4
         }]
       },
-      options: chartDefaults({ y: { beginAtZero: true, ticks: { stepSize: 1 } } })
+      options: chartDefaults({
+        x: {
+          ticks: {
+            maxTicksLimit: maxTicks,
+            maxRotation: 45,
+            minRotation: 0,
+            autoSkip: true,
+            font: { family: "Outfit", size: 11, weight: "bold" },
+            color: "#000"
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 1 }
+        }
+      })
     });
   } catch (e) { console.error("Trend error:", e); }
 }
@@ -172,7 +193,7 @@ async function loadGenderChart() {
         plugins: {
           legend: {
             position: "bottom",
-            labels: { color: getCSSVar("--text-muted"), padding: 12, font: { size: 12, family: "Outfit" } }
+            labels: { color: "#000", padding: 12, font: { size: 12, family: "Outfit", weight: "bold" } }
           },
           tooltip: {
             callbacks: {
@@ -512,6 +533,8 @@ async function loadSportChart() {
 
                 ...chartScales().x.ticks,
 
+                color: "#000",
+                font: { family: "Outfit", size: 11, weight: "bold" },
                 precision: 0,
 
                 stepSize: 1
@@ -528,6 +551,8 @@ async function loadSportChart() {
 
               ticks: {
                 ...chartScales().y.ticks,
+                color: "#000",
+                font: { family: "Outfit", size: 11, weight: "bold" },
 
                 autoSkip: false
               }
@@ -647,7 +672,7 @@ async function loadMandalGenderChart() {
         },
         plugins: {
           legend: {
-            labels: { color: getCSSVar("--text-muted"), font: { family: "Outfit", size: 12 } }
+            labels: { color: "#000", font: { family: "Outfit", size: 12, weight: "bold" } }
           },
           tooltip: { mode: "index" }
         }
@@ -1586,11 +1611,16 @@ function getCSSVar(v) {
 }
 
 function chartScales() {
-  const muted = getCSSVar("--text-muted");
   const border = getCSSVar("--border-color");
   return {
-    x: { ticks: { color: muted, font: { family: "Outfit", size: 11 } }, grid: { color: border + "40" } },
-    y: { ticks: { color: muted, font: { family: "Outfit", size: 11 } }, grid: { color: border + "40" } }
+    x: {
+      ticks: { color: "#000", font: { family: "Outfit", size: 11, weight: "bold" } },
+      grid: { color: border + "40" }
+    },
+    y: {
+      ticks: { color: "#000", font: { family: "Outfit", size: 11, weight: "bold" } },
+      grid: { color: border + "40" }
+    }
   };
 }
 
@@ -1612,7 +1642,10 @@ function chartDefaults(extraScales = {}) {
         bodyFont: { family: "Outfit" }
       }
     },
-    scales: { x: { ...x, ...(extraScales.x || {}) }, y: { ...y, ...(extraScales.y || {}) } }
+    scales: {
+      x: { ...x, ...(extraScales.x || {}), ticks: { ...x.ticks, ...(extraScales.x?.ticks || {}) } },
+      y: { ...y, ...(extraScales.y || {}), ticks: { ...y.ticks, ...(extraScales.y?.ticks || {}) } }
+    }
   };
 }
 
