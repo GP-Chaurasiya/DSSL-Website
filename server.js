@@ -12,6 +12,14 @@ const fs = require("fs");
 const compression = require("compression");
 const sharp = require("sharp");
 const { isDriveConfigured, listDriveMedia } = require("./google-drive");
+const {
+  verifyEmailConnection,
+  buildEventReminderHTML,
+  sendBulkMatchReminders,
+  sendBulkDirectEmails,
+  validateEmail,
+  formatIST,
+} = require("./emailService");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -1606,6 +1614,688 @@ app.delete("/api/qualified-players/:id", authenticateToken, requireRole(["SUPER_
 });
 
 
+// ── DSSL Email Reminder System ────────────────────────────────────────────────
+const emailSettingsFilePath = path.join(ROOT, "email_reminder_settings.json");
+
+function getEmailReminderSettings() {
+  try {
+    if (fs.existsSync(emailSettingsFilePath)) {
+      const content = fs.readFileSync(emailSettingsFilePath, "utf8").trim();
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    console.warn("Error reading email_reminder_settings.json:", err.message);
+  }
+  return {
+    autoRemindersEnabled: true,
+    hoursBefore: 24,
+    lastRun: null,
+    sentMatchIds: []
+  };
+}
+
+function saveEmailReminderSettings(settings) {
+  try {
+    fs.writeFileSync(emailSettingsFilePath, JSON.stringify(settings, null, 2), "utf8");
+    return true;
+  } catch (err) {
+    console.error("Error writing email_reminder_settings.json:", err.message);
+    return false;
+  }
+}
+
+/**
+ * Fuzzy sport matching so "Badminton (Singles)" matches "Badminton", "Kho-Kho" matches "Kho Kho", etc.
+ */
+function sportsMatch(playerSport, matchSport) {
+  if (!playerSport || !matchSport) return false;
+  const normalize = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const pNorm = normalize(playerSport);
+  const mNorm = normalize(matchSport);
+  if (pNorm === mNorm) return true;
+  if (pNorm.length >= 4 && (mNorm.includes(pNorm) || pNorm.includes(mNorm))) return true;
+  return false;
+}
+
+/**
+ * Resolves a match whether it is from plannedMatch or match
+ */
+async function getMatchWithDetails(idStr) {
+  let isPlanned = false;
+  let numericId = parseInt(idStr, 10);
+  if (typeof idStr === "string" && idStr.startsWith("planned_")) {
+    numericId = parseInt(idStr.replace("planned_", ""), 10);
+    isPlanned = true;
+  } else if (typeof idStr === "string" && idStr.startsWith("match_")) {
+    numericId = parseInt(idStr.replace("match_", ""), 10);
+    isPlanned = false;
+  }
+
+  if (isPlanned && !isNaN(numericId)) {
+    const pm = await prisma.plannedMatch.findUnique({
+      where: { id: numericId },
+      include: { dalA: true, dalB: true }
+    }).catch(() => null);
+    if (pm) return { ...pm, isPlanned: true };
+  }
+
+  // Try standard match
+  if (!isNaN(numericId)) {
+    const m = await prisma.match.findUnique({
+      where: { id: numericId },
+      include: { dalA: true, dalB: true }
+    }).catch(() => null);
+    if (m) return { ...m, isPlanned: false };
+  }
+
+  // Fallback to plannedMatch if not found in match
+  if (!isNaN(numericId)) {
+    const pm = await prisma.plannedMatch.findUnique({
+      where: { id: numericId },
+      include: { dalA: true, dalB: true }
+    }).catch(() => null);
+    if (pm) return { ...pm, isPlanned: true };
+  }
+
+  return null;
+}
+
+// ── Google Sheet Player Fetcher ───────────────────────────────────────────────
+
+const GOOGLE_SHEET_ID = "1wko8nor4TPBssNGKIK5283AJ-zZ-Yj394v4ZcUFXjRU";
+
+// Map common sheet mandal name variations to canonical DSSL mandal names
+const SHEET_MANDAL_ALIASES = {
+  "Vashishta Mandal": ["vashishta", "vasistha", "vashishtha"],
+  "Vishwamitra Mandal": ["vishwamitra", "viswamitra"],
+  "Atrey Mandal": ["atrey", "atreyi", "atreya"],
+  "Gautam Mandal": ["gautam", "gautama"],
+  "Bharadwaj Mandal": ["bharadwaj", "bhardwaj", "bharadvaj"],
+  "Jamdagni Mandal": ["jamdagni", "jamadagni"],
+  "Kashyap Mandal": ["kashyap", "kashyapa"]
+};
+
+function normalizeSheetMandal(raw) {
+  if (!raw) return null;
+  const lower = raw.toLowerCase().trim();
+  for (const [canonical, aliases] of Object.entries(SHEET_MANDAL_ALIASES)) {
+    if (aliases.some(a => lower.includes(a))) return canonical;
+  }
+  // fallback: try direct match against keys
+  for (const canonical of Object.keys(SHEET_MANDAL_ALIASES)) {
+    if (lower.includes(canonical.toLowerCase().split(" ")[0])) return canonical;
+  }
+  return raw.trim(); // return as-is if unknown
+}
+
+/**
+ * Fetch all players from the live Google Sheet that match the given sport and mandal names.
+ * Leverages app.locals.getLiveSheetData() for cached, normalized registrations,
+ * with fallback to direct Google Sheet fetching.
+ */
+async function fetchSheetPlayers(matchSportName, mandalNames) {
+  try {
+    let allRegs = [];
+
+    // Option A: Use live data cached from analytics-routes
+    if (typeof app.locals.getLiveSheetData === "function") {
+      const sheetData = await app.locals.getLiveSheetData();
+      if (sheetData && Array.isArray(sheetData.allRegistrations)) {
+        allRegs = sheetData.allRegistrations;
+      }
+    }
+
+    // Option B: Direct fetch if analytics-routes cache is not populated
+    if (!allRegs.length) {
+      const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json&sheet=Input`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const text = await res.text();
+        const jsonStart = text.indexOf("{");
+        const jsonEnd = text.lastIndexOf("}");
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          const json = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+          const table = json?.table;
+          if (table && Array.isArray(table.rows)) {
+            for (const row of table.rows) {
+              if (!row || !Array.isArray(row.c)) continue;
+              const get = (idx) => (row.c[idx]?.v != null ? String(row.c[idx].v).trim() : "");
+              const email = get(8);
+              const name = get(2);
+              if (email && email.includes("@") && name && name.toLowerCase() !== "name") {
+                allRegs.push({
+                  name,
+                  email: email.toLowerCase(),
+                  mandalName: normalizeSheetMandal(get(7)),
+                  sport: get(6),
+                  teamRole: get(1) ? "Player" : "Member",
+                  teamRegistrationId: get(1)
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Filter by mandals and sport
+    const results = [];
+    for (const reg of allRegs) {
+      const email = (reg.email || "").toLowerCase().trim();
+      if (!email || !email.includes("@")) continue;
+
+      const regMandal = (reg.mandalName || "").trim();
+      const mandalMatch = mandalNames.some(m => {
+        const mPrefix = m.toLowerCase().replace(/mandal/i, "").trim();
+        const rPrefix = regMandal.toLowerCase().replace(/mandal/i, "").trim();
+        return (mPrefix && rPrefix && (mPrefix.includes(rPrefix) || rPrefix.includes(mPrefix)));
+      });
+      if (!mandalMatch) continue;
+
+      if (!sportsMatch(reg.sport, matchSportName)) continue;
+
+      results.push({
+        id: `sheet_${reg.teamRegistrationId || results.length}_${email}`,
+        name: reg.name,
+        email,
+        mandalName: regMandal,
+        sport: reg.sport,
+        teamRole: reg.teamRole || "Player",
+        teamRegistrationId: reg.teamRegistrationId || "",
+        source: "sheet"
+      });
+    }
+
+    console.log(`[SheetFetch] Matched ${results.length} sheet players for "${matchSportName}" in [${mandalNames.join(", ")}]`);
+    return results;
+  } catch (err) {
+    console.warn("[SheetFetch] Error fetching Google Sheet players:", err.message);
+    return [];
+  }
+}
+
+/**
+ * Find players eligible for reminders for a given match.
+ * Merges Prisma DB registrations + Google Sheet registrations, deduplicating by email.
+ */
+async function findRecipientsForMatch(match) {
+  const dalIds = [match.dalAId, match.dalBId].filter(Boolean);
+  const mandalNames = [match.dalA?.name, match.dalB?.name].filter(Boolean);
+
+  // 1. Fetch from Prisma DB
+  const dbPlayers = await prisma.player.findMany({
+    where: {
+      OR: [
+        { dalId: { in: dalIds } },
+        { mandalName: { in: mandalNames } }
+      ],
+      email: { not: "" }
+    },
+    include: { mandal: true }
+  });
+
+  const dbEligible = dbPlayers
+    .filter(p => sportsMatch(p.sport, match.sportName))
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      email: (p.email || "").toLowerCase().trim(),
+      mandalName: p.mandal?.name || p.mandalName || "",
+      sport: p.sport,
+      teamRole: p.teamRole || "Player",
+      source: "db"
+    }));
+
+  // 2. Fetch from Google Sheet
+  const sheetPlayers = await fetchSheetPlayers(match.sportName, mandalNames);
+
+  // 3. Merge — DB takes priority; sheet players are added only if email not already in DB
+  const seenEmails = new Set(dbEligible.map(p => p.email));
+  const uniqueSheetPlayers = sheetPlayers.filter(p => {
+    if (!p.email || seenEmails.has(p.email)) return false;
+    seenEmails.add(p.email);
+    return true;
+  });
+
+  const merged = [...dbEligible, ...uniqueSheetPlayers];
+  console.log(`[Recipients] Match "${match.sportName}": ${dbEligible.length} from DB + ${uniqueSheetPlayers.length} new from Sheet = ${merged.length} total`);
+  return merged;
+}
+
+/**
+ * Background auto-reminder task
+ */
+async function runAutoRemindersCheck() {
+  const settings = getEmailReminderSettings();
+  if (!settings.autoRemindersEnabled) {
+    return { skipped: true, reason: "Auto reminders disabled in settings" };
+  }
+
+  const now = new Date();
+  const windowHours = settings.hoursBefore || 24;
+  const windowEnd = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
+
+  const [upcomingPlanned, upcomingRegular] = await Promise.all([
+    prisma.plannedMatch.findMany({
+      where: {
+        startTime: {
+          gte: now,
+          lte: windowEnd
+        }
+      },
+      include: { dalA: true, dalB: true }
+    }),
+    prisma.match.findMany({
+      where: {
+        status: { not: "finished" },
+        startTime: {
+          gte: now,
+          lte: windowEnd
+        }
+      },
+      include: { dalA: true, dalB: true }
+    })
+  ]);
+
+  const matchesToCheck = [
+    ...upcomingPlanned.map(m => ({ ...m, uniqueKey: `planned_${m.id}`, isPlanned: true })),
+    ...upcomingRegular.map(m => ({ ...m, uniqueKey: `match_${m.id}`, isPlanned: false }))
+  ];
+
+  let totalSent = 0;
+  let matchesNotified = 0;
+  settings.sentMatchIds = settings.sentMatchIds || [];
+
+  for (const m of matchesToCheck) {
+    if (settings.sentMatchIds.includes(m.uniqueKey)) {
+      continue;
+    }
+
+    const recipients = await findRecipientsForMatch(m);
+    if (recipients.length > 0) {
+      console.log(`[Auto-Reminder] Sending match alert for ${m.sportName} (${m.dalA?.name} vs ${m.dalB?.name}) to ${recipients.length} athletes`);
+      const results = await sendBulkMatchReminders({
+        match: m,
+        players: recipients,
+        customNote: `Reminder: Your match starts in approximately ${windowHours} hours. Please ensure timely arrival at the venue.`,
+        emailType: "automatic",
+        prisma
+      });
+      totalSent += results.sent;
+      matchesNotified++;
+    }
+
+    settings.sentMatchIds.push(m.uniqueKey);
+  }
+
+  settings.lastRun = new Date().toISOString();
+  saveEmailReminderSettings(settings);
+
+  return {
+    checkedAt: settings.lastRun,
+    matchesEvaluated: matchesToCheck.length,
+    matchesNotified,
+    totalEmailsSent: totalSent
+  };
+}
+
+// ── Email API Endpoints ────────────────────────────────────────────────────────
+
+// Test SMTP connection status
+app.get("/api/email/verify", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const result = await verifyEmailConnection();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Get email settings
+app.get("/api/email/settings", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  res.json(getEmailReminderSettings());
+});
+
+// Update email settings
+app.post("/api/email/settings", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), (req, res) => {
+  const { autoRemindersEnabled, hoursBefore } = req.body;
+  const current = getEmailReminderSettings();
+  if (typeof autoRemindersEnabled === "boolean") {
+    current.autoRemindersEnabled = autoRemindersEnabled;
+  }
+  if (typeof hoursBefore === "number" && hoursBefore > 0) {
+    current.hoursBefore = hoursBefore;
+  }
+  saveEmailReminderSettings(current);
+  res.json({ success: true, settings: current });
+});
+
+// Get selectable upcoming matches for manual email dropdown
+app.get("/api/email/selectable-matches", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const [plannedMatches, regularMatches] = await Promise.all([
+      prisma.plannedMatch.findMany({
+        orderBy: { startTime: "asc" },
+        include: { dalA: true, dalB: true }
+      }),
+      prisma.match.findMany({
+        where: { status: { not: "finished" } },
+        orderBy: { startTime: "asc" },
+        include: { dalA: true, dalB: true }
+      })
+    ]);
+
+    const list = [
+      ...plannedMatches.map(m => ({
+        id: `planned_${m.id}`,
+        numericId: m.id,
+        isPlanned: true,
+        sportName: m.sportName,
+        venue: m.venue,
+        startTime: m.startTime,
+        matchRound: m.matchRound,
+        dalA: m.dalA,
+        dalB: m.dalB,
+        label: `[Schedule] ${m.sportName}: ${m.dalA?.name || "TBD"} vs ${m.dalB?.name || "TBD"} (${m.venue || "Venue TBD"})`
+      })),
+      ...regularMatches.map(m => ({
+        id: `match_${m.id}`,
+        numericId: m.id,
+        isPlanned: false,
+        sportName: m.sportName,
+        venue: m.venue,
+        startTime: m.startTime,
+        matchRound: m.matchRound,
+        dalA: m.dalA,
+        dalB: m.dalB,
+        label: `[Match] ${m.sportName}: ${m.dalA?.name || "TBD"} vs ${m.dalB?.name || "TBD"} (${m.venue || "Venue TBD"})`
+      }))
+    ];
+
+    res.json(list);
+  } catch (err) {
+    console.error("Error fetching selectable matches for email:", err);
+    res.status(500).json({ error: "Failed to fetch matches" });
+  }
+});
+
+// Preview recipients for a match
+app.get("/api/email/match/:id/recipients", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const match = await getMatchWithDetails(req.params.id);
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    const recipients = await findRecipientsForMatch(match);
+
+    res.json({
+      match: {
+        id: req.params.id,
+        sportName: match.sportName,
+        venue: match.venue,
+        startTime: match.startTime,
+        dalA: match.dalA,
+        dalB: match.dalB,
+        matchRound: match.matchRound || "Fixture"
+      },
+      recipients: recipients.map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        mandalName: p.mandal?.name || p.mandalName,
+        sport: p.sport,
+        teamRole: p.teamRole || "Player"
+      })),
+      total: recipients.length
+    });
+  } catch (err) {
+    console.error("Error fetching match recipients:", err);
+    res.status(500).json({ error: "Failed to fetch recipients" });
+  }
+});
+
+// Fetch all registered athletes directly from Google Sheets with filtering
+app.get("/api/email/sheet-registrations", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const { sport, mandal, search } = req.query;
+    let allRegs = [];
+
+    // Use cached Google Sheet data from analytics module if available
+    if (typeof app.locals.getLiveSheetData === "function") {
+      const sheetData = await app.locals.getLiveSheetData();
+      if (sheetData && Array.isArray(sheetData.allRegistrations)) {
+        allRegs = sheetData.allRegistrations;
+      }
+    }
+
+    // Direct Google Sheet fetch fallback
+    if (!allRegs.length) {
+      const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json&sheet=Input`;
+      const sRes = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (sRes.ok) {
+        const text = await sRes.text();
+        const jStart = text.indexOf("{");
+        const jEnd = text.lastIndexOf("}");
+        if (jStart !== -1 && jEnd !== -1) {
+          const json = JSON.parse(text.substring(jStart, jEnd + 1));
+          if (json?.table?.rows) {
+            for (const row of json.table.rows) {
+              if (!row || !Array.isArray(row.c)) continue;
+              const get = (idx) => (row.c[idx]?.v != null ? String(row.c[idx].v).trim() : "");
+              const email = get(8);
+              const name = get(2);
+              if (email && email.includes("@") && name && name.toLowerCase() !== "name") {
+                allRegs.push({
+                  name,
+                  email: email.toLowerCase(),
+                  mandalName: normalizeSheetMandal(get(7)),
+                  sport: get(6),
+                  scholarNo: get(3),
+                  course: get(4),
+                  semester: get(5),
+                  phone: get(9),
+                  teamRole: get(1) ? "Player" : "Member",
+                  teamRegistrationId: get(1)
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Collect unique sports and mandals for dropdown filters
+    const sportsSet = new Set();
+    const mandalsSet = new Set();
+    allRegs.forEach(r => {
+      if (r.sport) sportsSet.add(r.sport);
+      if (r.mandalName) mandalsSet.add(r.mandalName);
+    });
+
+    // Filter registrations with valid emails
+    let filtered = allRegs.filter(r => r.email && r.email.includes("@"));
+
+    if (sport && sport !== "ALL") {
+      filtered = filtered.filter(r => sportsMatch(r.sport, sport));
+    }
+
+    if (mandal && mandal !== "ALL") {
+      filtered = filtered.filter(r => {
+        const m1 = (r.mandalName || "").toLowerCase();
+        const m2 = mandal.toLowerCase();
+        return m1.includes(m2) || m2.includes(m1);
+      });
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter(r =>
+        (r.name && r.name.toLowerCase().includes(q)) ||
+        (r.email && r.email.toLowerCase().includes(q)) ||
+        (r.scholarNo && String(r.scholarNo).toLowerCase().includes(q)) ||
+        (r.teamRegistrationId && String(r.teamRegistrationId).toLowerCase().includes(q))
+      );
+    }
+
+    // Deduplicate by email and sport
+    const seen = new Set();
+    const uniqueAthletes = [];
+    for (const r of filtered) {
+      const key = `${r.email.toLowerCase()}_${r.sport}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueAthletes.push({
+          id: `sheet_${r.teamRegistrationId || uniqueAthletes.length}_${r.email}`,
+          name: r.name,
+          email: r.email,
+          mandalName: r.mandalName,
+          sport: r.sport,
+          scholarNo: r.scholarNo || "",
+          course: r.course || "",
+          semester: r.semester || "",
+          phone: r.phone || "",
+          teamRole: r.teamRole || "Player",
+          teamRegistrationId: r.teamRegistrationId || "",
+          source: "Google Sheet"
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      totalInSheet: allRegs.length,
+      totalWithEmail: uniqueAthletes.length,
+      sports: Array.from(sportsSet).sort(),
+      mandals: Array.from(mandalsSet).sort(),
+      athletes: uniqueAthletes
+    });
+  } catch (err) {
+    console.error("Error fetching Google Sheet registrations:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Send direct emails to Google Sheet registered athletes
+app.post("/api/email/sheet-send", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const { recipients, subject, message } = req.body;
+
+    if (!Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ error: "No recipients selected to email" });
+    }
+
+    if (!subject || !subject.trim()) {
+      return res.status(400).json({ error: "Email subject is required" });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Email message is required" });
+    }
+
+    const results = await sendBulkDirectEmails({
+      recipients,
+      subject: subject.trim(),
+      message: message.trim(),
+      emailType: "manual_sheet",
+      prisma
+    });
+
+    res.json({
+      success: true,
+      results
+    });
+  } catch (err) {
+    console.error("Error sending sheet emails:", err);
+    res.status(500).json({ error: "Failed to send emails: " + err.message });
+  }
+});
+
+// Send manual match reminder
+app.post("/api/email/match/:id/send", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const { customNote, playerIds } = req.body;
+    const match = await getMatchWithDetails(req.params.id);
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    let recipients = await findRecipientsForMatch(match);
+
+    // Filter to selected player IDs if specified (support both string and numeric IDs)
+    if (Array.isArray(playerIds) && playerIds.length > 0) {
+      const idSet = new Set(playerIds.map(String));
+      recipients = recipients.filter(p => idSet.has(String(p.id)));
+    }
+
+    if (recipients.length === 0) {
+      return res.status(400).json({ error: "No eligible recipients found with valid emails for this match" });
+    }
+
+    const results = await sendBulkMatchReminders({
+      match,
+      players: recipients,
+      customNote: customNote || "",
+      emailType: "manual",
+      prisma
+    });
+
+    res.json({
+      success: true,
+      results
+    });
+  } catch (err) {
+    console.error("Error sending match emails:", err);
+    res.status(500).json({ error: "Failed to send emails: " + err.message });
+  }
+});
+
+// Trigger auto-reminders check
+app.post("/api/email/check-reminders", async (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const cronSecret = req.headers["x-cron-secret"];
+
+  if (cronSecret && process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET) {
+    // Authorized via external CRON secret
+  } else if (authHeader) {
+    try {
+      const token = authHeader.split(" ")[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (!["SUPER_ADMIN", "ORGANISER_TEAM"].includes(decoded.role)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+    } catch {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  } else {
+    return res.status(401).json({ error: "Authorization required" });
+  }
+
+  try {
+    const result = await runAutoRemindersCheck();
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error("Error running auto-reminders check:", err);
+    res.status(500).json({ error: "Auto-check failed: " + err.message });
+  }
+});
+
+// View email logs / history
+app.get("/api/email/history", authenticateToken, requireRole(["SUPER_ADMIN", "ORGANISER_TEAM"]), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 100;
+    const logs = await prisma.emailLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+    res.json(logs);
+  } catch (err) {
+    console.error("Error fetching email history:", err);
+    res.status(500).json({ error: "Failed to fetch email history" });
+  }
+});
+
+
 // ── Static Files & Dashboard Routes ───────────────────────────────────────────
 
 // Static files directories with no-cache in dev for instant updates
@@ -1672,6 +2362,17 @@ process.on("uncaughtException", (err) => {
 server.listen(PORT, () => {
   console.log(`DSSL Server running at http://localhost:${PORT}`);
   syncQualifiedPlayersOnStartup().catch(e => console.warn("Startup QP sync warning:", e.message));
+
+  // Background email reminder check: runs every 30 minutes
+  const EMAIL_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+  setInterval(() => {
+    runAutoRemindersCheck().catch(err => console.warn("[Auto-Reminder Timer] Error:", err.message));
+  }, EMAIL_CHECK_INTERVAL_MS);
+
+  // Initial check 10 seconds after server boots up
+  setTimeout(() => {
+    runAutoRemindersCheck().catch(err => console.warn("[Initial Auto-Reminder] Error:", err.message));
+  }, 10000);
 });
 
 server.on("error", (err) => {

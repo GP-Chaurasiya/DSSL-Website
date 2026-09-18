@@ -1573,6 +1573,12 @@
           <span>Registration Control</span>
         </button>
       </li>
+      <li class="menu-item" data-access="ORGANISER">
+        <button class="menu-btn" data-tab="email-reminders">
+          <i class="ri-mail-send-line"></i>
+          <span>Email Reminders</span>
+        </button>
+      </li>
       <li class="menu-item" data-access="SUPER_ADMIN">
         <button class="menu-btn" data-tab="users">
           <i class="ri-user-settings-line"></i>
@@ -2409,6 +2415,266 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- ── TAB: EMAIL REMINDERS ── -->
+      <div class="tab-content" id="tab-email-reminders">
+        <!-- SMTP Status & System Banner -->
+        <div class="section-card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(255, 188, 1, 0.05) 0%, rgba(13, 18, 31, 0.8) 100%);">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 10px;">
+                <i class="ri-mail-send-line" style="color: var(--primary);"></i>
+                Match Email Reminders & Notifications
+              </h3>
+              <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+                Send branded fixture notifications directly to athletes and configure automatic 24-hour match alerts.
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span id="smtpStatusBadge" class="badge badge-secondary" style="font-size: 13px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;">
+                <i class="ri-loader-4-line" id="smtpSpinner" style="display:none;"></i>
+                <span id="smtpStatusText">Checking SMTP...</span>
+              </span>
+              <button class="btn btn-secondary" onclick="checkEmailSMTPStatus()" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                <i class="ri-refresh-line"></i> Test Gmail Connection
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automatic Scheduler & Configuration Card -->
+        <div class="section-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <h4 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px;">
+                <i class="ri-time-line" style="color: var(--primary);"></i>
+                Automatic 24-Hour Match Reminder Engine
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                When active, the server checks periodically and sends match alerts to participating athletes 24 hours prior to their fixture.
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span id="autoReminderBadge" class="badge badge-success" style="font-size: 13px; padding: 6px 14px;">ACTIVE</span>
+              <button class="btn" id="toggleAutoReminderBtn" onclick="toggleAutoReminderSetting()" style="display: flex; align-items: center; gap: 6px;">
+                <i class="ri-toggle-line"></i> Toggle Scheduler
+              </button>
+              <button class="btn btn-secondary" onclick="triggerImmediateAutoCheck()" style="display: flex; align-items: center; gap: 6px;">
+                <i class="ri-play-circle-line"></i> Run Auto-Check Now
+              </button>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--text-muted); padding-top: 8px; border-top: 1px solid var(--border-color);">
+            <div id="autoSchedulerDetails">
+              <span>Target Window: <strong>24 Hours Before Start Time</strong></span> &bull; 
+              <span>Last Scheduler Scan: <strong id="autoSchedulerLastRun">Not yet run</strong></span>
+            </div>
+            <div style="color: var(--primary); font-size: 12px;">
+              <i class="ri-shield-check-line"></i> Duplicate prevention active: each match is notified once per schedule
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid: Manual Dispatcher (Left) & Athlete Preview (Right) -->
+        <!-- Grid: Manual Dispatcher (Left) & Athlete Preview (Right) -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+          
+          <!-- Dispatcher Card -->
+          <div class="section-card">
+            <!-- Mode Switcher Tabs -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+              <h4 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px;">
+                <i class="ri-mail-send-fill" style="color: var(--primary);"></i>
+                Email Dispatcher
+              </h4>
+              <div style="display: flex; gap: 6px; background: rgba(255,255,255,0.04); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <button type="button" id="modeBtnSheet" class="btn btn-sm" onclick="switchEmailMode('sheet')" style="font-size: 12px; padding: 5px 12px; font-weight: 700; border-radius: 6px; background-color: var(--primary); color: #000;">
+                  <i class="ri-file-excel-2-line"></i> Google Sheet Data
+                </button>
+                <button type="button" id="modeBtnMatch" class="btn btn-sm" onclick="switchEmailMode('match')" style="font-size: 12px; padding: 5px 12px; font-weight: 600; border-radius: 6px; background: transparent; color: var(--text-muted);">
+                  <i class="ri-trophy-line"></i> By Match Fixture
+                </button>
+              </div>
+            </div>
+
+            <!-- MODE A: GOOGLE SHEET REGISTRATIONS -->
+            <div id="emailModeSheetPanel">
+              <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 12.5px; color: #a7f3d0; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <span><i class="ri-google-line"></i> Sourced directly from live <strong>DSSL Google Sheets</strong></span>
+                <button class="btn btn-sm btn-secondary" onclick="loadSheetRegistrations()" style="font-size: 11px; padding: 3px 8px; display: flex; align-items: center; gap: 4px;">
+                  <i class="ri-refresh-line"></i> Refresh Sheet
+                </button>
+              </div>
+
+              <!-- Filter Controls: Sport & Mandal -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                    Filter Sport
+                  </label>
+                  <select id="sheetSportSelect" class="form-control" style="width: 100%; padding: 8px 10px; font-size: 12.5px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color);" onchange="filterSheetAthletes()">
+                    <option value="ALL">All Sports</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                    Filter Mandal
+                  </label>
+                  <select id="sheetMandalSelect" class="form-control" style="width: 100%; padding: 8px 10px; font-size: 12.5px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color);" onchange="filterSheetAthletes()">
+                    <option value="ALL">All Mandals</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Email Subject -->
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="sheetEmailSubject" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">
+                  Email Subject
+                </label>
+                <input type="text" id="sheetEmailSubject" class="form-control" value="[DSSPL 2026] Important Event & Registration Update" style="width: 100%; padding: 9px 12px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color); font-size: 13px;">
+              </div>
+
+              <!-- Email Message -->
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="sheetEmailMessage" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">
+                  Announcement / Instructions Message
+                </label>
+                <textarea id="sheetEmailMessage" rows="4" class="form-control" placeholder="Enter instructions, match schedule details, reporting time, kit requirements, or special announcements for registered athletes..." style="width: 100%; padding: 9px 12px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color); font-size: 13px; resize: vertical;">Welcome athletes! Please check the official schedule and report 30 minutes prior to your sport event at the university grounds with your sports kit and student ID card.</textarea>
+              </div>
+
+              <!-- Send Action Button for Sheet Mode -->
+              <div style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="font-size: 13px; color: var(--text-muted);">
+                  Selected from Sheet: <strong id="sheetSelectedCount" style="color: var(--primary);">0</strong> athletes
+                </div>
+                <button class="btn" id="sendSheetEmailBtn" onclick="sendGoogleSheetEmails()" disabled style="background-color: var(--primary); color: #000; font-weight: 700; display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px;">
+                  <i class="ri-mail-send-fill"></i> Send Emails to Selected
+                </button>
+              </div>
+            </div>
+
+            <!-- MODE B: MATCH FIXTURE NOTIFICATION -->
+            <div id="emailModeMatchPanel" style="display: none;">
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="emailMatchSelect" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">
+                  1. Select Fixture / Match
+                </label>
+                <select id="emailMatchSelect" class="form-control" style="width: 100%; padding: 10px 14px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color);" onchange="onEmailMatchSelect()">
+                  <option value="">-- Choose a scheduled match --</option>
+                </select>
+              </div>
+
+              <!-- Match Details Quick Pill -->
+              <div id="emailMatchInfoCard" style="display: none; background: rgba(255, 188, 1, 0.05); border: 1px solid rgba(255, 188, 1, 0.2); border-radius: 8px; padding: 12px 16px; margin-bottom: 1.25rem;">
+                <div style="font-weight: 700; color: #fff; font-size: 14px; margin-bottom: 6px;" id="emailMatchTitle">Match Title</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-muted);">
+                  <span><i class="ri-calendar-line" style="color: var(--primary);"></i> <span id="emailMatchTime">Time</span></span>
+                  <span><i class="ri-map-pin-line" style="color: var(--primary);"></i> <span id="emailMatchVenue">Venue</span></span>
+                  <span><i class="ri-trophy-line" style="color: var(--primary);"></i> <span id="emailMatchSport">Sport</span></span>
+                </div>
+              </div>
+
+              <!-- Custom Note Input -->
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="emailCustomNote" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">
+                  2. Special Instructions / Admin Note <span style="color: var(--text-muted); font-weight: normal;">(Optional)</span>
+                </label>
+                <textarea id="emailCustomNote" rows="3" class="form-control" placeholder="e.g. Please report 30 minutes before match time at Ground A with official sports uniform and college ID card." style="width: 100%; padding: 10px 14px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color); resize: vertical;"></textarea>
+              </div>
+
+              <!-- Send Action Button for Match Mode -->
+              <div style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="font-size: 13px; color: var(--text-muted);">
+                  Selected Athletes: <strong id="emailSelectedCount" style="color: var(--primary);">0</strong>
+                </div>
+                <button class="btn" id="sendManualEmailBtn" onclick="sendManualMatchEmail()" disabled style="background-color: var(--primary); color: #000; font-weight: 700; display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px;">
+                  <i class="ri-mail-send-fill"></i> Send Match Emails Now
+                </button>
+              </div>
+            </div>
+
+            <div id="emailSendStatusMsg" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+          </div>
+
+          <!-- Athletes Preview Card -->
+          <div class="section-card">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
+              <h4 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px;">
+                <i class="ri-user-shared-line" style="color: var(--primary);"></i>
+                Recipient Athletes (<span id="recipientSourceLabel">Google Sheets</span>)
+              </h4>
+              <span id="recipientCountBadge" class="badge badge-success" style="font-size: 12px; padding: 4px 10px;">0 Athletes</span>
+            </div>
+
+            <!-- Recipient Search & Select All -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+              <input type="text" id="recipientFilterInput" placeholder="Filter athletes by name, email, mandal, or sport..." oninput="filterRecipientList()" class="form-control" style="flex: 1; padding: 7px 12px; font-size: 13px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color);">
+              <button class="btn btn-secondary" onclick="toggleSelectAllRecipients()" style="font-size: 12px; padding: 7px 12px; white-space: nowrap;">
+                <i class="ri-checkbox-line"></i> Select All
+              </button>
+            </div>
+
+            <!-- Recipient Athletes List Container -->
+            <div id="recipientListContainer" style="max-height: 420px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.15);">
+              <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 13px;">
+                <i class="ri-loader-4-line" style="font-size: 28px; display: block; margin-bottom: 8px; animation: spin 1s linear infinite;"></i>
+                Loading athletes from Google Sheets...
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Sent Emails Log & History -->
+        <div class="section-card">
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h4 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px;">
+                <i class="ri-history-line" style="color: var(--primary);"></i>
+                Email Logs & Delivery History
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                Track sent and attempted match reminder notifications.
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <select id="emailLogStatusFilter" onchange="renderEmailLogsTable()" class="form-control" style="padding: 6px 12px; font-size: 13px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-color);">
+                <option value="all">All Statuses</option>
+                <option value="sent">Sent Successfully</option>
+                <option value="failed">Failed Delivery</option>
+              </select>
+              <button class="btn btn-secondary" onclick="loadEmailHistory()" style="display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 7px 14px;">
+                <i class="ri-refresh-line"></i> Refresh Logs
+              </button>
+            </div>
+          </div>
+
+          <!-- Logs Table -->
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; min-width: 800px;">
+              <thead>
+                <tr>
+                  <th style="width: 18%;">Recipient</th>
+                  <th style="width: 25%;">Subject / Match</th>
+                  <th style="width: 12%;">Type</th>
+                  <th style="width: 12%;">Status</th>
+                  <th style="width: 18%;">Sent At (IST)</th>
+                  <th style="width: 15%;">Notes / Error</th>
+                </tr>
+              </thead>
+              <tbody id="emailLogsTableBody">
+                <tr>
+                  <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">
+                    <i class="ri-loader-2-line" style="font-size: 24px;"></i>
+                    <div style="margin-top: 8px;">Loading email history...</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
     </div>

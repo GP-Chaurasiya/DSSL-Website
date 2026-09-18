@@ -736,6 +736,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
     console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players (${multiSportStudentsCount} multi-sport), ${activeSports.size} active sports`);
     return _sheetCache;
   }
+  app.locals.getLiveSheetData = getLiveSheetData;
 
   // ============================================================
   // PLAYER LIST — from LIVE Google Sheets

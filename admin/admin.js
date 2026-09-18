@@ -243,6 +243,9 @@ async function loadTabData(tab) {
         await loadDals();
         await initAdminSemiFinals();
         break;
+      case "email-reminders":
+        await initEmailRemindersTab();
+        break;
 
       case "analytics":
         const analyticsIframe = document.getElementById("analyticsIframe");
@@ -3657,6 +3660,844 @@ window.renderAdminQualifiedPlayersTable = renderAdminQualifiedPlayersTable;
 window.handleAdminQpPhotoFile = handleAdminQpPhotoFile;
 window.updateAdminQpPhotoPreview = updateAdminQpPhotoPreview;
 window.clearAdminQpPhoto = clearAdminQpPhoto;
+
+// ── DSSL Match Email Reminders Module ─────────────────────────────────────────
+
+let currentEmailMode = "sheet"; // "sheet" or "match"
+let allSheetAthletes = [];
+let filteredSheetAthletes = [];
+let selectedSheetAthleteIds = new Set();
+
+let currentMatchRecipients = [];
+let selectedMatchRecipientIds = new Set();
+
+let cachedEmailLogs = [];
+let currentEmailSettings = {
+  autoRemindersEnabled: true,
+  hoursBefore: 24,
+  lastRun: null
+};
+
+/**
+ * Format IST Date for display
+ */
+function formatISTDisplay(dateInput) {
+  if (!dateInput) return "To Be Announced";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return "To Be Announced";
+  try {
+    return new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    }).format(date) + " IST";
+  } catch (e) {
+    return date.toLocaleString();
+  }
+}
+
+/**
+ * Initialize Email Reminders Tab
+ */
+async function initEmailRemindersTab() {
+  checkEmailSMTPStatus();
+  await Promise.all([
+    loadEmailSettings(),
+    loadSheetRegistrations(),
+    loadSelectableMatchesForEmail(),
+    loadEmailHistory()
+  ]);
+}
+
+/**
+ * Switch between Google Sheet mode and Match Fixture mode
+ */
+function switchEmailMode(mode) {
+  currentEmailMode = mode;
+  const sheetBtn = document.getElementById("modeBtnSheet");
+  const matchBtn = document.getElementById("modeBtnMatch");
+  const sheetPanel = document.getElementById("emailModeSheetPanel");
+  const matchPanel = document.getElementById("emailModeMatchPanel");
+  const sourceLabel = document.getElementById("recipientSourceLabel");
+
+  if (mode === "sheet") {
+    if (sheetBtn) {
+      sheetBtn.style.backgroundColor = "var(--primary)";
+      sheetBtn.style.color = "#000";
+      sheetBtn.style.fontWeight = "700";
+    }
+    if (matchBtn) {
+      matchBtn.style.background = "transparent";
+      matchBtn.style.color = "var(--text-muted)";
+      matchBtn.style.fontWeight = "600";
+    }
+    if (sheetPanel) sheetPanel.style.display = "block";
+    if (matchPanel) matchPanel.style.display = "none";
+    if (sourceLabel) sourceLabel.textContent = "Google Sheets";
+    renderActiveRecipientList();
+  } else {
+    if (matchBtn) {
+      matchBtn.style.backgroundColor = "var(--primary)";
+      matchBtn.style.color = "#000";
+      matchBtn.style.fontWeight = "700";
+    }
+    if (sheetBtn) {
+      sheetBtn.style.background = "transparent";
+      sheetBtn.style.color = "var(--text-muted)";
+      sheetBtn.style.fontWeight = "600";
+    }
+    if (sheetPanel) sheetPanel.style.display = "none";
+    if (matchPanel) matchPanel.style.display = "block";
+    if (sourceLabel) sourceLabel.textContent = "Match Fixture";
+    renderActiveRecipientList();
+  }
+}
+
+/**
+ * Load Athletes Directly from Google Sheets
+ */
+async function loadSheetRegistrations() {
+  const container = document.getElementById("recipientListContainer");
+  const sportSelect = document.getElementById("sheetSportSelect");
+  const mandalSelect = document.getElementById("sheetMandalSelect");
+
+  if (container && currentEmailMode === "sheet") {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 13px;">
+        <i class="ri-loader-4-line" style="font-size: 28px; animation: spin 1s infinite linear; display: inline-block; margin-bottom: 8px;"></i>
+        <div>Fetching live registration data from Google Sheets...</div>
+      </div>`;
+  }
+
+  try {
+    const res = await apiCall("/api/email/sheet-registrations");
+    if (res && res.success) {
+      allSheetAthletes = res.athletes || [];
+      selectedSheetAthleteIds = new Set(allSheetAthletes.map(a => a.id));
+
+      // Populate Sport dropdown
+      if (sportSelect) {
+        const curSport = sportSelect.value || "ALL";
+        sportSelect.innerHTML = `<option value="ALL">All Sports (${res.sports?.length || 0})</option>`;
+        (res.sports || []).forEach(s => {
+          const opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s;
+          sportSelect.appendChild(opt);
+        });
+        sportSelect.value = curSport;
+      }
+
+      // Populate Mandal dropdown
+      if (mandalSelect) {
+        const curMandal = mandalSelect.value || "ALL";
+        mandalSelect.innerHTML = `<option value="ALL">All Mandals (${res.mandals?.length || 0})</option>`;
+        (res.mandals || []).forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          mandalSelect.appendChild(opt);
+        });
+        mandalSelect.value = curMandal;
+      }
+
+      filterSheetAthletes();
+    }
+  } catch (err) {
+    console.error("Error loading Google Sheet registrations:", err);
+    if (container && currentEmailMode === "sheet") {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--danger, #ef4444); font-size: 13px;">
+          <i class="ri-error-warning-line" style="font-size: 28px; display: block; margin-bottom: 8px;"></i>
+          Failed to fetch Google Sheet data: ${err.message}
+        </div>`;
+    }
+  }
+}
+
+/**
+ * Filter Google Sheet Athletes by Sport, Mandal, or Search
+ */
+function filterSheetAthletes() {
+  const sport = document.getElementById("sheetSportSelect")?.value || "ALL";
+  const mandal = document.getElementById("sheetMandalSelect")?.value || "ALL";
+  const search = (document.getElementById("recipientFilterInput")?.value || "").toLowerCase().trim();
+
+  filteredSheetAthletes = allSheetAthletes.filter(a => {
+    if (sport !== "ALL") {
+      const s1 = (a.sport || "").toLowerCase();
+      const s2 = sport.toLowerCase();
+      if (!s1.includes(s2) && !s2.includes(s1)) return false;
+    }
+    if (mandal !== "ALL") {
+      const m1 = (a.mandalName || "").toLowerCase();
+      const m2 = mandal.toLowerCase();
+      if (!m1.includes(m2) && !m2.includes(m1)) return false;
+    }
+    if (search) {
+      const name = (a.name || "").toLowerCase();
+      const email = (a.email || "").toLowerCase();
+      const scholar = String(a.scholarNo || "").toLowerCase();
+      const regId = String(a.teamRegistrationId || "").toLowerCase();
+      if (!name.includes(search) && !email.includes(search) && !scholar.includes(search) && !regId.includes(search)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (currentEmailMode === "sheet") {
+    renderActiveRecipientList();
+  }
+}
+
+/**
+ * Check Gmail SMTP Connection Status
+ */
+async function checkEmailSMTPStatus() {
+  const badge = document.getElementById("smtpStatusBadge");
+  const spinner = document.getElementById("smtpSpinner");
+  const statusText = document.getElementById("smtpStatusText");
+  if (!badge) return;
+
+  if (spinner) spinner.style.display = "inline-block";
+  if (statusText) statusText.textContent = "Connecting to Gmail...";
+  badge.className = "badge badge-warning";
+
+  try {
+    const res = await apiCall("/api/email/verify");
+    if (res && res.success) {
+      badge.className = "badge badge-success";
+      badge.innerHTML = '<i class="ri-checkbox-circle-line"></i> <span>Connected: Gmail SMTP</span>';
+    } else {
+      badge.className = "badge badge-danger";
+      badge.innerHTML = `<i class="ri-error-warning-line"></i> <span>SMTP Error: ${res?.message || "Failed"}</span>`;
+    }
+  } catch (err) {
+    badge.className = "badge badge-danger";
+    badge.innerHTML = `<i class="ri-close-circle-line"></i> <span>Disconnected: ${err.message}</span>`;
+  }
+}
+
+/**
+ * Load Auto-Reminder Settings
+ */
+async function loadEmailSettings() {
+  try {
+    const settings = await apiCall("/api/email/settings");
+    if (settings) {
+      currentEmailSettings = settings;
+      renderAutoReminderSettings();
+    }
+  } catch (err) {
+    console.warn("Could not load email settings:", err);
+  }
+}
+
+/**
+ * Render Auto-Reminder Settings UI
+ */
+function renderAutoReminderSettings() {
+  const badge = document.getElementById("autoReminderBadge");
+  const btn = document.getElementById("toggleAutoReminderBtn");
+  const lastRunSpan = document.getElementById("autoSchedulerLastRun");
+
+  if (badge) {
+    if (currentEmailSettings.autoRemindersEnabled) {
+      badge.className = "badge badge-success";
+      badge.textContent = "ACTIVE";
+    } else {
+      badge.className = "badge badge-secondary";
+      badge.textContent = "PAUSED";
+    }
+  }
+
+  if (btn) {
+    btn.innerHTML = currentEmailSettings.autoRemindersEnabled
+      ? '<i class="ri-pause-circle-line"></i> Pause Scheduler'
+      : '<i class="ri-play-circle-line"></i> Enable Scheduler';
+  }
+
+  if (lastRunSpan) {
+    lastRunSpan.textContent = currentEmailSettings.lastRun
+      ? formatISTDisplay(currentEmailSettings.lastRun)
+      : "Pending first run";
+  }
+}
+
+/**
+ * Toggle Auto-Reminder Setting
+ */
+async function toggleAutoReminderSetting() {
+  try {
+    const nextState = !currentEmailSettings.autoRemindersEnabled;
+    const res = await apiCall("/api/email/settings", {
+      method: "POST",
+      body: JSON.stringify({ autoRemindersEnabled: nextState })
+    });
+    if (res && res.settings) {
+      currentEmailSettings = res.settings;
+      renderAutoReminderSettings();
+      alert(`Auto 24-Hour Reminders are now ${nextState ? "ACTIVATED" : "PAUSED"}.`);
+    }
+  } catch (err) {
+    alert("Failed to update scheduler setting: " + err.message);
+  }
+}
+
+/**
+ * Run Auto-Check Immediately
+ */
+async function triggerImmediateAutoCheck() {
+  try {
+    const res = await apiCall("/api/email/check-reminders", {
+      method: "POST"
+    });
+    if (res && res.success) {
+      alert(`Auto-Check Completed!\nMatches Evaluated: ${res.result?.matchesEvaluated || 0}\nEmails Dispatched: ${res.result?.totalEmailsSent || 0}`);
+      await loadEmailSettings();
+      await loadEmailHistory();
+    }
+  } catch (err) {
+    alert("Error executing auto-check: " + err.message);
+  }
+}
+
+/**
+ * Load Selectable Matches into Dropdown
+ */
+async function loadSelectableMatchesForEmail() {
+  const select = document.getElementById("emailMatchSelect");
+  if (!select) return;
+
+  try {
+    const matches = await apiCall("/api/email/selectable-matches");
+    select.innerHTML = '<option value="">-- Choose a scheduled fixture --</option>';
+
+    matches.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      const timeStr = m.startTime ? formatISTDisplay(m.startTime) : "Time TBD";
+      const dalA = m.dalA?.name || "TBD";
+      const dalB = m.dalB?.name || "TBD";
+      opt.textContent = `${m.sportName} (${m.matchRound || "Fixture"}): ${dalA} vs ${dalB} — ${timeStr} [${m.venue || "Venue TBD"}]`;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Error loading matches for email:", err);
+  }
+}
+
+/**
+ * Handle Match Selection in Dropdown
+ */
+async function onEmailMatchSelect() {
+  const select = document.getElementById("emailMatchSelect");
+  const matchId = select?.value;
+
+  const infoCard = document.getElementById("emailMatchInfoCard");
+  const sendBtn = document.getElementById("sendManualEmailBtn");
+  const container = document.getElementById("recipientListContainer");
+  const badge = document.getElementById("recipientCountBadge");
+  const selectedCountSpan = document.getElementById("emailSelectedCount");
+
+  if (!matchId) {
+    if (infoCard) infoCard.style.display = "none";
+    if (sendBtn) sendBtn.disabled = true;
+    if (badge) badge.textContent = "0 Athletes";
+    if (selectedCountSpan) selectedCountSpan.textContent = "0";
+    currentMatchRecipients = [];
+    selectedMatchRecipientIds.clear();
+    if (container && currentEmailMode === "match") {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 13px;">
+          <i class="ri-mail-open-line" style="font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+          Select a match from the left to preview eligible athletes.
+        </div>`;
+    }
+    return;
+  }
+
+  if (container) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 13px;">
+        <i class="ri-loader-4-line" style="font-size: 28px; animation: spin 1s infinite linear; display: inline-block; margin-bottom: 8px;"></i>
+        <div>Finding registered athletes for this match...</div>
+      </div>`;
+  }
+
+  try {
+    const data = await apiCall(`/api/email/match/${matchId}/recipients`);
+    const match = data.match;
+    const recipients = data.recipients || [];
+
+    // Show Match Summary Pill
+    if (infoCard && match) {
+      infoCard.style.display = "block";
+      const titleEl = document.getElementById("emailMatchTitle");
+      const timeEl = document.getElementById("emailMatchTime");
+      const venueEl = document.getElementById("emailMatchVenue");
+      const sportEl = document.getElementById("emailMatchSport");
+
+      if (titleEl) titleEl.textContent = `${match.dalA?.name || "Team A"} vs ${match.dalB?.name || "Team B"}`;
+      if (timeEl) timeEl.textContent = formatISTDisplay(match.startTime);
+      if (venueEl) venueEl.textContent = match.venue || "TBD Venue";
+      if (sportEl) sportEl.textContent = `${match.sportName} (${match.matchRound || "Match"})`;
+    }
+
+    currentMatchRecipients = recipients;
+    selectedMatchRecipientIds = new Set(recipients.map(r => r.id));
+
+    renderActiveRecipientList();
+  } catch (err) {
+    alert("Error fetching match recipients: " + err.message);
+    if (container && currentEmailMode === "match") {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--danger, #ef4444); font-size: 13px;">
+          <i class="ri-error-warning-line" style="font-size: 28px; display: block; margin-bottom: 8px;"></i>
+          ${err.message}
+        </div>`;
+    }
+  }
+}
+
+/**
+ * Render whichever recipient list is active (Google Sheet mode vs Match mode)
+ */
+function renderActiveRecipientList() {
+  const container = document.getElementById("recipientListContainer");
+  const badge = document.getElementById("recipientCountBadge");
+  if (!container) return;
+
+  if (currentEmailMode === "sheet") {
+    const list = filteredSheetAthletes;
+    const selectedCount = selectedSheetAthleteIds.size;
+    const sheetCountSpan = document.getElementById("sheetSelectedCount");
+    const sheetSendBtn = document.getElementById("sendSheetEmailBtn");
+
+    if (badge) badge.textContent = `${list.length} Athletes (Google Sheets)`;
+    if (sheetCountSpan) sheetCountSpan.textContent = selectedCount;
+    if (sheetSendBtn) sheetSendBtn.disabled = selectedCount === 0;
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 13px;">
+          <i class="ri-file-search-line" style="font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+          No registered athletes match the selected Sport, Mandal, or Search query.
+        </div>`;
+      return;
+    }
+
+    let html = '<div style="display: flex; flex-direction: column;">';
+    list.forEach(player => {
+      const isChecked = selectedSheetAthleteIds.has(player.id);
+      const safeId = String(player.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const regId = player.teamRegistrationId ? `<span style="color: var(--primary); font-weight: 600;">[${player.teamRegistrationId}]</span> ` : "";
+
+      html += `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: ${isChecked ? "rgba(255,188,1,0.03)" : "transparent"}; transition: background 0.15s ease;">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+            <input type="checkbox" id="chk_${safeId}" ${isChecked ? "checked" : ""} onchange="onRecipientCheckToggle('${player.id}')" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+            <div style="min-width: 0;">
+              <div style="font-weight: 600; font-size: 13px; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                ${regId}${player.name}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                ${player.email} ${player.scholarNo ? `&bull; Scholar: ${player.scholarNo}` : ""}
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right; flex-shrink: 0; margin-left: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span class="badge badge-secondary" style="font-size: 10.5px; padding: 2px 7px;">
+              ${player.sport || "Sport"}
+            </span>
+            <span style="font-size: 10.5px; color: #a7f3d0; background: rgba(16,185,129,0.15); padding: 2px 6px; border-radius: 4px;">
+              ${player.mandalName || "Mandal"}
+            </span>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+
+  } else {
+    // MATCH FIXTURE MODE
+    const list = currentMatchRecipients;
+    const selectedCount = selectedMatchRecipientIds.size;
+    const matchCountSpan = document.getElementById("emailSelectedCount");
+    const matchSendBtn = document.getElementById("sendManualEmailBtn");
+
+    if (badge) badge.textContent = `${list.length} Athletes (Fixture)`;
+    if (matchCountSpan) matchCountSpan.textContent = selectedCount;
+    if (matchSendBtn) matchSendBtn.disabled = selectedCount === 0;
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 13px;">
+          <i class="ri-user-unfollow-line" style="font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+          No registered athletes found for this fixture. Select a match on the left.
+        </div>`;
+      return;
+    }
+
+    let html = '<div style="display: flex; flex-direction: column;">';
+    list.forEach(player => {
+      const isChecked = selectedMatchRecipientIds.has(player.id);
+      const safeId = String(player.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+
+      html += `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: ${isChecked ? "rgba(255,188,1,0.03)" : "transparent"}; transition: background 0.15s ease;">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+            <input type="checkbox" id="chk_${safeId}" ${isChecked ? "checked" : ""} onchange="onRecipientCheckToggle('${player.id}')" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+            <div style="min-width: 0;">
+              <div style="font-weight: 600; font-size: 13px; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                ${player.name}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                ${player.email}
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right; flex-shrink: 0; margin-left: 10px;">
+            <span class="badge badge-secondary" style="font-size: 11px; padding: 2px 8px;">
+              ${player.mandalName || "Mandal"}
+            </span>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+}
+
+/**
+ * Handle Individual Athlete Checkbox Toggle
+ */
+function onRecipientCheckToggle(playerId) {
+  if (currentEmailMode === "sheet") {
+    if (selectedSheetAthleteIds.has(playerId)) {
+      selectedSheetAthleteIds.delete(playerId);
+    } else {
+      selectedSheetAthleteIds.add(playerId);
+    }
+    const countSpan = document.getElementById("sheetSelectedCount");
+    const sendBtn = document.getElementById("sendSheetEmailBtn");
+    if (countSpan) countSpan.textContent = selectedSheetAthleteIds.size;
+    if (sendBtn) sendBtn.disabled = selectedSheetAthleteIds.size === 0;
+  } else {
+    if (selectedMatchRecipientIds.has(playerId)) {
+      selectedMatchRecipientIds.delete(playerId);
+    } else {
+      selectedMatchRecipientIds.add(playerId);
+    }
+    const countSpan = document.getElementById("emailSelectedCount");
+    const sendBtn = document.getElementById("sendManualEmailBtn");
+    if (countSpan) countSpan.textContent = selectedMatchRecipientIds.size;
+    if (sendBtn) sendBtn.disabled = selectedMatchRecipientIds.size === 0;
+  }
+}
+
+/**
+ * Select / Deselect All Recipients
+ */
+function toggleSelectAllRecipients() {
+  if (currentEmailMode === "sheet") {
+    if (selectedSheetAthleteIds.size === filteredSheetAthletes.length) {
+      selectedSheetAthleteIds.clear();
+    } else {
+      selectedSheetAthleteIds = new Set(filteredSheetAthletes.map(r => r.id));
+    }
+    renderActiveRecipientList();
+  } else {
+    if (selectedMatchRecipientIds.size === currentMatchRecipients.length) {
+      selectedMatchRecipientIds.clear();
+    } else {
+      selectedMatchRecipientIds = new Set(currentMatchRecipients.map(r => r.id));
+    }
+    renderActiveRecipientList();
+  }
+}
+
+/**
+ * Filter Recipient List by search query
+ */
+function filterRecipientList() {
+  if (currentEmailMode === "sheet") {
+    filterSheetAthletes();
+  } else {
+    const input = document.getElementById("recipientFilterInput");
+    const query = (input?.value || "").toLowerCase().trim();
+
+    if (!query) {
+      renderActiveRecipientList();
+      return;
+    }
+
+    const filtered = currentMatchRecipients.filter(p => {
+      const name = (p.name || "").toLowerCase();
+      const mandal = (p.mandalName || "").toLowerCase();
+      const email = (p.email || "").toLowerCase();
+      return name.includes(query) || mandal.includes(query) || email.includes(query);
+    });
+
+    const container = document.getElementById("recipientListContainer");
+    if (!container) return;
+
+    let html = '<div style="display: flex; flex-direction: column;">';
+    filtered.forEach(player => {
+      const isChecked = selectedMatchRecipientIds.has(player.id);
+      const safeId = String(player.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+
+      html += `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: ${isChecked ? "rgba(255,188,1,0.03)" : "transparent"};">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+            <input type="checkbox" id="chk_${safeId}" ${isChecked ? "checked" : ""} onchange="onRecipientCheckToggle('${player.id}')" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+            <div style="min-width: 0;">
+              <div style="font-weight: 600; font-size: 13px; color: #fff;">${player.name}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${player.email}</div>
+            </div>
+          </div>
+          <div style="text-align: right; flex-shrink: 0; margin-left: 10px;">
+            <span class="badge badge-secondary" style="font-size: 11px; padding: 2px 8px;">${player.mandalName || "Mandal"}</span>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+}
+
+/**
+ * Send Emails Directly to Selected Google Sheet Athletes
+ */
+async function sendGoogleSheetEmails() {
+  const selectedList = allSheetAthletes.filter(a => selectedSheetAthleteIds.has(a.id));
+  if (selectedList.length === 0) {
+    alert("Please select at least one athlete from the Google Sheet list.");
+    return;
+  }
+
+  const subject = document.getElementById("sheetEmailSubject")?.value.trim();
+  const message = document.getElementById("sheetEmailMessage")?.value.trim();
+
+  if (!subject) {
+    alert("Please enter an email subject.");
+    return;
+  }
+  if (!message) {
+    alert("Please enter the email announcement message.");
+    return;
+  }
+
+  const confirmed = confirm(`Are you sure you want to dispatch emails directly to ${selectedList.length} athlete(s) fetched from Google Sheets?`);
+  if (!confirmed) return;
+
+  const btn = document.getElementById("sendSheetEmailBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ri-loader-4-line" style="animation: spin 1s infinite linear; display: inline-block;"></i> Sending Emails...';
+
+  const statusMsg = document.getElementById("emailSendStatusMsg");
+  if (statusMsg) {
+    statusMsg.style.display = "block";
+    statusMsg.style.color = "var(--primary)";
+    statusMsg.innerHTML = `<i class="ri-loader-line"></i> Sending ${selectedList.length} emails to Google Sheet recipients via Gmail SMTP...`;
+  }
+
+  try {
+    const res = await apiCall("/api/email/sheet-send", {
+      method: "POST",
+      body: JSON.stringify({
+        recipients: selectedList,
+        subject,
+        message
+      })
+    });
+
+    if (res && res.success) {
+      const { sent, failed } = res.results || {};
+      if (statusMsg) {
+        statusMsg.style.color = "var(--success, #10b981)";
+        statusMsg.innerHTML = `<i class="ri-check-line"></i> Completed! Sent: <strong>${sent}</strong> successful, <strong>${failed}</strong> failed.`;
+      }
+      alert(`Emails successfully sent to Google Sheet athletes!\n${sent} delivered.${failed > 0 ? `\n${failed} failed.` : ""}`);
+      await loadEmailHistory();
+    }
+  } catch (err) {
+    if (statusMsg) {
+      statusMsg.style.color = "var(--danger, #ef4444)";
+      statusMsg.innerHTML = `<i class="ri-error-warning-line"></i> Error: ${err.message}`;
+    }
+    alert("Failed to send Google Sheet emails: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+/**
+ * Send Manual Match Reminder Email
+ */
+async function sendManualMatchEmail() {
+  const select = document.getElementById("emailMatchSelect");
+  const matchId = select?.value;
+  if (!matchId) {
+    alert("Please select a match first.");
+    return;
+  }
+
+  if (selectedMatchRecipientIds.size === 0) {
+    alert("No recipients selected to receive emails.");
+    return;
+  }
+
+  const count = selectedMatchRecipientIds.size;
+  const confirmed = confirm(`Are you sure you want to send match reminder emails to ${count} selected athlete(s)?`);
+  if (!confirmed) return;
+
+  const customNote = document.getElementById("emailCustomNote")?.value || "";
+  const btn = document.getElementById("sendManualEmailBtn");
+  const originalBtnHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ri-loader-4-line" style="animation: spin 1s infinite linear; display: inline-block;"></i> Sending Reminders...';
+
+  const statusMsg = document.getElementById("emailSendStatusMsg");
+  if (statusMsg) {
+    statusMsg.style.display = "block";
+    statusMsg.style.color = "var(--primary)";
+    statusMsg.innerHTML = `<i class="ri-loader-line"></i> Dispatching ${count} emails via Gmail SMTP...`;
+  }
+
+  try {
+    const res = await apiCall(`/api/email/match/${matchId}/send`, {
+      method: "POST",
+      body: JSON.stringify({
+        customNote,
+        playerIds: Array.from(selectedMatchRecipientIds)
+      })
+    });
+
+    if (res && res.success) {
+      const { sent, failed } = res.results || {};
+      if (statusMsg) {
+        statusMsg.style.color = "var(--success, #10b981)";
+        statusMsg.innerHTML = `<i class="ri-check-line"></i> Sent: <strong>${sent}</strong> successful, <strong>${failed}</strong> failed.`;
+      }
+      alert(`Match reminders dispatched!\n${sent} emails delivered successfully.${failed > 0 ? `\n${failed} emails failed.` : ""}`);
+      await loadEmailHistory();
+    }
+  } catch (err) {
+    if (statusMsg) {
+      statusMsg.style.color = "var(--danger, #ef4444)";
+      statusMsg.innerHTML = `<i class="ri-error-warning-line"></i> Error: ${err.message}`;
+    }
+    alert("Failed to send match emails: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalBtnHtml;
+  }
+}
+
+/**
+ * Load Email History / Logs
+ */
+async function loadEmailHistory() {
+  const tbody = document.getElementById("emailLogsTableBody");
+  try {
+    const logs = await apiCall("/api/email/history?limit=100");
+    cachedEmailLogs = logs || [];
+    renderEmailLogsTable();
+  } catch (err) {
+    console.warn("Could not load email history:", err);
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center; padding: 2rem; color: var(--danger, #ef4444);">
+            <i class="ri-error-warning-line"></i> Failed to load email history: ${err.message}
+          </td>
+        </tr>`;
+    }
+  }
+}
+
+/**
+ * Render Email Logs Table
+ */
+function renderEmailLogsTable() {
+  const tbody = document.getElementById("emailLogsTableBody");
+  if (!tbody) return;
+
+  const filter = document.getElementById("emailLogStatusFilter")?.value || "all";
+
+  let filtered = cachedEmailLogs;
+  if (filter === "sent") filtered = filtered.filter(l => l.status === "sent");
+  if (filter === "failed") filtered = filtered.filter(l => l.status === "failed");
+
+  if (!filtered || filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">
+          <i class="ri-inbox-line" style="font-size: 24px; display: block; margin-bottom: 6px; opacity: 0.5;"></i>
+          No email logs found.
+        </td>
+      </tr>`;
+    return;
+  }
+
+  let html = "";
+  filtered.forEach(log => {
+    const isSent = log.status === "sent";
+    const statusBadge = isSent
+      ? '<span class="badge badge-success" style="font-size: 11px; padding: 3px 8px;"><i class="ri-check-line"></i> Sent</span>'
+      : '<span class="badge badge-danger" style="font-size: 11px; padding: 3px 8px;"><i class="ri-close-line"></i> Failed</span>';
+
+    const typeBadge = log.emailType === "automatic"
+      ? '<span class="badge badge-primary" style="font-size: 11px; padding: 2px 7px;">Auto 24h</span>'
+      : '<span class="badge badge-secondary" style="font-size: 11px; padding: 2px 7px;">Manual</span>';
+
+    const timeStr = log.createdAt ? formatISTDisplay(log.createdAt) : "-";
+    const noteOrError = isSent
+      ? (log.message ? `<span style="color: var(--text-muted); font-size: 12px;">${log.message.substring(0, 40)}...</span>` : '<span style="color: var(--text-muted);">-</span>')
+      : `<span style="color: var(--danger, #ef4444); font-size: 12px;" title="${log.errorMessage || ''}">${log.errorMessage || "Delivery Error"}</span>`;
+
+    html += `
+      <tr>
+        <td>
+          <div style="font-weight: 600; font-size: 13px; color: #fff;">${log.recipientName || "Athlete"}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">${log.recipientEmail}</div>
+        </td>
+        <td style="font-size: 12px; color: #cbd5e1;">${log.subject}</td>
+        <td>${typeBadge}</td>
+        <td>${statusBadge}</td>
+        <td style="font-size: 12px; color: var(--text-muted);">${timeStr}</td>
+        <td>${noteOrError}</td>
+      </tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+// Window bindings for email reminders
+window.initEmailRemindersTab = initEmailRemindersTab;
+window.switchEmailMode = switchEmailMode;
+window.loadSheetRegistrations = loadSheetRegistrations;
+window.filterSheetAthletes = filterSheetAthletes;
+window.sendGoogleSheetEmails = sendGoogleSheetEmails;
+window.checkEmailSMTPStatus = checkEmailSMTPStatus;
+window.toggleAutoReminderSetting = toggleAutoReminderSetting;
+window.triggerImmediateAutoCheck = triggerImmediateAutoCheck;
+window.onEmailMatchSelect = onEmailMatchSelect;
+window.onRecipientCheckToggle = onRecipientCheckToggle;
+window.toggleSelectAllRecipients = toggleSelectAllRecipients;
+window.filterRecipientList = filterRecipientList;
+window.sendManualMatchEmail = sendManualMatchEmail;
+window.loadEmailHistory = loadEmailHistory;
+window.renderEmailLogsTable = renderEmailLogsTable;
+
 
 
 
