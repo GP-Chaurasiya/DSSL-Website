@@ -484,11 +484,21 @@
   </section>
 
 
-  <!-- MINI PLAYER -->
+  <!-- MINI PLAYER / LIGHTBOX -->
+  <div class="mini-player-overlay" id="miniPlayerOverlay" onclick="handleOverlayClick(event)"></div>
   <div class="mini-player" id="miniPlayer">
     <span class="close-btn" onclick="closePreview()">✖</span>
+
+    <!-- Prev / Next nav buttons -->
+    <button class="gallery-nav-btn gallery-nav-prev" id="galleryPrevBtn" onclick="navigatePreview(-1)" aria-label="Previous">&#8249;</button>
+    <button class="gallery-nav-btn gallery-nav-next" id="galleryNextBtn" onclick="navigatePreview(1)" aria-label="Next">&#8250;</button>
+
+    <!-- Media -->
     <img id="miniImg" class="hidden">
     <video id="miniVideo" class="hidden" controls autoplay></video>
+
+    <!-- Counter: 3 / 69 -->
+    <div class="gallery-counter" id="galleryCounter"></div>
   </div>
 
   <button id="topBtn" title="Go to top">↑</button>
@@ -527,43 +537,104 @@
   </footer>
 
   <script>
-    function openPreview(src, type, title) {
+    // ── Gallery Lightbox State ──────────────────────────────────────────────
+    let galleryItems  = [];   // full list of media items loaded from /api/media
+    let currentIndex  = 0;   // which item is currently open
+    let touchStartX   = 0;   // for swipe detection on mobile
 
-      const player = document.getElementById("miniPlayer");
-      const img = document.getElementById("miniImg");
-      const video = document.getElementById("miniVideo");
+    // Show item at galleryItems[idx] in the lightbox
+    function showGalleryItem(idx) {
+      const total   = galleryItems.length;
+      currentIndex  = ((idx % total) + total) % total;  // wrap around
+      const item    = galleryItems[currentIndex];
+      const src     = item.url || `/api/media/file/${item.id}`;
+      const isVideo = item.type === "VIDEO";
 
-      player.style.display = "block";
+      const player  = document.getElementById("miniPlayer");
+      const overlay = document.getElementById("miniPlayerOverlay");
+      const img     = document.getElementById("miniImg");
+      const video   = document.getElementById("miniVideo");
+      const counter = document.getElementById("galleryCounter");
+      const prevBtn = document.getElementById("galleryPrevBtn");
+      const nextBtn = document.getElementById("galleryNextBtn");
 
-      if (type === "video") {
+      player.style.display  = "block";
+      overlay.style.display = "block";
+
+      // Update counter
+      counter.textContent = `${currentIndex + 1} / ${total}`;
+
+      // Hide nav buttons when only 1 item
+      const showNav = total > 1;
+      prevBtn.style.display = showNav ? "flex" : "none";
+      nextBtn.style.display = showNav ? "flex" : "none";
+
+      if (isVideo) {
         img.classList.add("hidden");
         video.classList.remove("hidden");
-        video.onerror = () => {
-          alert(title ? `"${title}" is unavailable. The video file may need to be re-uploaded.` : "This video is unavailable. The file may need to be re-uploaded.");
-          closePreview();
-        };
+        video.onerror = () => { closePreview(); };
         video.src = src;
         video.load();
-        video.play().catch(() => { });
-      }
-      else {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+        video.src = "";
         video.classList.add("hidden");
         video.onerror = null;
         img.classList.remove("hidden");
-
         img.src = src;
+        img.alt = item.title || "Gallery image";
       }
     }
 
-    function closePreview() {
-      const player = document.getElementById("miniPlayer");
-      const video = document.getElementById("miniVideo");
+    // Open lightbox at a specific index
+    function openPreview(idx) {
+      showGalleryItem(idx);
+    }
 
+    // Navigate prev (-1) or next (+1)
+    function navigatePreview(dir) {
+      showGalleryItem(currentIndex + dir);
+    }
+
+    // Close lightbox
+    function closePreview() {
+      const player  = document.getElementById("miniPlayer");
+      const overlay = document.getElementById("miniPlayerOverlay");
+      const video   = document.getElementById("miniVideo");
       video.pause();
       video.src = "";
-
-      player.style.display = "none";
+      player.style.display  = "none";
+      overlay.style.display = "none";
     }
+
+    // Click on dark overlay → close
+    function handleOverlayClick(e) {
+      closePreview();
+    }
+
+    // ── Keyboard Navigation (PC) ────────────────────────────────────────────
+    document.addEventListener("keydown", (e) => {
+      const player = document.getElementById("miniPlayer");
+      if (player.style.display !== "block") return;
+      if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   navigatePreview(-1);
+      if (e.key === "ArrowRight" || e.key === "ArrowDown")  navigatePreview(+1);
+      if (e.key === "Escape")  closePreview();
+    });
+
+    // ── Touch Swipe Navigation (Mobile) ────────────────────────────────────
+    document.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+
+    document.addEventListener("touchend", (e) => {
+      const player = document.getElementById("miniPlayer");
+      if (player.style.display !== "block") return;
+      const diff = touchStartX - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 50) {   // minimum swipe distance 50px
+        navigatePreview(diff > 0 ? +1 : -1);
+      }
+    }, { passive: true });
   </script>
 
   <script>
@@ -1048,7 +1119,7 @@
 
       try {
         const res = await fetch("/api/media");
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const mediaItems = await res.json();
 
         if (!mediaItems || mediaItems.length === 0) {
@@ -1056,15 +1127,18 @@
           return;
         }
 
+        // Save items globally for lightbox navigation
+        galleryItems = mediaItems;
+
         track.innerHTML = "";
-        mediaItems.forEach(item => {
+        mediaItems.forEach((item, idx) => {
           const card = document.createElement("div");
           card.className = "gallery-card";
           const isVideo = item.type === "VIDEO";
-          const mediaType = isVideo ? "video" : "image";
           const mediaUrl = item.url || `/api/media/file/${item.id}`;
 
-          card.onclick = () => openPreview(mediaUrl, mediaType, item.title);
+          // Pass index so lightbox knows where we are in the list
+          card.onclick = () => openPreview(idx);
 
           if (isVideo) {
             card.innerHTML = `
@@ -1090,8 +1164,13 @@
           }
           track.appendChild(card);
         });
+
+        // Keep scroll speed constant (~60px/sec) regardless of item count
+        const duration = Math.round((mediaItems.length * 215) / 60);
+        track.style.animationDuration = `${duration}s`;
       } catch (err) {
         console.error("Home gallery fetch error:", err);
+        track.innerHTML = `<div style="width: 100%; text-align: center; color: var(--text-muted); padding: 30px; font-size: 14px;">Unable to load highlights. <button onclick="loadHomeGallery()" style="margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:#ff6b35;color:#fff;cursor:pointer;font-weight:600;">Retry</button></div>`;
       }
     }
 

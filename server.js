@@ -1005,6 +1005,51 @@ app.get("/api/drive/stream/:fileId", async (req, res) => {
   });
 });
 
+// Proxy Google Drive image with in-memory buffer cache
+// Fetches high-res photo cleanly and serves with proper image headers, eliminating CORS & corrupted rendering
+const driveImageCache = new Map();
+
+app.get("/api/drive/image/:fileId", async (req, res) => {
+  const { fileId } = req.params;
+
+  if (driveImageCache.has(fileId)) {
+    const cached = driveImageCache.get(fileId);
+    res.set("Content-Type", cached.contentType);
+    res.set("Cache-Control", "public, max-age=604800, immutable");
+    res.set("Access-Control-Allow-Origin", "*");
+    return res.send(cached.buffer);
+  }
+
+  try {
+    const driveUrl = `https://lh3.googleusercontent.com/d/${fileId}=w1200`;
+    const driveRes = await fetch(driveUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+    });
+
+    if (!driveRes.ok) {
+      throw new Error(`Google Drive returned status ${driveRes.status}`);
+    }
+
+    const contentType = driveRes.headers.get("content-type") || "image/jpeg";
+    const arrayBuf = await driveRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuf);
+
+    // Cache in memory (keeps memory bounded to ~15MB for ~70 images)
+    driveImageCache.set(fileId, { contentType, buffer });
+
+    res.set("Content-Type", contentType);
+    res.set("Cache-Control", "public, max-age=604800, immutable");
+    res.set("Access-Control-Allow-Origin", "*");
+    res.send(buffer);
+  } catch (err) {
+    console.error(`Drive image proxy error for ${fileId}:`, err.message);
+    const fallback = path.join(ROOT, "DSSL_LOGO.png");
+    if (fs.existsSync(fallback)) return res.sendFile(fallback);
+    res.status(500).send("Image unavailable");
+  }
+});
+
+
 // List all media — merges Google Drive folder media with PostgreSQL/Supabase media
 app.get("/api/media", async (req, res) => {
   try {
@@ -1017,33 +1062,46 @@ app.get("/api/media", async (req, res) => {
       console.warn("Google Drive fetch error:", driveErr.message);
     }
 
-    const dbMedia = await prisma.media.findMany({
-      orderBy: { createdAt: "desc" },
-      select: { id: true, type: true, url: true, title: true, createdAt: true, data: true }
+    let normalizedDb = [];
+    try {
+      const dbMedia = await prisma.media.findMany({
+        orderBy: { createdAt: "desc" },
+        select: { id: true, type: true, url: true, title: true, createdAt: true, data: true }
+      });
+
+      normalizedDb = dbMedia
+        .filter(m => {
+          // Skip DB video records whose upload file is missing on disk (avoids broken card)
+          if (m.type === "VIDEO" && m.url && m.url.startsWith("/uploads/")) {
+            const diskPath = path.join(ROOT, m.url);
+            return fs.existsSync(diskPath);
+          }
+          return true;
+        })
+        .map(m => ({
+          id: m.id,
+          type: m.type,
+          title: m.title,
+          createdAt: m.createdAt,
+          // If binary data is in DB, use /api/media/file/:id; otherwise use direct URL (e.g. /uploads/video.mp4 or Drive URL)
+          url: (m.data && m.data.length > 0)
+            ? `/api/media/file/${m.id}`
+            : (m.url && m.url !== "pending" ? m.url : `/api/media/file/${m.id}`)
+        }));
+    } catch (dbErr) {
+      console.warn("Database media fetch warning:", dbErr.message);
+    }
+
+    // Rewrite Drive image URLs to use server proxy → fixes corrupted image rendering
+    const normalizedDrive = driveMedia.map(item => {
+      if (item.type === "IMAGE" && item.driveFileId) {
+        return { ...item, url: `/api/drive/image/${item.driveFileId}?v=2` };
+      }
+      return item;
     });
 
-    const normalizedDb = dbMedia
-      .filter(m => {
-        // Skip DB video records whose upload file is missing on disk (avoids broken card)
-        if (m.type === "VIDEO" && m.url && m.url.startsWith("/uploads/")) {
-          const diskPath = path.join(ROOT, m.url);
-          return fs.existsSync(diskPath);
-        }
-        return true;
-      })
-      .map(m => ({
-        id: m.id,
-        type: m.type,
-        title: m.title,
-        createdAt: m.createdAt,
-        // If binary data is in DB, use /api/media/file/:id; otherwise use direct URL (e.g. /uploads/video.mp4 or Drive URL)
-        url: (m.data && m.data.length > 0)
-          ? `/api/media/file/${m.id}`
-          : (m.url && m.url !== "pending" ? m.url : `/api/media/file/${m.id}`)
-      }));
-
     // Return combined media list with Drive files at top
-    res.json([...driveMedia, ...normalizedDb]);
+    res.json([...normalizedDrive, ...normalizedDb]);
   } catch (error) {
     console.error("Media list error:", error);
     res.status(500).json({ error: "Error fetching media list" });

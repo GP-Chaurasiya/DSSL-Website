@@ -44,7 +44,7 @@
       display: flex;
       justify-content: center;
       gap: 10px;
-      margin-bottom: 2.5rem;
+      margin-bottom: 1rem;
       flex-wrap: wrap;
     }
 
@@ -70,6 +70,128 @@
       color: #000;
       border-color: #ffbc01;
     }
+
+    /* Sport Category Single Horizontal Scrolling */
+    .sport-filter-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto 2rem;
+      padding: 0 4px;
+      gap: 10px;
+    }
+
+    .sport-filter-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      flex-wrap: nowrap;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 4px;
+      cursor: grab;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+    }
+
+    .sport-filter-row:active {
+      cursor: grabbing;
+    }
+
+    .sport-filter-row::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    .sport-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 18px;
+      border-radius: 50px;
+      border: 1.5px solid var(--border-color, #e2e8f0);
+      background: var(--surface-color, #fff);
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-main, #0f172a);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      white-space: nowrap;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .sport-pill:hover {
+      border-color: #ffbc01;
+      background-color: rgba(255, 188, 1, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .sport-pill.active {
+      background-color: #ffbc01;
+      color: #000;
+      border-color: #ffbc01;
+      box-shadow: 0 4px 14px rgba(255, 188, 1, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .sport-scroll-btn {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border-color, #e2e8f0);
+      background: var(--surface-color, #fff);
+      color: var(--text-main, #0f172a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .sport-scroll-btn:hover {
+      border-color: #ffbc01;
+      background-color: rgba(255, 188, 1, 0.1);
+      color: #ffbc01;
+      transform: scale(1.08);
+    }
+
+    [data-theme="dark"] .sport-pill {
+      background: var(--surface-color, #1e293b);
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .sport-pill:hover {
+      border-color: #ffbc01;
+      background-color: rgba(255, 188, 1, 0.15);
+    }
+
+    [data-theme="dark"] .sport-pill.active {
+      background-color: #ffbc01;
+      color: #000;
+      border-color: #ffbc01;
+      box-shadow: 0 4px 14px rgba(255, 188, 1, 0.35);
+    }
+
+    [data-theme="dark"] .sport-scroll-btn {
+      background: var(--surface-color, #1e293b);
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .sport-scroll-btn:hover {
+      border-color: #ffbc01;
+      background-color: rgba(255, 188, 1, 0.15);
+      color: #ffbc01;
+    }
+
 
     /* Media custom layout grid */
     .gallery-grid-custom {
@@ -390,11 +512,24 @@
     </div>
 
 
-    <!-- Filter Buttons -->
-    <div class="filter-tabs">
-      <button class="filter-btn active" onclick="setFilter('ALL')">All Media</button>
-      <button class="filter-btn" onclick="setFilter('IMAGE')"><i class="ri-image-line"></i> Photos</button>
-      <button class="filter-btn" onclick="setFilter('VIDEO')"><i class="ri-video-line"></i> Videos</button>
+    <!-- Media Type Filter -->
+    <div class="filter-tabs" id="typeFilterRow">
+      <button class="filter-btn active" id="typeBtn-ALL" onclick="setTypeFilter('ALL')">All Media</button>
+      <button class="filter-btn" id="typeBtn-IMAGE" onclick="setTypeFilter('IMAGE')"><i class="ri-image-line"></i> Photos</button>
+      <button class="filter-btn" id="typeBtn-VIDEO" onclick="setTypeFilter('VIDEO')"><i class="ri-video-line"></i> Videos</button>
+    </div>
+
+    <!-- Sport Category Pills Single Scroll Row -->
+    <div class="sport-filter-wrapper">
+      <button class="sport-scroll-btn left" id="sportScrollLeft" onclick="scrollSportTabs(-1)" aria-label="Scroll left">
+        <i class="ri-arrow-left-s-line"></i>
+      </button>
+      <div class="sport-filter-row" id="sportFilterRow">
+        <!-- Populated dynamically -->
+      </div>
+      <button class="sport-scroll-btn right" id="sportScrollRight" onclick="scrollSportTabs(1)" aria-label="Scroll right">
+        <i class="ri-arrow-right-s-line"></i>
+      </button>
     </div>
 
     <!-- Gallery Grid -->
@@ -453,11 +588,150 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     let mediaAssets = [];
-    let currentFilter = "ALL";
+    let currentTypeFilter = "ALL";
+    let currentSportFilter = "ALL";
     let currentIndex = -1;
     let filteredCache = [];
 
-    // Theme Switch
+    // ── Sport Categorization ───────────────────────────────────────────────────
+    // Maps Drive fileId → sport category, identified from photo timestamps & visual content.
+    // DB media (non-Drive) uses title-based matching.
+    const DRIVE_SPORT_MAP = {
+      // Aug 23 – Badminton (indoor court)
+      '1Bz1-QxpYH1eDC3V3slNtRWhrO15cs2R6': 'Badminton',
+      '1CMBu4FqPmGE_zlqCb5xAhMiK-ws3s6sI': 'Badminton',
+      '1AdrKt5vTbyV_Irb-Khy5cgqgBD9qu4f0': 'Badminton',
+      '1oP1cQpfqiJY2eCOrg1qKrbUmoHor0Iwx': 'Badminton',
+      '1CzdzRapw3jD9vNz39KCF1u6a63UPbfrg': 'Badminton',
+      '14A21knWH5yunWagDtlZFeNtbyD1B8YyO': 'Badminton',
+      // Aug 29 – National Sports Day + Athletics (outdoor)
+      '1XlQ5BnHkrZgZd6thhZV9KZ8h2TwME04O': 'National Sports Day',
+      '1m8jSw9B59gJG55YVYji9nJjj7O0BMWRz': 'National Sports Day',
+      '146mPqzDVTCbKsbeXanpYqQxLIHgwQhQI': 'National Sports Day',
+      '1XE-kI-b8eV5ITQbC8hOnmtJ-EQxrfQn6': 'Athletics',
+      '1oHWDOY1keRHkHf1rdIVo4fMmUIWt_Sjf': 'Athletics',
+      '1t690mpWJOZVYupPAQM3x1dzxxF1ssneY': 'Athletics',
+      '1mbCpQu28xOtnWhjzFdYGHkM4KeQ6I11q': 'Athletics',
+      '1i-Ppzu6C_Cz5UXwchGi0OeozgC1tzsg1': 'Athletics',
+      '1-iaYVXCSICHiWt8RCxWq5enGHj8bM3QJ': 'Athletics',
+      '12kqt1jRNuWBppyghQNGG-5ovhZuQuCXW': 'Athletics',
+      '1lxYOYOLIRHn2-hvXc4-hTWlcGO_9DjHz': 'Athletics',
+      '1qtG6MsOvMPrugl6czgMI40lBOIKpYJyv': 'Athletics',
+      '1VLvK8fpr3a44cGIjwxoGC3-Sgdknxdj1': 'Athletics',
+      '1ACEON2y7H1ZWwT5hWpcMUjMxUTNe8Rcn': 'Athletics',
+      '1NyjpJB2_JF6LHtTLwR1hBXwQkawu3hND': 'Athletics',
+      '1o20t-iaUy7OFcv683QnBTOkWToAIL2hg': 'Athletics',
+      // Sep 1 – Volleyball (girls, outdoor net)
+      '1s-2TxZwJz-JatAh2LUeU-ud5D1HDSgBw': 'Volleyball',
+      '11KnbxShPcwcTVCbv-aVNkKk2GxcE-9A3': 'Volleyball',
+      '1jj6X-9Q0dmzwMQOUY4IDm9Nq8LWIod4c': 'Volleyball',
+      '11YRymOLFL-fGO0-CavOfb8hQlfYWN2Rn': 'Volleyball',
+      '1xnX33PZB3jlREQIxKTyeBvrle2qoLfhw': 'Volleyball',
+      '18sEPyT8NSCncaUlqxdpxTevo6zh4Gu3O': 'Volleyball',
+      '1R8EXJ6pTw_UHzxQoMmj8Q0pCduz7Lf9r': 'Volleyball',
+      // Sep 8 – Volleyball match (dusk)
+      '1o5uB4qFLQQw3YB8aO3wsXVjm4JzCVG36': 'Volleyball',
+      '1yCHtlWj0NUE_6aWUNN9-JoLc1NUp_597': 'Volleyball',
+      '1Yn5v-5BHzUjzCAnM9HAin9eEo_t_DTR3': 'Volleyball',
+      '1DQsBr8DLDDQjyLTD8FhDoj3i-awG8Pqe': 'Volleyball',
+      '1O5qUU66M5Mfkrs9taq29s1I7YlzdPCLq': 'Volleyball',
+      '1qZY4A0ck8yfyjmkqXKjIomGTOU5S_sds': 'Volleyball',
+      '1TXhWtWs5aGD88X0CfOb8YfYjVv5ulK_m': 'Volleyball',
+      '1noHGoSmhFYmEhJfqO-1f5lysWRG5fHuF': 'Volleyball',
+      '18f4jXJ0xjCfrxncyipuqcvF1r75lFhMk': 'Volleyball',
+      '1z4vWPJWKdCwLW20J6zrFZDuRAO-Kq28o': 'Volleyball',
+      '1hqdWQwT0JtIlLkdIQtbi-Bo0OoV5AS1n': 'Volleyball',
+      '1iaGiDLta-A0HJDN6x8WInb7FwZggS8oO': 'Volleyball',
+      // Sep 13 – Kho-Kho
+      '14RPvcga_U3zLYqb-uYdW3Cwnn3uaHobd': 'Kho-Kho',
+      '13iOi-theMS2CdNz0Y0OQd2d3a9vsN26_': 'Kho-Kho',
+      '1qXl_bjSvtlCCPmFI2xHr1yWpWFWqYw0Y': 'Kho-Kho',
+      '1Pd4t-S_FRm24YhpNjj27Z4tC1Sa9Pn37': 'Kho-Kho',
+      '19Z2R40Pn8135E3dLLA7VlsP4-2iC-Bsm': 'Kho-Kho',
+      '1DHjbew7UZBCf-0A8nNIXANCuFgpVZL_5': 'Kho-Kho',
+      '1uxHvigrimI3oqDwQ7CcY6jbb0vcJZtCq': 'Kho-Kho',
+      '1s9X3u_bDrOorWakujuTkXGfkoyNlgzD8': 'Kho-Kho',
+      // Sep 20 – Kabaddi
+      '1mCbj7ggHxug5koolX4qEyX25n3SCLYze': 'Kabaddi',
+      '1KG3ekSbpQuTFt5M-xCf21s1lj10JZOvR': 'Kabaddi',
+      '1tVaSHJwz8qGVk5XvBCGx7jyP9Vr-NwEZ': 'Kabaddi',
+      '1FYN7G6U-eqfaRM4CkZVqvpT9smPzZaM-': 'Kabaddi',
+      '1rY53bbwa1DFnvnXnozXo0ECUzh-ar1eH': 'Kabaddi',
+      '1XnJMrT8Y3FY72a-mAC6idRsGYgMjH5UF': 'Kabaddi',
+      // IMG_8xxx / IMG_9xxx – Badminton indoor (various dates)
+      '1gxipAlXOqhEjAB1PN-okjz16YPxZaEFs': 'Badminton',
+      '14EpBIzeF3juYdvotIvvFtxfuheXP1gW5': 'Badminton',
+      '1y8GY07kTZ483jWMz3ocp7_2DZ86hzBKN': 'Badminton',
+      '1E3YV3NHO2qWwRRRN2Vp3oYH325kNolOU': 'Badminton',
+      '16X0yLG4XgJm0l04TZ5iNusffxM8vC52L': 'Badminton',
+      '1HSlF7BaJJEFxNX_6MAUlEpH3mhjx4MTf': 'Badminton',
+      '11nbhFT2pvz0aQgIigA33lyYP3LnRQMI_': 'Badminton',
+      '1-cXpWr2zZOVY4m87T3iCrnMErHaPoXBN': 'Badminton',
+      '1CQc7O-fDhD9fw9yBdtIPXaSZWBIhC_Q4': 'Badminton',
+      '1XxiCpbmWohn6wJvVyAivwj3ZjGuGd8m2': 'Badminton',
+      '1TvV4a5tZ4fUMqses4OwtP-HKLQga51wk': 'Badminton',
+      '1joCkBUj0lCtc04gKlpXFlObR1LLl0sBx': 'Badminton',
+    };
+
+    const SPORTS_LIST = [
+      { key: 'ALL',                 name: 'All Sports' },
+      { key: 'Basketball',          name: 'Basketball' },
+      { key: 'Football',            name: 'Football' },
+      { key: 'Cricket',             name: 'Cricket' },
+      { key: 'Volleyball',          name: 'Volleyball' },
+      { key: 'Badminton (Doubles)', name: 'Badminton (Doubles)' },
+      { key: 'Badminton (Singles)', name: 'Badminton (Singles)' },
+      { key: 'Table Tennis',        name: 'Table Tennis' },
+      { key: 'Athletics (100m)',    name: 'Athletics (100m)' },
+      { key: 'Athletics (200m)',    name: 'Athletics (200m)' },
+      { key: 'Athletics (400m)',    name: 'Athletics (400m)' },
+      { key: 'Athletics (Relay)',   name: 'Athletics (Relay)' },
+      { key: 'Kho-Kho',             name: 'Kho-Kho' },
+      { key: 'Chess',               name: 'Chess' },
+      { key: 'High Jump',           name: 'High Jump' },
+      { key: 'Tug of War',          name: 'Tug of War' },
+      { key: 'Long Jump',           name: 'Long Jump' },
+      { key: 'Javelin Throw',       name: 'Javelin Throw' },
+      { key: 'Discus Throw',        name: 'Discus Throw' },
+      { key: 'Shot Put',            name: 'Shot Put' },
+      { key: '7 Stones',            name: '7 Stones' },
+      { key: 'Kabaddi',             name: 'Kabaddi' },
+      { key: 'National Sports Day', name: 'National Sports Day' }
+    ];
+
+    // Assign sport category to each media item
+    function tagSport(item) {
+      if (item.driveFileId && DRIVE_SPORT_MAP[item.driveFileId]) {
+        return DRIVE_SPORT_MAP[item.driveFileId];
+      }
+      // DB items: match by title keyword
+      const t = (item.title || '').toLowerCase();
+      if (t.includes('badminton') || t.includes('shuttle'))  return 'Badminton';
+      if (t.includes('volleyball') || t.includes('volley'))  return 'Volleyball';
+      if (t.includes('kabaddi'))                             return 'Kabaddi';
+      if (t.includes('kho'))                                 return 'Kho-Kho';
+      if (t.includes('chess') || t.includes('chees'))       return 'Chess';
+      if (t.includes('cricket'))                             return 'Cricket';
+      if (t.includes('football') || t.includes('soccer'))   return 'Football';
+      if (t.includes('basketball'))                          return 'Basketball';
+      if (t.includes('table tennis') || t.includes('tt'))   return 'Table Tennis';
+      if (t.includes('100m'))                                return 'Athletics (100m)';
+      if (t.includes('200m'))                                return 'Athletics (200m)';
+      if (t.includes('400m'))                                return 'Athletics (400m)';
+      if (t.includes('relay'))                               return 'Athletics (Relay)';
+      if (t.includes('athletics'))                           return 'Athletics';
+      if (t.includes('high jump'))                           return 'High Jump';
+      if (t.includes('long jump'))                           return 'Long Jump';
+      if (t.includes('javelin'))                             return 'Javelin Throw';
+      if (t.includes('discus'))                              return 'Discus Throw';
+      if (t.includes('shot put'))                            return 'Shot Put';
+      if (t.includes('tug of war'))                          return 'Tug of War';
+      if (t.includes('7 stones') || t.includes('seven stones')) return '7 Stones';
+      if (t.includes('opening') || t.includes('ceremony') || t.includes('sports day')) return 'National Sports Day';
+      return 'Other';
+    }
+
+    // ── Theme Switch ────────────────────────────────────────────────────────────
     const themeBtn = document.getElementById("themeBtn");
     const applyTheme = (theme) => {
       document.body.setAttribute('data-theme', theme);
@@ -473,27 +747,59 @@
 
     const socket = io();
 
+    // ── Media Load ──────────────────────────────────────────────────────────────
     async function loadMedia() {
       try {
         const res = await fetch("/api/media");
-        mediaAssets = await res.json();
+        const raw = await res.json();
+        // Tag each item with its sport category
+        mediaAssets = raw.map(item => ({ ...item, sport: tagSport(item) }));
+        buildSportPills();
         renderGallery();
       } catch (err) {
         document.getElementById("galleryContainer").innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--danger); padding: 40px; font-weight: 600;">Failed to connect to gallery servers.</div>`;
       }
     }
 
+    // ── Build Sport Pills ────────────────────────────────────────────────────────
+    function buildSportPills() {
+      const row = document.getElementById('sportFilterRow');
+      row.innerHTML = '';
+
+      SPORTS_LIST.forEach(s => {
+        const pill = document.createElement('button');
+        pill.className = 'sport-pill' + (s.key === currentSportFilter ? ' active' : '');
+        pill.id = 'sportPill-' + s.key.replace(/[^a-zA-Z0-9]/g, '-');
+        pill.setAttribute('data-sport', s.key);
+        pill.textContent = s.name;
+        pill.onclick = () => setSportFilter(s.key);
+        row.appendChild(pill);
+      });
+    }
+
+    // ── Render Gallery ─────────────────────────────────────────────────────────
     function renderGallery() {
       const container = document.getElementById("galleryContainer");
       container.innerHTML = "";
 
       const filtered = mediaAssets.filter(item => {
-        if (currentFilter === "ALL") return true;
-        return item.type === currentFilter;
+        const typeOk = currentTypeFilter === "ALL" || item.type === currentTypeFilter;
+        let sportOk = false;
+        if (currentSportFilter === "ALL") {
+          sportOk = true;
+        } else if (item.sport === currentSportFilter) {
+          sportOk = true;
+        } else if (currentSportFilter.includes('Badminton') && item.sport.includes('Badminton')) {
+          sportOk = true;
+        } else if (currentSportFilter.includes('Athletics') && item.sport.includes('Athletics')) {
+          sportOk = true;
+        }
+        return typeOk && sportOk;
       });
 
+
       if (filtered.length === 0) {
-        container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 60px;">No media items loaded in this category.</div>`;
+        container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 60px;"><i class="ri-image-2-line" style="font-size:40px;display:block;margin-bottom:12px;"></i>No media found for this filter.</div>`;
         return;
       }
 
@@ -506,6 +812,9 @@
         card.onclick = () => openLightbox(idx);
 
         const isVideo = item.type === "VIDEO";
+        const sportBadge = item.sport && item.sport !== 'Other'
+          ? `<span class="media-type-tag" style="background:rgba(15,23,42,0.65);color:#fff;margin-top:4px;">${item.sport}</span>`
+          : '';
 
         if (isVideo) {
           card.innerHTML = `
@@ -517,7 +826,10 @@
             </div>
             <div class="media-overlay">
               <span class="media-title">${item.title || 'Video highlights'}</span>
-              <span class="media-type-tag"><i class="ri-video-line"></i> Video</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                <span class="media-type-tag"><i class="ri-video-line"></i> Video</span>
+                ${sportBadge}
+              </div>
             </div>
           `;
           const videoEl = card.querySelector("video");
@@ -531,7 +843,10 @@
             <img src="${mediaUrl}" loading="lazy" onerror="this.onerror=null; this.src='dssl_banner.jpg';">
             <div class="media-overlay">
               <span class="media-title">${item.title || 'Match highlights'}</span>
-              <span class="media-type-tag"><i class="ri-image-line"></i> Photo</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                <span class="media-type-tag"><i class="ri-image-line"></i> Photo</span>
+                ${sportBadge}
+              </div>
             </div>
           `;
         }
@@ -540,23 +855,68 @@
       });
     }
 
-    function setFilter(filterVal) {
-      currentFilter = filterVal;
-      const buttons = document.querySelectorAll(".filter-btn");
-      buttons.forEach(btn => {
-        const lowerText = btn.textContent.toLowerCase();
-        if (filterVal === "ALL" && lowerText.includes("all")) {
-          btn.classList.add("active");
-        } else if (filterVal === "IMAGE" && lowerText.includes("photo")) {
-          btn.classList.add("active");
-        } else if (filterVal === "VIDEO" && lowerText.includes("video")) {
-          btn.classList.add("active");
-        } else {
-          btn.classList.remove("active");
+    // ── Filters ─────────────────────────────────────────────────────────────────
+    function setTypeFilter(val) {
+      currentTypeFilter = val;
+      document.querySelectorAll('#typeFilterRow .filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.id === 'typeBtn-' + val);
+      });
+      renderGallery();
+    }
+
+    function scrollSportTabs(dir) {
+      const row = document.getElementById('sportFilterRow');
+      if (row) {
+        row.scrollBy({ left: dir * 300, behavior: 'smooth' });
+      }
+    }
+
+    function setSportFilter(val) {
+      currentSportFilter = val;
+      document.querySelectorAll('.sport-pill').forEach(pill => {
+        const isActive = pill.getAttribute('data-sport') === val;
+        pill.classList.toggle('active', isActive);
+        if (isActive) {
+          pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         }
       });
       renderGallery();
     }
+
+    // Horizontal wheel & mouse drag scrolling for sportFilterRow
+    (function () {
+      const row = document.getElementById('sportFilterRow');
+      if (!row) return;
+
+      // Mouse wheel horizontal scroll
+      row.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          row.scrollLeft += e.deltaY;
+        }
+      }, { passive: false });
+
+      // Mouse drag to scroll
+      let isDown = false;
+      let startX = 0;
+      let scrollLeft = 0;
+
+      row.addEventListener('mousedown', (e) => {
+        isDown = true;
+        startX = e.pageX - row.offsetLeft;
+        scrollLeft = row.scrollLeft;
+      });
+
+      row.addEventListener('mouseleave', () => { isDown = false; });
+      row.addEventListener('mouseup', () => { isDown = false; });
+      row.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - row.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        row.scrollLeft = scrollLeft - walk;
+      });
+    })();
 
     function openLightbox(idx) {
       if (!filteredCache.length) return;

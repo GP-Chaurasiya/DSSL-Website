@@ -466,8 +466,36 @@ async function renderDashboard() {
               <input type="file" id="dashMediaFile" accept="image/*,video/*,.mp4,.mov,.webm,.avi,.mkv" required>
             </div>
             <div class="form-group">
-              <label for="dashMediaTitle">Asset Caption / Title</label>
-              <input type="text" id="dashMediaTitle" placeholder="e.g. Ceremony highlight photo">
+              <label for="dashMediaSport">Sport / Category <span style="color:#ef4444;font-size:11px;font-weight:700;margin-left:4px;">Required</span></label>
+              <select id="dashMediaSport" required style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);font-size:14px;font-family:inherit;font-weight:500;cursor:pointer;">
+                <option value="" disabled selected>-- Select Sport --</option>
+                <option value="Basketball">Basketball</option>
+                <option value="Football">Football</option>
+                <option value="Cricket">Cricket</option>
+                <option value="Volleyball">Volleyball</option>
+                <option value="Badminton (Doubles)">Badminton (Doubles)</option>
+                <option value="Badminton (Singles)">Badminton (Singles)</option>
+                <option value="Table Tennis">Table Tennis</option>
+                <option value="Athletics (100m)">Athletics (100m)</option>
+                <option value="Athletics (200m)">Athletics (200m)</option>
+                <option value="Athletics (400m)">Athletics (400m)</option>
+                <option value="Athletics (Relay)">Athletics (Relay)</option>
+                <option value="Kho-Kho">Kho-Kho</option>
+                <option value="Chess">Chess</option>
+                <option value="High Jump">High Jump</option>
+                <option value="Tug of War">Tug of War</option>
+                <option value="Long Jump">Long Jump</option>
+                <option value="Javelin Throw">Javelin Throw</option>
+                <option value="Discus Throw">Discus Throw</option>
+                <option value="Shot Put">Shot Put</option>
+                <option value="7 Stones">7 Stones</option>
+                <option value="Kabaddi">Kabaddi</option>
+                <option value="National Sports Day">National Sports Day</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="dashMediaTitle">Caption / Description (optional)</label>
+              <input type="text" id="dashMediaTitle" placeholder="e.g. Final match highlights">
             </div>
           </div>
           <button type="submit" id="dashMediaSubmitBtn" class="btn" style="margin-top: 1rem;"><i class="ri-upload-cloud-line"></i> Upload Asset</button>
@@ -531,10 +559,20 @@ async function renderDashboard() {
       e.preventDefault();
       const fileInput = document.getElementById("dashMediaFile");
       const titleInput = document.getElementById("dashMediaTitle");
+      const sportSelect = document.getElementById("dashMediaSport");
       const submitBtn = document.getElementById("dashMediaSubmitBtn");
 
       const file = fileInput.files[0];
       if (!file) return;
+
+      const sport = sportSelect?.value || '';
+      if (!sport) {
+        sportSelect?.focus();
+        sportSelect?.setCustomValidity('Please select a sport.');
+        sportSelect?.reportValidity();
+        return;
+      }
+      sportSelect?.setCustomValidity('');
 
       const ext = file.name.split('.').pop().toLowerCase();
       const isVideo = ["mp4", "mov", "webm", "avi", "mkv", "m4v", "3gp", "flv", "wmv"].includes(ext) || file.type.startsWith("video/");
@@ -550,15 +588,20 @@ async function renderDashboard() {
         return;
       }
 
+      // Build title: "[Sport] - [caption]" or just "[Sport]" if no caption
+      const caption = titleInput.value.trim();
+      const fullTitle = caption ? `${sport} - ${caption}` : sport;
+
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("title", titleInput.value);
+      formData.append("title", fullTitle);
 
       try {
         if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading Asset...`; }
         await uploadWithProgress("/api/media/upload", formData, "dashUpload");
         fileInput.value = "";
         titleInput.value = "";
+        if (sportSelect) sportSelect.value = "";
         renderDashboard();
       } catch (err) {
         alert(err.message);
@@ -1649,10 +1692,20 @@ document.getElementById("mediaForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const fileInput = document.getElementById("mediaFile");
   const titleInput = document.getElementById("mediaTitle");
+  const sportSelect = document.getElementById("mediaSport");
   const submitBtn = e.target.querySelector("button[type='submit']");
 
   const file = fileInput.files[0];
   if (!file) return;
+
+  const sport = sportSelect?.value || '';
+  if (!sport) {
+    sportSelect?.focus();
+    sportSelect?.setCustomValidity('Please select a sport.');
+    sportSelect?.reportValidity();
+    return;
+  }
+  sportSelect?.setCustomValidity('');
 
   const ext = file.name.split('.').pop().toLowerCase();
   const isVideo = ["mp4", "mov", "webm", "avi", "mkv", "m4v", "3gp", "flv", "wmv"].includes(ext) || file.type.startsWith("video/");
@@ -1668,15 +1721,20 @@ document.getElementById("mediaForm")?.addEventListener("submit", async (e) => {
     return;
   }
 
+  // Build title: "[Sport] - [caption]" or just "[Sport]" if no caption
+  const caption = titleInput.value.trim();
+  const fullTitle = caption ? `${sport} - ${caption}` : sport;
+
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("title", titleInput.value);
+  formData.append("title", fullTitle);
 
   try {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Uploading...`; }
     await uploadWithProgress("/api/media/upload", formData, "upload");
     fileInput.value = "";
     titleInput.value = "";
+    if (sportSelect) sportSelect.value = "";
     await loadMedia();
   } catch (error) {
     alert(error.message);

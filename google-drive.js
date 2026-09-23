@@ -7,8 +7,12 @@
 
 const https = require("https");
 
-const DRIVE_API_KEY = process.env.GOOGLE_DRIVE_API_KEY || "AIzaSyA85lx66T1E4QqDkVyj759HF2IM5p1JQWE";
+const DRIVE_API_KEY = process.env.GOOGLE_DRIVE_API_KEY || process.env.GOOGLE_API_KEY || "AIzaSyA85lx66T1E4QqDkVyj759HF2IM5p1JQWE";
 const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "16o6pBVa0A6ozFDumES5sUtrIfPp8N0nN";
+
+let driveMediaCache = null;
+let driveMediaCacheTime = 0;
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 function isDriveConfigured() {
   return !!(DRIVE_API_KEY && DRIVE_FOLDER_ID);
@@ -20,6 +24,11 @@ function isDriveConfigured() {
  */
 async function listDriveMedia() {
   if (!isDriveConfigured()) return [];
+
+  const now = Date.now();
+  if (driveMediaCache && (now - driveMediaCacheTime < CACHE_TTL_MS)) {
+    return driveMediaCache;
+  }
 
   const mimeFilter = [
     "image/jpeg",
@@ -39,7 +48,7 @@ async function listDriveMedia() {
   const data = await fetchJson(url);
   const files = data.files || [];
 
-  return files.map(file => {
+  const result = files.map(file => {
     const isVideo = file.mimeType.startsWith("video/");
     return {
       id: `drive_${file.id}`,
@@ -47,12 +56,16 @@ async function listDriveMedia() {
       type: isVideo ? "VIDEO" : "IMAGE",
       title: file.name.replace(/\.[^/.]+$/, ""), // strip extension from title
       createdAt: file.createdTime,
-      // Photos: direct high-res URL; Videos: proxied through server
+      // Photos: direct anonymous high-res URL; Videos: proxied through server
       url: isVideo
         ? `/api/drive/stream/${file.id}`
-        : `https://lh3.googleusercontent.com/u/0/d/${file.id}=w1600`,
+        : `https://lh3.googleusercontent.com/d/${file.id}=w1600`,
     };
   });
+
+  driveMediaCache = result;
+  driveMediaCacheTime = now;
+  return result;
 }
 
 /**
