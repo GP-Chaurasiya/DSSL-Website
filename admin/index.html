@@ -1280,32 +1280,32 @@
         min-height: 0 !important;
         overflow: hidden !important;
         display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
         width: 100% !important;
         position: relative !important;
         margin: 0 !important;
         padding: 0 !important;
       }
 
-      /* The cloned bracketCanvas div */
+      /* The cloned bracketCanvas div — mirror exact web layout */
       #printBodyContent > div {
         transform: none !important;
         position: relative !important;
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        align-items: stretch !important;
+        align-items: center !important;
         justify-content: flex-start !important;
         width: max-content !important;
-        height: 100% !important;
-        min-height: 540px !important;
+        height: auto !important;
+        min-height: 0 !important;
         padding: 30px !important;
         gap: 60px !important;
         box-sizing: border-box !important;
       }
 
-      /* Each round column */
+      /* Each round column — natural height, centered vertically by parent */
       #printBodyContent .round-column {
         display: flex !important;
         flex-direction: column !important;
@@ -1313,7 +1313,7 @@
         justify-content: space-around !important;
         flex: 0 0 230px !important;
         min-width: 230px !important;
-        height: 100% !important;
+        height: auto !important;
         padding: 0 !important;
         box-sizing: border-box !important;
         gap: 32px !important;
