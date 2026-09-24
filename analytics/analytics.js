@@ -83,11 +83,6 @@ async function loadOverview() {
     setText("an-kpi-live", d.matches?.live ?? 0);
     setText("an-kpi-completed", d.matches?.completed ?? 0);
 
-    // Summary section elements
-    setText("an-summary-unique", uniqueStudents);
-    setText("an-summary-entries", sportEntries);
-    setText("an-summary-multi", multiSport);
-    setText("an-summary-single", singleSport);
   } catch (e) {
     console.error("Overview error:", e);
   }
