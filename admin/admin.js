@@ -2273,135 +2273,6 @@ function drawBracketConnectors(targetCanvas = null, scaleOverride = null) {
   canvas.appendChild(svg);
 }
 
-// ── Draw SVG connectors for PRINT clone (Pure offset/relative geometry) ──────
-function drawPrintConnectors(canvas) {
-  if (!canvas) return;
-  if (activeFixtureFormat === "league" || activeFixtureFormat === "group-knockout") return;
-
-  // Remove any stale SVG
-  const old = canvas.querySelector(".svg-connector-layer");
-  if (old) old.remove();
-
-  const allColumns = Array.from(canvas.querySelectorAll(".round-column"));
-  if (allColumns.length < 2) return;
-
-  // Only connect winner-bracket columns
-  const winnerCols = [];
-  for (let col of allColumns) {
-    const title = col.querySelector(".round-title");
-    if (title && title.textContent.includes("Losers Bracket")) break;
-    winnerCols.push(col);
-  }
-  if (winnerCols.length < 2) return;
-
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "svg-connector-layer");
-  svg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;";
-
-  // getBoundingClientRect gives exact viewport coords — subtract canvas origin for SVG-local coords
-  const canvasRect = canvas.getBoundingClientRect();
-
-  for (let c = 0; c < winnerCols.length - 1; c++) {
-    const colA = winnerCols[c];
-    const colB = winnerCols[c + 1];
-
-    const cardsA = Array.from(colA.querySelectorAll(".match-card-node"));
-    const cardsB = Array.from(colB.querySelectorAll(".match-card-node, .champion-card"));
-    if (cardsA.length === 0 || cardsB.length === 0) continue;
-
-    cardsA.forEach((cardA, idxA) => {
-      const rowsA = Array.from(cardA.querySelectorAll(".match-team-row"));
-      const cardARect = cardA.getBoundingClientRect();
-
-      // x1 = right edge of card A, canvas-relative
-      const x1 = cardARect.right - canvasRect.left;
-
-      // y positions = vertical center of each team slot, canvas-relative
-      let y1Top, y1Bot, y1Mid;
-      if (rowsA.length >= 2) {
-        const r0 = rowsA[0].getBoundingClientRect();
-        const r1 = rowsA[1].getBoundingClientRect();
-        y1Top = r0.top + r0.height / 2 - canvasRect.top;
-        y1Bot = r1.top + r1.height / 2 - canvasRect.top;
-        y1Mid = (y1Top + y1Bot) / 2;
-      } else {
-        y1Mid = cardARect.top + cardARect.height / 2 - canvasRect.top;
-        y1Top = y1Mid - 10;
-        y1Bot = y1Mid + 10;
-      }
-
-      // Pair 2 cards in col A → 1 card in col B
-      const targetCardIdx = Math.min(Math.floor(idxA / 2), cardsB.length - 1);
-      const targetCard = cardsB[targetCardIdx];
-      if (!targetCard) return;
-
-      const targetRows = Array.from(targetCard.querySelectorAll(".match-team-row"));
-      const targetRect = targetCard.getBoundingClientRect();
-
-      // x2 = left edge of target card, canvas-relative
-      const x2 = targetRect.left - canvasRect.left;
-
-      // y2 = vertical center of the correct slot in the target card
-      let y2;
-      if (targetRows.length >= 2) {
-        const slotIdx = idxA % 2;
-        const slotRect = targetRows[slotIdx].getBoundingClientRect();
-        y2 = slotRect.top + slotRect.height / 2 - canvasRect.top;
-      } else if (targetRows.length === 1) {
-        const slotRect = targetRows[0].getBoundingClientRect();
-        y2 = slotRect.top + slotRect.height / 2 - canvasRect.top;
-      } else {
-        y2 = targetRect.top + targetRect.height / 2 - canvasRect.top;
-      }
-
-      // Draw: two lines from each slot merging to midX, then one line to target slot
-      const midX = x1 + (x2 - x1) * 0.45;
-      const turnX = x2 - 12;
-
-      let stemPath = `M ${midX} ${y1Mid} H ${x2}`;
-      if (Math.abs(y1Mid - y2) > 2) {
-        const dir = y2 > y1Mid ? 1 : -1;
-        stemPath = `
-          M ${midX} ${y1Mid}
-          H ${turnX - 4}
-          Q ${turnX} ${y1Mid} ${turnX} ${y1Mid + dir * 4}
-          V ${y2 - dir * 4}
-          Q ${turnX} ${y2} ${turnX + 4} ${y2}
-          H ${x2}
-        `;
-      }
-
-      const pathStr = `
-        M ${x1} ${y1Top}
-        H ${midX - 4}
-        Q ${midX} ${y1Top} ${midX} ${y1Top + 4}
-        V ${y1Mid - 4}
-        Q ${midX} ${y1Mid} ${midX + 4} ${y1Mid}
-
-        M ${x1} ${y1Bot}
-        H ${midX - 4}
-        Q ${midX} ${y1Bot} ${midX} ${y1Bot - 4}
-        V ${y1Mid + 4}
-        Q ${midX} ${y1Mid} ${midX + 4} ${y1Mid}
-
-        ${stemPath}
-      `;
-
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", pathStr.replace(/\s+/g, " ").trim());
-      path.setAttribute("stroke", "#1e293b");
-      path.setAttribute("stroke-width", "1.5");
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("stroke-linejoin", "round");
-      svg.appendChild(path);
-    });
-  }
-
-  canvas.appendChild(svg);
-}
-
-
 function buildLeagueRoundMatches(teams) {
   const n = teams.length;
   const matches = [];
@@ -2624,79 +2495,648 @@ function setupBracketDragEvents() {
   }, { passive: false });
 }
 
-// ── Print Action ──────────────────────────────────────────────────────────────
+// ── Print Fixture Action (Standalone High-Res Print & PDF View) ──────────────
 function printBracketAction() {
+  const origCanvas = document.getElementById("bracketCanvas");
+  if (!origCanvas) {
+    window.print();
+    return;
+  }
+
   const sEl = document.getElementById("fixtureFilterSport");
   const fEl = document.getElementById("fixtureFilterFormat");
 
-  const pTitle  = document.getElementById("printTournamentTitle");
-  const pSport  = document.getElementById("printSportCat");
-  const pFmt    = document.getElementById("printFormat");
-  const pTeams  = document.getElementById("printTotalTeams");
-  const pMatch  = document.getElementById("printTotalMatches");
-  const pDate   = document.getElementById("printDate");
+  const sportName = sEl ? (sEl.options[sEl.selectedIndex]?.text || sEl.value) : "Cricket";
+  const formatName = fEl ? (fEl.options[fEl.selectedIndex]?.text || fEl.value) : "Single Elimination";
+  const totalTeams = fixtureTeams ? fixtureTeams.length : 0;
+  const totalMatches = generatedFixtures ? generatedFixtures.length : 0;
 
-  if (pTitle)  pTitle.textContent  = "Dev Sanskriti Sports League";
-  if (pSport)  pSport.textContent  = `${sEl ? sEl.value : "Cricket"}`;
-  if (pFmt)    pFmt.textContent    = fEl ? fEl.options[fEl.selectedIndex].text : "Single Elimination";
-  if (pTeams)  pTeams.textContent  = fixtureTeams.length;
-  if (pMatch)  pMatch.textContent  = generatedFixtures.length;
-  if (pDate)   pDate.textContent   = new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+  let nextPow2 = 1;
+  while (nextPow2 < totalTeams) nextPow2 *= 2;
+  if (nextPow2 < 2) nextPow2 = 2;
+  const byes = (activeFixtureFormat === "league" || activeFixtureFormat === "group-knockout") ? "—" : (nextPow2 - totalTeams);
 
-  const printContainer = document.getElementById("printContainer");
-  const printBody = document.getElementById("printBodyContent");
-  const bracketCanvas = document.getElementById("bracketCanvas");
+  const dateFormatted = new Date().toLocaleDateString("en-IN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
 
-  if (printBody && bracketCanvas) {
-    printBody.innerHTML = "";
+  // Clone bracketCanvas and synchronize input values
+  const clone = origCanvas.cloneNode(true);
+  const origInputs = origCanvas.querySelectorAll("input");
+  const cloneInputs = clone.querySelectorAll("input");
+  origInputs.forEach((inp, idx) => {
+    if (cloneInputs[idx]) {
+      const val = inp.value || inp.placeholder || "";
+      cloneInputs[idx].setAttribute("value", val);
+      cloneInputs[idx].value = val;
+    }
+  });
 
-    // Clone the bracket, copy input values
-    const clone = bracketCanvas.cloneNode(true);
-    const origInputs = bracketCanvas.querySelectorAll("input");
-    const cloneInputs = clone.querySelectorAll("input");
-    origInputs.forEach((inp, idx) => {
-      if (cloneInputs[idx]) {
-        cloneInputs[idx].setAttribute("value", inp.value);
-        cloneInputs[idx].value = inp.value;
-      }
-    });
+  // Remove existing SVG connector from clone
+  const oldSvg = clone.querySelector(".svg-connector-layer");
+  if (oldSvg) oldSvg.remove();
 
-    // Remove old SVG connector layer from clone — it has wrong screen coordinates
-    const oldSvg = clone.querySelector(".svg-connector-layer");
-    if (oldSvg) oldSvg.remove();
+  // Reset clone styles
+  clone.id = "printCanvas";
+  clone.style.transform = "none";
+  clone.style.position = "relative";
+  clone.style.top = "0";
+  clone.style.left = "0";
+  clone.style.width = "max-content";
+  clone.style.margin = "0 auto";
 
-    clone.style.transform = "none";
-    clone.style.position = "relative";
-    clone.style.width = "100%";
-    clone.style.height = "100%";
-    clone.style.margin = "0";
-    clone.style.top = "0";
-    clone.style.left = "0";
-    printBody.appendChild(clone);
+  const logoUrl = window.location.origin + "/DSSL_LOGO.png";
+  const isKnockout = (activeFixtureFormat === "single-elimination" || activeFixtureFormat === "double-elimination");
 
-    // Show print container so elements have real computed layout dimensions
-    if (printContainer) {
-      printContainer.style.display = "flex";
-      printContainer.style.visibility = "visible";
+  const printHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DSSL Tournament Fixture - ${sportName}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 6mm 8mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    html, body {
+      height: 100%;
+    }
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
     }
 
-    // Double frame buffer to ensure DOM has computed exact bounding client rects
-    requestAnimationFrame(() => {
-      // Force synchronous reflow
-      void clone.offsetHeight;
-      requestAnimationFrame(() => {
-        drawPrintConnectors(clone);
-        window.print();
-        setTimeout(() => {
-          if (printContainer) {
-            printContainer.style.display = "none";
-            printContainer.style.visibility = "";
+    /* Screen Action Bar */
+    .screen-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+    .toolbar-title {
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-print {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 16px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-print:hover { background: #1d4ed8; }
+    .btn-close {
+      background: rgba(255,255,255,0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-close:hover { background: rgba(255,255,255,0.2); }
+
+    /* Printable Page Sheet */
+    .print-sheet {
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 12px 20px;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      box-sizing: border-box;
+      min-height: 0;
+    }
+
+    /* Header */
+    .print-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-wrap img {
+      height: 42px;
+      width: auto;
+      object-fit: contain;
+    }
+    .brand-text h1 {
+      font-size: 17px;
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 1.15;
+      margin: 0;
+    }
+    .brand-text p {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-top: 1px;
+      font-weight: 600;
+    }
+    .header-details {
+      text-align: right;
+    }
+    .tournament-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .sport-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: #2563eb;
+      margin-top: 1px;
+    }
+    .format-tag {
+      font-size: 10.5px;
+      color: #475569;
+      margin-top: 1px;
+    }
+
+    /* Meta bar */
+    .print-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 5px 12px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+      font-size: 10.5px;
+    }
+    .meta-box strong {
+      color: #0f172a;
+    }
+    .meta-box span {
+      color: #334155;
+      font-weight: 600;
+    }
+
+    /* Bracket Container */
+    .bracket-print-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+      margin: 2px 0;
+    }
+    .bracket-canvas {
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 52px;
+      padding: 6px;
+      box-sizing: border-box;
+      transform-origin: center center;
+    }
+    .svg-connector-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+    .svg-connector-layer path {
+      stroke: #0f172a;
+      stroke-width: 2px;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Columns & Nodes */
+    .round-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      gap: 20px;
+      min-width: 210px;
+      position: relative;
+      z-index: 2;
+    }
+    .round-title {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #475569;
+      margin-bottom: 10px;
+      padding: 4px 10px;
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      white-space: nowrap;
+      align-self: center;
+      flex-shrink: 0;
+    }
+    .match-card-node {
+      position: relative;
+      z-index: 2;
+      width: 205px;
+      background: transparent;
+      border: none;
+    }
+    .match-card-header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .match-team-row.blank-slot {
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 24px;
+      padding: 0;
+      margin-bottom: 5px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .blank-team-input {
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: 'Outfit', Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: center;
+      padding: 0 10px;
+    }
+    .champion-card {
+      text-align: center;
+      background: #fefce8;
+      border: 2px solid #ca8a04;
+      border-radius: 16px;
+      padding: 14px;
+      min-width: 205px;
+    }
+    .champion-card .match-team-row.blank-slot {
+      border-color: #0f172a;
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+
+    /* Footer */
+    .print-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1.5px solid #0f172a;
+      padding-top: 6px;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .signature-block {
+      text-align: center;
+      width: 160px;
+    }
+    .signature-line {
+      border-bottom: 1.5px solid #0f172a;
+      height: 20px;
+      margin-bottom: 3px;
+    }
+    .signature-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .signature-sub {
+      font-size: 8.5px;
+      color: #64748b;
+      margin-top: 1px;
+    }
+
+    @media print {
+      html, body {
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+      .screen-toolbar {
+        display: none !important;
+      }
+      body {
+        background: #ffffff !important;
+      }
+      .print-sheet {
+        padding: 0 !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        justify-content: space-between !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen-toolbar">
+    <div class="toolbar-title">
+      <span>Dev Sanskriti Sports League — Fixture Print Preview</span>
+    </div>
+    <div class="toolbar-actions">
+      <button class="btn-print" onclick="triggerPrint()">🖨️ Print / Save as PDF</button>
+      <button class="btn-close" onclick="window.close()">✕ Close</button>
+    </div>
+  </div>
+
+  <div class="print-sheet">
+    <div class="print-header">
+      <div class="brand-wrap">
+        <img src="${logoUrl}" alt="DSSL Logo" onerror="this.style.display='none'">
+        <div class="brand-text">
+          <h1>Dev Sanskriti Sports League</h1>
+          <p>Official Tournament Fixtures & Schedule</p>
+        </div>
+      </div>
+      <div class="header-details">
+        <div class="tournament-title">DSSL 2026</div>
+        <div class="sport-tag">${sportName}</div>
+        <div class="format-tag">${formatName}</div>
+      </div>
+    </div>
+
+    <div class="print-meta-grid">
+      <div class="meta-box"><strong>Total Teams:</strong> <span>${totalTeams}</span></div>
+      <div class="meta-box"><strong>Automatic BYEs:</strong> <span>${byes}</span></div>
+      <div class="meta-box"><strong>Total Matches:</strong> <span>${totalMatches}</span></div>
+      <div class="meta-box"><strong>Generated Date:</strong> <span>${dateFormatted}</span></div>
+    </div>
+
+    <div class="bracket-print-wrapper" id="bracketPrintWrapper">
+      ${clone.outerHTML}
+    </div>
+
+    <div class="print-footer">
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div class="signature-title">Sports Officer</div>
+        <div class="signature-sub">DSSL Tournament Board</div>
+      </div>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div class="signature-title">Tournament Coordinator</div>
+        <div class="signature-sub">Organizing Committee</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const isKnockout = ${isKnockout ? "true" : "false"};
+
+    function renderPrintConnectorsAndFit() {
+      const canvas = document.getElementById("printCanvas");
+      const wrapper = document.getElementById("bracketPrintWrapper");
+      if (!canvas || !wrapper) return;
+
+      const oldSvg = canvas.querySelector(".svg-connector-layer");
+      if (oldSvg) oldSvg.remove();
+
+      canvas.style.transform = "none";
+
+      const availW = wrapper.clientWidth || (window.innerWidth - 40);
+      const availH = wrapper.clientHeight || (window.innerHeight - 190);
+
+      const natW = canvas.scrollWidth || canvas.offsetWidth;
+      const natH = canvas.scrollHeight || canvas.offsetHeight;
+
+      let fitScale = 1.0;
+      if (natW > availW || natH > availH) {
+        fitScale = Math.min(1.0, (availW - 10) / natW, (availH - 10) / natH);
+        if (fitScale < 0.40) fitScale = 0.40;
+      }
+
+      if (fitScale < 1.0) {
+        canvas.style.transform = "scale(" + fitScale + ")";
+        canvas.style.transformOrigin = "center center";
+      }
+
+      if (!isKnockout) return;
+
+      const allColumns = Array.from(canvas.querySelectorAll(".round-column"));
+      if (allColumns.length < 2) return;
+
+      const winnerCols = [];
+      for (let col of allColumns) {
+        const title = col.querySelector(".round-title");
+        if (title && title.textContent.includes("Losers Bracket")) break;
+        winnerCols.push(col);
+      }
+      if (winnerCols.length < 2) return;
+
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "svg-connector-layer");
+      svg.style.position = "absolute";
+      svg.style.top = "0";
+      svg.style.left = "0";
+      svg.style.width = "100%";
+      svg.style.height = "100%";
+      svg.style.pointerEvents = "none";
+      svg.style.zIndex = "1";
+      svg.style.overflow = "visible";
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const scale = fitScale;
+
+      for (let c = 0; c < winnerCols.length - 1; c++) {
+        const colA = winnerCols[c];
+        const colB = winnerCols[c + 1];
+
+        const cardsA = Array.from(colA.querySelectorAll(".match-card-node"));
+        const cardsB = Array.from(colB.querySelectorAll(".match-card-node, .champion-card"));
+        if (cardsA.length === 0 || cardsB.length === 0) continue;
+
+        cardsA.forEach((cardA, idxA) => {
+          const rowsA = Array.from(cardA.querySelectorAll(".match-team-row"));
+          const rCardA = cardA.getBoundingClientRect();
+
+          const x1 = (rCardA.right - canvasRect.left) / scale;
+
+          let y1Top, y1Bot, y1Mid;
+          if (rowsA.length >= 2) {
+            const rTop = rowsA[0].getBoundingClientRect();
+            const rBot = rowsA[1].getBoundingClientRect();
+            y1Top = (rTop.top + rTop.height / 2 - canvasRect.top) / scale;
+            y1Bot = (rBot.top + rBot.height / 2 - canvasRect.top) / scale;
+            y1Mid = (y1Top + y1Bot) / 2;
+          } else {
+            y1Mid = (rCardA.top + rCardA.height / 2 - canvasRect.top) / scale;
+            y1Top = y1Mid - 10;
+            y1Bot = y1Mid + 10;
           }
-        }, 500);
+
+          const targetCardIdx = Math.min(Math.floor(idxA / 2), cardsB.length - 1);
+          const targetCard = cardsB[targetCardIdx];
+          if (!targetCard) return;
+
+          let targetRow;
+          const targetRows = Array.from(targetCard.querySelectorAll(".match-team-row"));
+          if (targetRows.length >= 2) {
+            targetRow = targetRows[idxA % 2];
+          } else if (targetRows.length === 1) {
+            targetRow = targetRows[0];
+          } else {
+            targetRow = targetCard;
+          }
+
+          const rTarget = (targetRow || targetCard).getBoundingClientRect();
+          const x2 = (rTarget.left - canvasRect.left) / scale;
+          const y2 = (rTarget.top + rTarget.height / 2 - canvasRect.top) / scale;
+
+          const midX = x1 + (x2 - x1) * 0.45;
+          const turnX = x2 - 14;
+
+          let stemPath = "M " + midX + " " + y1Mid + " H " + x2;
+          if (Math.abs(y1Mid - y2) > 3) {
+            const dir = y2 > y1Mid ? 1 : -1;
+            const r = Math.min(8, Math.abs(y2 - y1Mid) / 2);
+            stemPath = "M " + midX + " " + y1Mid +
+              " H " + (turnX - r) +
+              " Q " + turnX + " " + y1Mid + " " + turnX + " " + (y1Mid + dir * r) +
+              " V " + (y2 - dir * r) +
+              " Q " + turnX + " " + y2 + " " + (turnX + r) + " " + y2 +
+              " H " + x2;
+          }
+
+          const rFork = Math.min(8, Math.abs(y1Mid - y1Top) / 2);
+          const pathStr = "M " + x1 + " " + y1Top +
+            " H " + (midX - rFork) +
+            " Q " + midX + " " + y1Top + " " + midX + " " + (y1Top + rFork) +
+            " V " + (y1Mid - rFork) +
+            " Q " + midX + " " + y1Mid + " " + (midX + rFork) + " " + y1Mid +
+            " M " + x1 + " " + y1Bot +
+            " H " + (midX - rFork) +
+            " Q " + midX + " " + y1Bot + " " + midX + " " + (y1Bot - rFork) +
+            " V " + (y1Mid + rFork) +
+            " Q " + midX + " " + y1Mid + " " + (midX + rFork) + " " + y1Mid +
+            " " + stemPath;
+
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          path.setAttribute("d", pathStr.replace(/\s+/g, " ").trim());
+          path.setAttribute("stroke", "#0f172a");
+          path.setAttribute("stroke-width", "2");
+          path.setAttribute("fill", "none");
+          path.setAttribute("stroke-linecap", "round");
+          path.setAttribute("stroke-linejoin", "round");
+          svg.appendChild(path);
+        });
+      }
+
+      canvas.appendChild(svg);
+    }
+
+    function triggerPrint() {
+      renderPrintConnectorsAndFit();
+      window.print();
+    }
+
+    window.addEventListener("resize", renderPrintConnectorsAndFit);
+
+    // Initial render and auto-print once fonts are ready
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        setTimeout(() => {
+          renderPrintConnectorsAndFit();
+          setTimeout(() => {
+            window.print();
+          }, 350);
+        }, 100);
       });
-    });
+    } else {
+      setTimeout(() => {
+        renderPrintConnectorsAndFit();
+        setTimeout(() => {
+          window.print();
+        }, 350);
+      }, 400);
+    }
+  </script>
+</body>
+</html>`;
+
+  // Try opening popup window first
+  const printWindow = window.open("", "_blank", "width=1350,height=850");
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
   } else {
-    window.print();
+    // Popup was blocked by browser: fallback to hidden iframe
+    let frame = document.getElementById("dsslPrintFrame");
+    if (frame) frame.remove();
+    frame = document.createElement("iframe");
+    frame.id = "dsslPrintFrame";
+    frame.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1200px;height:900px;border:none;visibility:hidden;";
+    document.body.appendChild(frame);
+    frame.contentWindow.document.open();
+    frame.contentWindow.document.write(printHtml);
+    frame.contentWindow.document.close();
   }
 }
 
