@@ -2298,6 +2298,9 @@ function drawPrintConnectors(canvas) {
   svg.setAttribute("class", "svg-connector-layer");
   svg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;";
 
+  // getBoundingClientRect gives exact viewport coords — subtract canvas origin for SVG-local coords
+  const canvasRect = canvas.getBoundingClientRect();
+
   for (let c = 0; c < winnerCols.length - 1; c++) {
     const colA = winnerCols[c];
     const colB = winnerCols[c + 1];
@@ -2308,50 +2311,50 @@ function drawPrintConnectors(canvas) {
 
     cardsA.forEach((cardA, idxA) => {
       const rowsA = Array.from(cardA.querySelectorAll(".match-team-row"));
+      const cardARect = cardA.getBoundingClientRect();
 
-      // Calculate absolute positions relative to canvas container using offset geometry
-      const colAOffsetLeft = colA.offsetLeft;
-      const colBOffsetLeft = colB.offsetLeft;
+      // x1 = right edge of card A, canvas-relative
+      const x1 = cardARect.right - canvasRect.left;
 
-      const cardAOffsetTop = cardA.offsetTop;
-      const cardAWidth = cardA.offsetWidth;
-      const cardAHeight = cardA.offsetHeight;
-
-      const x1 = colAOffsetLeft + cardA.offsetLeft + cardAWidth;
-
+      // y positions = vertical center of each team slot, canvas-relative
       let y1Top, y1Bot, y1Mid;
       if (rowsA.length >= 2) {
-        const r1Top = rowsA[0].offsetTop + rowsA[0].offsetHeight / 2;
-        const r2Top = rowsA[1].offsetTop + rowsA[1].offsetHeight / 2;
-        y1Top = cardAOffsetTop + r1Top;
-        y1Bot = cardAOffsetTop + r2Top;
+        const r0 = rowsA[0].getBoundingClientRect();
+        const r1 = rowsA[1].getBoundingClientRect();
+        y1Top = r0.top + r0.height / 2 - canvasRect.top;
+        y1Bot = r1.top + r1.height / 2 - canvasRect.top;
         y1Mid = (y1Top + y1Bot) / 2;
       } else {
-        y1Mid = cardAOffsetTop + cardAHeight / 2;
-        y1Top = y1Mid - 8;
-        y1Bot = y1Mid + 8;
+        y1Mid = cardARect.top + cardARect.height / 2 - canvasRect.top;
+        y1Top = y1Mid - 10;
+        y1Bot = y1Mid + 10;
       }
 
-      // Target card in next column (pair 2 cards to 1 card in next round)
+      // Pair 2 cards in col A → 1 card in col B
       const targetCardIdx = Math.min(Math.floor(idxA / 2), cardsB.length - 1);
       const targetCard = cardsB[targetCardIdx];
       if (!targetCard) return;
 
       const targetRows = Array.from(targetCard.querySelectorAll(".match-team-row"));
-      const targetCardOffsetTop = targetCard.offsetTop;
-      const x2 = colBOffsetLeft + targetCard.offsetLeft;
+      const targetRect = targetCard.getBoundingClientRect();
 
+      // x2 = left edge of target card, canvas-relative
+      const x2 = targetRect.left - canvasRect.left;
+
+      // y2 = vertical center of the correct slot in the target card
       let y2;
       if (targetRows.length >= 2) {
         const slotIdx = idxA % 2;
-        y2 = targetCardOffsetTop + targetRows[slotIdx].offsetTop + targetRows[slotIdx].offsetHeight / 2;
+        const slotRect = targetRows[slotIdx].getBoundingClientRect();
+        y2 = slotRect.top + slotRect.height / 2 - canvasRect.top;
       } else if (targetRows.length === 1) {
-        // Champion single slot
-        y2 = targetCardOffsetTop + targetRows[0].offsetTop + targetRows[0].offsetHeight / 2;
+        const slotRect = targetRows[0].getBoundingClientRect();
+        y2 = slotRect.top + slotRect.height / 2 - canvasRect.top;
       } else {
-        y2 = targetCardOffsetTop + targetCard.offsetHeight / 2;
+        y2 = targetRect.top + targetRect.height / 2 - canvasRect.top;
       }
 
+      // Draw: two lines from each slot merging to midX, then one line to target slot
       const midX = x1 + (x2 - x1) * 0.45;
       const turnX = x2 - 12;
 
