@@ -975,12 +975,22 @@ function renderScheduleTables() {
   const tbody = document.getElementById("scheduleMatchesList");
   const upcomingBody = document.getElementById("upcomingScheduleMatchesList");
   const matches = filterScheduleMatches();
-  const rows = matches.map(renderScheduleRow).join("");
-  if (tbody) tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No matches found.</td></tr>`;
+  const now = new Date();
 
-  const upcoming = matches.filter(m => m.status !== "completed").slice(0, 6);
+  // Planner list view: only show upcoming matches (not completed, not in the past)
+  const upcomingMatches = matches.filter(m => {
+    if (m.status === "completed") return false;
+    const matchDate = getMatchDate(m);
+    return matchDate >= now || m.status === "live";
+  });
+
+  if (tbody) tbody.innerHTML = upcomingMatches.map(renderScheduleRow).join("") ||
+    `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches scheduled.</td></tr>`;
+
+  const upcomingSix = upcomingMatches.slice(0, 6);
   if (upcomingBody) {
-    upcomingBody.innerHTML = upcoming.map(renderScheduleRow).join("") || `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
+    upcomingBody.innerHTML = upcomingSix.map(renderScheduleRow).join("") ||
+      `<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No upcoming matches.</td></tr>`;
   }
 }
 
