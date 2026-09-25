@@ -285,6 +285,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   let _sheetCache = null;
   let _sheetCacheExpiry = 0;
+  let _sheetFetchPromise = null;
 
   async function fetchSheetTab(sheetName) {
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
@@ -522,11 +523,14 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
   async function getLiveSheetData() {
     const now = Date.now();
     if (_sheetCache && now < _sheetCacheExpiry) return _sheetCache;
+    if (_sheetFetchPromise) return _sheetFetchPromise;
 
-    const uniqueMap = new Map(); // key = student unique key
-    const allRegistrations = [];
-    const activeSports = new Set();
-    let idCounter = 0;
+    _sheetFetchPromise = (async () => {
+      try {
+        const uniqueMap = new Map(); // key = student unique key
+        const allRegistrations = [];
+        const activeSports = new Set();
+        let idCounter = 0;
 
     // 1. Process "Input" tab FIRST (master registrations)
     try {
@@ -587,7 +591,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
             scholarNo: scholarNo || name.toLowerCase().replace(/\s+/g, "_"),
             course: normalizeCourse(getV(cIdx)),
             semester: normalizeSemester(getV(sIdx)),
-            mandalName: normalizeMandal(mandalRaw),
+            mandalName: normalizeMandal(mandalRaw) || (mandalRaw && mandalRaw !== "—" ? mandalRaw.trim() : "Other Mandal"),
             gender: normalizeGender(getV(gIdx)),
             phone: getV(pIdx),
             email: getV(eIdx),
@@ -642,16 +646,21 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, dateCol, roleCol].some(c => c.headerInRow);
           const startRow = headerInRow ? 1 : 0;
 
-          const mIdx = mandalCol.index !== -1 ? mandalCol.index : 7;
-          const scIdx = scholarCol.index !== -1 ? scholarCol.index : 4;
-          const nIdx = nameCol.index !== -1 ? nameCol.index : 3;
-          const cIdx = courseCol.index !== -1 ? courseCol.index : 5;
-          const sIdx = semCol.index !== -1 ? semCol.index : 6;
-          const gIdx = genderCol.index !== -1 ? genderCol.index : 10;
-          const pIdx = phoneCol.index !== -1 ? phoneCol.index : 9;
-          const eIdx = emailCol.index !== -1 ? emailCol.index : 8;
-          const rIdx = regIdCol.index !== -1 ? regIdCol.index : 0;
-          const rlIdx = roleCol.index !== -1 ? roleCol.index : 2;
+          // Check if this sheet tab has the master "Input" layout (e.g. Track Marking where row 0 is data)
+          const firstRowC = table.rows[0]?.c || [];
+          const isInputLayout = (firstRowC[0]?.v === 0 || /^\d+$/.test(String(firstRowC[0]?.v || ""))) &&
+            String(firstRowC[1]?.v || "").toUpperCase().includes("DSSL-");
+
+          const mIdx = mandalCol.index !== -1 ? mandalCol.index : (isInputLayout ? 7 : 6);
+          const scIdx = scholarCol.index !== -1 ? scholarCol.index : 3;
+          const nIdx = nameCol.index !== -1 ? nameCol.index : 2;
+          const cIdx = courseCol.index !== -1 ? courseCol.index : 4;
+          const sIdx = semCol.index !== -1 ? semCol.index : 5;
+          const gIdx = genderCol.index !== -1 ? genderCol.index : (isInputLayout ? 10 : 9);
+          const pIdx = phoneCol.index !== -1 ? phoneCol.index : (isInputLayout ? 9 : 8);
+          const eIdx = emailCol.index !== -1 ? emailCol.index : (isInputLayout ? 8 : 7);
+          const rIdx = regIdCol.index !== -1 ? regIdCol.index : (isInputLayout ? 1 : 0);
+          const rlIdx = roleCol.index !== -1 ? roleCol.index : (isInputLayout ? -1 : 1);
           const dIdx = dateCol.index !== -1 ? dateCol.index : 11;
 
           const normSport = normalizeSportName("", sheetName);
@@ -659,12 +668,26 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           for (let i = startRow; i < table.rows.length; i++) {
             const row = table.rows[i];
             if (!row || !Array.isArray(row.c)) continue;
-            const getV = (idx) => (row.c[idx]?.v != null ? String(row.c[idx].v).trim() : "");
+            const getV = (idx) => (idx >= 0 && row.c[idx]?.v != null ? String(row.c[idx].v).trim() : "");
 
             const mandalRaw = getV(mIdx);
             if (!mandalRaw || mandalRaw.toLowerCase() === "mandal") continue;
-            const name = getV(nIdx);
-            const scholarNo = getV(scIdx);
+            let name = getV(nIdx);
+            let scholarNo = getV(scIdx);
+            let teamRole = rlIdx !== -1 ? getV(rlIdx) || "Player" : "Player";
+
+            // Guard against numeric names or swapped columns
+            if (/^\d{4,}$/.test(name) && teamRole && !/^\d+$/.test(teamRole)) {
+              const tmp = name;
+              name = teamRole;
+              scholarNo = tmp;
+              teamRole = "Player";
+            } else if (/^\d{4,}$/.test(name) && scholarNo && !/^\d+$/.test(scholarNo)) {
+              const tmp = name;
+              name = scholarNo;
+              scholarNo = tmp;
+            }
+
             if (!name && !scholarNo) continue;
 
             const email = getV(eIdx);
@@ -692,13 +715,13 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
                 scholarNo: scholarNo || name.toLowerCase().replace(/\s+/g, "_"),
                 course: normalizeCourse(getV(cIdx)),
                 semester: normalizeSemester(getV(sIdx)),
-                mandalName: normalizeMandal(mandalRaw),
+                mandalName: normalizeMandal(mandalRaw) || (mandalRaw && mandalRaw !== "—" ? mandalRaw.trim() : "Other Mandal"),
                 gender: normalizeGender(getV(gIdx)),
                 phone: phone,
                 email: email,
                 sport: normSport,
                 teamRegistrationId: regId,
-                teamRole: getV(rlIdx) || "Player",
+                teamRole: teamRole,
                 registrationDate: rawDate,
                 registrationDateParsed: parsedDate
               };
@@ -732,9 +755,22 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
       multiSportStudentsCount,
       singleSportStudentsCount
     };
-    _sheetCacheExpiry = Date.now() + 15000; // 15 second cache
+    _sheetCacheExpiry = Date.now() + 20000; // 20 second cache
     console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players (${multiSportStudentsCount} multi-sport), ${activeSports.size} active sports`);
     return _sheetCache;
+      } catch (err) {
+        if (_sheetCache) {
+          console.warn("[LiveSheet] Error fetching sheet, using fallback cache:", err.message);
+          _sheetCacheExpiry = Date.now() + 15000;
+          return _sheetCache;
+        }
+        throw err;
+      } finally {
+        _sheetFetchPromise = null;
+      }
+    })();
+
+    return _sheetFetchPromise;
   }
   app.locals.getLiveSheetData = getLiveSheetData;
 
@@ -744,27 +780,80 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   app.get("/api/players", ...adminReadAccess, async (req, res) => {
     try {
-      const { uniquePlayers } = await getLiveSheetData();
+      const { uniquePlayers, allRegistrations } = await getLiveSheetData();
       const page = Math.max(parseInt(req.query.page) || 1, 1);
       const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
-      const { mandal, course, semester, gender, sport, search } = req.query;
+      const { mandal, course, semester, gender, sport, date, search, sortBy, sortOrder, kpi } = req.query;
 
       let filtered = uniquePlayers;
-      if (mandal) filtered = filtered.filter(p => p.mandalName.toLowerCase().includes(mandal.toLowerCase()));
-      if (course) filtered = filtered.filter(p => p.course.toLowerCase().includes(course.toLowerCase()));
+      if (kpi === "sport-entries" || kpi === "entries") {
+        filtered = allRegistrations;
+      } else if (kpi === "multi" || kpi === "multi-sport") {
+        filtered = uniquePlayers.filter(p => p.sports && p.sports.length > 1);
+      } else if (kpi === "male") {
+        filtered = uniquePlayers.filter(p => (p.gender || "").toLowerCase() === "male");
+      } else if (kpi === "female") {
+        filtered = uniquePlayers.filter(p => (p.gender || "").toLowerCase() === "female");
+      } else if (kpi === "today") {
+        const todayStr = new Date().toISOString().split("T")[0];
+        filtered = uniquePlayers.filter(p => p.registrationDateParsed && new Date(p.registrationDateParsed).toISOString().split("T")[0] === todayStr);
+      }
+      if (mandal) filtered = filtered.filter(p => (p.mandalName || "").toLowerCase().includes(mandal.toLowerCase()));
+      if (course) filtered = filtered.filter(p => (p.course || "").toLowerCase().includes(course.toLowerCase()));
       if (semester) filtered = filtered.filter(p => p.semester === String(semester));
-      if (gender) filtered = filtered.filter(p => p.gender.toLowerCase().includes(gender.toLowerCase()));
-      if (sport) filtered = filtered.filter(p => p.sport.toLowerCase().includes(sport.toLowerCase()) || (p.sports && p.sports.some(s => s.toLowerCase().includes(sport.toLowerCase()))));
+      if (gender) filtered = filtered.filter(p => (p.gender || "").toLowerCase().includes(gender.toLowerCase()));
+      if (sport) filtered = filtered.filter(p => (p.sport || "").toLowerCase().includes(sport.toLowerCase()) || (p.sports && p.sports.some(s => (s || "").toLowerCase().includes(sport.toLowerCase()))));
+      if (date) {
+        filtered = filtered.filter(p => {
+          if (!p.registrationDateParsed) return false;
+          try {
+            return new Date(p.registrationDateParsed).toISOString().split("T")[0] === String(date).trim();
+          } catch (_) { return false; }
+        });
+      }
       if (search) {
         const s = search.toLowerCase();
         filtered = filtered.filter(p =>
-          p.name.toLowerCase().includes(s) ||
-          p.scholarNo.toLowerCase().includes(s) ||
-          p.phone.includes(s) ||
-          p.email.toLowerCase().includes(s) ||
-          p.course.toLowerCase().includes(s)
+          (p.name ? String(p.name).toLowerCase().includes(s) : false) ||
+          (p.scholarNo ? String(p.scholarNo).toLowerCase().includes(s) : false) ||
+          (p.phone ? String(p.phone).includes(s) : false) ||
+          (p.email ? String(p.email).toLowerCase().includes(s) : false) ||
+          (p.course ? String(p.course).toLowerCase().includes(s) : false)
         );
       }
+
+      // Sort: default alphabetically by player Name (A-Z)
+      const sortField = (sortBy || "name").toLowerCase();
+      const dir = sortOrder === "desc" || req.query.order === "desc" ? -1 : 1;
+
+      filtered.sort((a, b) => {
+        let valA = "";
+        let valB = "";
+        if (sortField === "name") {
+          valA = (a.name || "").trim().toLowerCase();
+          valB = (b.name || "").trim().toLowerCase();
+        } else if (sortField === "scholarno" || sortField === "scholar") {
+          valA = (a.scholarNo || "").trim().toLowerCase();
+          valB = (b.scholarNo || "").trim().toLowerCase();
+        } else if (sortField === "course") {
+          valA = (a.course || "").trim().toLowerCase();
+          valB = (b.course || "").trim().toLowerCase();
+        } else if (sortField === "mandal") {
+          valA = (a.mandalName || "").trim().toLowerCase();
+          valB = (b.mandalName || "").trim().toLowerCase();
+        } else if (sortField === "sport") {
+          valA = (a.sport || "").trim().toLowerCase();
+          valB = (b.sport || "").trim().toLowerCase();
+        } else if (sortField === "date") {
+          const timeA = a.registrationDateParsed ? new Date(a.registrationDateParsed).getTime() : 0;
+          const timeB = b.registrationDateParsed ? new Date(b.registrationDateParsed).getTime() : 0;
+          return dir * (timeA - timeB);
+        } else {
+          valA = (a.name || "").trim().toLowerCase();
+          valB = (b.name || "").trim().toLowerCase();
+        }
+        return dir * valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      });
 
       const total = filtered.length;
       const totalPages = Math.ceil(total / limit);
@@ -1084,22 +1173,48 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
 
   app.get("/api/analytics/export", ...adminReadAccess, async (req, res) => {
     try {
-      const { allRegistrations } = await getLiveSheetData();
-      const { mandal, course, semester, gender, sport, search } = req.query;
+      const { allRegistrations, uniquePlayers } = await getLiveSheetData();
+      const { mandal, course, semester, gender, sport, date, search, kpi } = req.query;
 
       let filtered = allRegistrations;
-      if (mandal) filtered = filtered.filter(p => p.mandalName.toLowerCase().includes(mandal.toLowerCase()));
-      if (course) filtered = filtered.filter(p => p.course.toLowerCase().includes(course.toLowerCase()));
+      if (kpi === "unique") {
+        filtered = uniquePlayers;
+      } else if (kpi === "multi" || kpi === "multi-sport") {
+        filtered = uniquePlayers.filter(p => p.sports && p.sports.length > 1);
+      } else if (kpi === "male") {
+        filtered = uniquePlayers.filter(p => (p.gender || "").toLowerCase() === "male");
+      } else if (kpi === "female") {
+        filtered = uniquePlayers.filter(p => (p.gender || "").toLowerCase() === "female");
+      } else if (kpi === "today") {
+        const todayStr = new Date().toISOString().split("T")[0];
+        filtered = uniquePlayers.filter(p => p.registrationDateParsed && new Date(p.registrationDateParsed).toISOString().split("T")[0] === todayStr);
+      }
+
+      if (mandal) filtered = filtered.filter(p => (p.mandalName || "").toLowerCase().includes(mandal.toLowerCase()));
+      if (course) filtered = filtered.filter(p => (p.course || "").toLowerCase().includes(course.toLowerCase()));
       if (semester) filtered = filtered.filter(p => p.semester === String(semester));
-      if (gender) filtered = filtered.filter(p => p.gender.toLowerCase().includes(gender.toLowerCase()));
-      if (sport) filtered = filtered.filter(p => p.sport.toLowerCase().includes(sport.toLowerCase()));
+      if (gender) filtered = filtered.filter(p => (p.gender || "").toLowerCase().includes(gender.toLowerCase()));
+      if (sport) filtered = filtered.filter(p => (p.sport || "").toLowerCase().includes(sport.toLowerCase()));
+      if (date) {
+        filtered = filtered.filter(p => {
+          if (!p.registrationDateParsed) return false;
+          try {
+            return new Date(p.registrationDateParsed).toISOString().split("T")[0] === String(date).trim();
+          } catch (_) { return false; }
+        });
+      }
       if (search) {
         const s = search.toLowerCase();
         filtered = filtered.filter(p =>
-          p.name.toLowerCase().includes(s) || p.scholarNo.toLowerCase().includes(s) ||
-          p.phone.includes(s) || p.email.toLowerCase().includes(s)
+          (p.name ? String(p.name).toLowerCase().includes(s) : false) ||
+          (p.scholarNo ? String(p.scholarNo).toLowerCase().includes(s) : false) ||
+          (p.phone ? String(p.phone).includes(s) : false) ||
+          (p.email ? String(p.email).toLowerCase().includes(s) : false) ||
+          (p.course ? String(p.course).toLowerCase().includes(s) : false)
         );
       }
+
+      filtered.sort((a, b) => (a.name || "").trim().localeCompare((b.name || "").trim(), undefined, { sensitivity: "base" }));
 
       const headers = ["ID", "Name", "Scholar ID", "Course", "Semester", "Mandal", "Gender", "Phone", "Email", "Sport", "Team ID", "Role", "Registration Date"];
       const rows = filtered.map(p => [

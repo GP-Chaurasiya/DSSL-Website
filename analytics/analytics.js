@@ -11,8 +11,56 @@ const GENDER_COLORS = { Male: "#3b82f6", Female: "#ec4899", Other: "#8b5cf6", Un
 const MANDAL_COLORS = ["#ffbc01", "#003e8a", "#10b981", "#ef4444", "#8b5cf6", "#f97316", "#06b6d4"];
 
 let analyticsCharts = {};
-let analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport: "", search: "", page: 1 };
+let analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport: "", search: "", sortBy: "name", sortOrder: "asc", kpi: "", page: 1 };
 let analyticsTimer = null;
+let currentKpiModal = { type: "", filterParams: {}, page: 1, search: "" };
+let kpiModalTimer = null;
+let currentTrendDays = 7;
+
+const KPI_CONFIG = {
+  "unique": {
+    title: "Unique Registered Students",
+    subtitle: "All uniquely registered student participants across DSSL 2026",
+    icon: "ri-user-star-line",
+    iconBg: "rgba(255,188,1,0.15)",
+    iconColor: "var(--primary)"
+  },
+  "sport-entries": {
+    title: "Total Sport Registrations",
+    subtitle: "All individual sport entry records across tournaments",
+    icon: "ri-file-list-3-line",
+    iconBg: "rgba(99,102,241,0.15)",
+    iconColor: "#6366f1"
+  },
+  "multi": {
+    title: "Multi-Sport Students",
+    subtitle: "Students registered to compete in 2 or more different sports",
+    icon: "ri-node-tree",
+    iconBg: "rgba(168,85,247,0.15)",
+    iconColor: "#a855f7"
+  },
+  "male": {
+    title: "Male Players",
+    subtitle: "All registered male student athletes",
+    icon: "ri-men-line",
+    iconBg: "rgba(59,130,246,0.15)",
+    iconColor: "#3b82f6"
+  },
+  "female": {
+    title: "Female Players",
+    subtitle: "All registered female student athletes",
+    icon: "ri-women-line",
+    iconBg: "rgba(236,72,153,0.15)",
+    iconColor: "#ec4899"
+  },
+  "today": {
+    title: "Registered Today",
+    subtitle: "Registrations submitted within the current 24-hour cycle",
+    icon: "ri-calendar-check-line",
+    iconBg: "rgba(16,185,129,0.15)",
+    iconColor: "#10b981"
+  }
+};
 
 async function anApiCall(url) {
   let tk = localStorage.getItem("DSSL_token") || localStorage.getItem("dsspl_token");
@@ -57,8 +105,109 @@ async function loadAllAnalytics() {
       loadTeamStats(),
       loadPlayers()
     ]);
+    setupAnalyticsSocket();
+    startAutoSync();
   } catch (e) {
     console.error("Analytics load error:", e);
+  }
+}
+
+let autoSyncInterval = null;
+let autoSyncSecondsLeft = 25;
+const AUTO_SYNC_INTERVAL_SEC = 25;
+let socketInstance = null;
+
+function setupAnalyticsSocket() {
+  if (socketInstance || typeof io === "undefined") return;
+  try {
+    socketInstance = io();
+    socketInstance.on("connect", () => {
+      console.log("[Analytics] Connected to realtime socket");
+    });
+    const events = ["match-update", "score-update", "match-score-updated", "registration-sync", "tournament-update"];
+    events.forEach(ev => {
+      socketInstance.on(ev, () => {
+        console.log(`[Analytics] Realtime event: ${ev} -> Refreshing`);
+        silentAutoRefresh();
+      });
+    });
+  } catch (err) {
+    console.warn("[Analytics] Socket init error:", err);
+  }
+}
+
+function startAutoSync() {
+  if (autoSyncInterval) clearInterval(autoSyncInterval);
+  autoSyncSecondsLeft = AUTO_SYNC_INTERVAL_SEC;
+
+  autoSyncInterval = setInterval(() => {
+    autoSyncSecondsLeft--;
+    const textEl = document.getElementById("an-live-sync-text");
+    if (textEl) {
+      textEl.textContent = `Live Auto-Sync (${autoSyncSecondsLeft}s)`;
+    }
+
+    if (autoSyncSecondsLeft <= 0) {
+      autoSyncSecondsLeft = AUTO_SYNC_INTERVAL_SEC;
+      silentAutoRefresh();
+    }
+  }, 1000);
+}
+
+async function silentAutoRefresh() {
+  try {
+    const textEl = document.getElementById("an-live-sync-text");
+    if (textEl) textEl.textContent = "Syncing...";
+
+    // 1. Refresh overview KPIs
+    await loadOverview();
+
+    // 2. Refresh all graphs and charts with live data
+    await Promise.allSettled([
+      loadTrend(currentTrendDays),
+      loadMandalChart(),
+      loadGenderChart(),
+      loadCourseChart(),
+      loadSemesterChart(),
+      loadSportChart(),
+      loadMandalGenderChart(),
+      loadTeamStats()
+    ]);
+
+    // 3. Refresh open KPI / Drilldown modal if currently open
+    const kpiModal = document.getElementById("an-kpi-modal");
+    const hasActiveModal = kpiModal && kpiModal.classList.contains("open") && (currentKpiModal.type || (currentKpiModal.filterParams && Object.keys(currentKpiModal.filterParams).length > 0));
+    if (hasActiveModal) {
+      loadKpiModalData();
+    }
+
+    // 4. Refresh player directory ONLY if the user is not actively typing in search
+    const searchInput = document.getElementById("an-filter-search");
+    const isTyping = searchInput && document.activeElement === searchInput;
+    if (!isTyping) {
+      loadPlayers();
+    }
+
+    if (textEl) textEl.textContent = `Live Auto-Sync (${AUTO_SYNC_INTERVAL_SEC}s)`;
+  } catch (err) {
+    console.warn("[Analytics] Auto-refresh warning:", err);
+  }
+}
+
+async function syncGoogleSheets(force) {
+  const btn = document.getElementById("an-manual-sync-btn");
+  if (btn) {
+    btn.innerHTML = '<i class="ri-loader-4-line"></i> Syncing...';
+    btn.disabled = true;
+  }
+  try {
+    await loadAllAnalytics();
+    autoSyncSecondsLeft = AUTO_SYNC_INTERVAL_SEC;
+  } finally {
+    if (btn) {
+      btn.innerHTML = '<i class="ri-refresh-line"></i> Refresh Now';
+      btn.disabled = false;
+    }
   }
 }
 
@@ -94,13 +243,15 @@ function setText(id, val) {
 }
 
 async function loadTrend(days) {
+  if (days) currentTrendDays = days;
+  const dCount = currentTrendDays;
   [7, 30, 60].forEach(d => {
     const btn = document.getElementById(`an-trend-${d}`);
-    if (btn) btn.classList.toggle("active", d === days);
+    if (btn) btn.classList.toggle("active", d === dCount);
   });
 
   try {
-    const data = await anApiCall(`/api/analytics/registration-trend?days=${days}`);
+    const data = await anApiCall(`/api/analytics/registration-trend?days=${dCount}`);
     const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const labels = data.map(d => {
       // Parse YYYY-MM-DD parts directly to avoid UTC-to-local timezone shift
@@ -112,7 +263,7 @@ async function loadTrend(days) {
     const counts = data.map(d => d.count);
 
     // Decide how many X-axis labels to show based on date range
-    const maxTicks = days <= 7 ? 7 : days <= 30 ? 10 : 15;
+    const maxTicks = dCount <= 7 ? 7 : dCount <= 30 ? 10 : 15;
 
     destroyChart("an-chart-trend");
     const ctx = document.getElementById("an-chart-trend");
@@ -128,28 +279,46 @@ async function loadTrend(days) {
           borderColor: "#ffbc01",
           backgroundColor: "rgba(255,188,1,.12)",
           borderWidth: 2.5,
-          pointRadius: counts.length < 20 ? 4 : 2,
+          pointRadius: counts.length < 20 ? 5 : 3,
+          pointHoverRadius: 7,
           pointBackgroundColor: "#ffbc01",
           fill: true,
           tension: 0.4
         }]
       },
-      options: chartDefaults({
-        x: {
-          ticks: {
-            maxTicksLimit: maxTicks,
-            maxRotation: 45,
-            minRotation: 0,
-            autoSkip: true,
-            font: { family: "Outfit", size: 11, weight: "bold" },
-            color: "#000"
+      options: {
+        ...chartDefaults({
+          x: {
+            ticks: {
+              maxTicksLimit: maxTicks,
+              maxRotation: 45,
+              minRotation: 0,
+              autoSkip: true,
+              font: { family: "Outfit", size: 11, weight: "bold" },
+              color: "#000"
+            }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
           }
-        },
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 1 }
+        }),
+        onClick: (event, elements) => {
+          if (!elements || !elements.length) return;
+          const idx = elements[0].index;
+          const item = data[idx];
+          if (!item) return;
+          const formattedDate = labels[idx];
+          openDataDrilldownModal({
+            title: `Registrations: ${formattedDate}`,
+            subtitle: `${item.count} student athlete registration${item.count === 1 ? "" : "s"} submitted on ${formattedDate}`,
+            icon: "ri-calendar-event-line",
+            iconBg: "rgba(255,188,1,0.15)",
+            iconColor: "var(--primary)",
+            filterParams: { date: item.date }
+          });
         }
-      })
+      }
     });
   } catch (e) { console.error("Trend error:", e); }
 }
@@ -164,7 +333,7 @@ async function loadMandalChart() {
     analyticsCharts["an-chart-mandal"] = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: data.map(d => d.mandal.replace(" Mandal", "")),
+        labels: data.map(d => (d.mandal || "—").replace(" Mandal", "")),
         datasets: [{
           label: "Players",
           data: data.map(d => d.count),
@@ -173,7 +342,25 @@ async function loadMandalChart() {
           borderSkipped: false
         }]
       },
-      options: chartDefaults()
+      options: {
+        ...chartDefaults(),
+        onClick: (event, elements) => {
+          if (!elements || !elements.length) return;
+          const idx = elements[0].index;
+          const item = data[idx];
+          if (!item) return;
+          const rawMandal = item.mandal || "";
+          const fullMandal = rawMandal.includes("Mandal") ? rawMandal : `${rawMandal} Mandal`;
+          openDataDrilldownModal({
+            title: `${fullMandal}`,
+            subtitle: `All registered players affiliated with ${fullMandal} (${item.count} players)`,
+            icon: "ri-community-line",
+            iconBg: "rgba(255,188,1,0.15)",
+            iconColor: MANDAL_COLORS[idx % MANDAL_COLORS.length] || "var(--primary)",
+            filterParams: { mandal: fullMandal }
+          });
+        }
+      }
     });
   } catch (e) { console.error("Mandal chart error:", e); }
 }
@@ -210,6 +397,23 @@ async function loadGenderChart() {
               label: ctx => ` ${ctx.label}: ${ctx.raw} players`
             }
           }
+        },
+        onClick: (event, elements) => {
+          if (!elements || !elements.length) return;
+          const idx = elements[0].index;
+          const item = data[idx];
+          if (!item) return;
+          const gender = item.gender;
+          const isMale = String(gender).toLowerCase() === "male";
+          const isFemale = String(gender).toLowerCase() === "female";
+          openDataDrilldownModal({
+            title: `${gender} Players`,
+            subtitle: `All registered ${gender.toLowerCase()} student athletes (${item.count} players, ${item.percentage}%)`,
+            icon: isMale ? "ri-men-line" : (isFemale ? "ri-women-line" : "ri-user-smile-line"),
+            iconBg: isMale ? "rgba(59,130,246,0.15)" : (isFemale ? "rgba(236,72,153,0.15)" : "rgba(139,92,246,0.15)"),
+            iconColor: GENDER_COLORS[gender] || "#94a3b8",
+            filterParams: { gender: gender }
+          });
         }
       }
     });
@@ -218,7 +422,8 @@ async function loadGenderChart() {
 
 async function loadCourseChart() {
   try {
-    const data = (await anApiCall("/api/analytics/course-distribution")).slice(0, 10);
+    const rawData = await anApiCall("/api/analytics/course-distribution");
+    const data = rawData.slice(0, 10);
     destroyChart("an-chart-course");
     const ctx = document.getElementById("an-chart-course");
     if (!ctx) return;
@@ -235,7 +440,24 @@ async function loadCourseChart() {
           borderSkipped: false
         }]
       },
-      options: { ...chartDefaults(), indexAxis: "y" }
+      options: {
+        ...chartDefaults(),
+        indexAxis: "y",
+        onClick: (event, elements) => {
+          if (!elements || !elements.length) return;
+          const idx = elements[0].index;
+          const item = data[idx];
+          if (!item) return;
+          openDataDrilldownModal({
+            title: `Course: ${item.course}`,
+            subtitle: `All registered student athletes enrolled in ${item.course} (${item.count} players)`,
+            icon: "ri-book-open-line",
+            iconBg: "rgba(59,130,246,0.15)",
+            iconColor: "#3b82f6",
+            filterParams: { course: item.course }
+          });
+        }
+      }
     });
   } catch (e) { console.error("Course chart error:", e); }
 }
@@ -262,7 +484,25 @@ async function loadSemesterChart() {
           borderSkipped: false
         }]
       },
-      options: chartDefaults({ y: { beginAtZero: true } })
+      options: {
+        ...chartDefaults({ y: { beginAtZero: true } }),
+        onClick: (event, elements) => {
+          if (!elements || !elements.length) return;
+          const idx = elements[0].index;
+          const item = data[idx];
+          if (!item) return;
+          const rawSem = String(item.semester || "").trim();
+          const semNumber = rawSem.replace(/\D/g, "") || rawSem;
+          openDataDrilldownModal({
+            title: `Semester ${semNumber}`,
+            subtitle: `All registered student athletes in Semester ${semNumber} (${item.count} players)`,
+            icon: "ri-graduation-cap-line",
+            iconBg: "rgba(16,185,129,0.15)",
+            iconColor: "#10b981",
+            filterParams: { semester: semNumber }
+          });
+        }
+      }
     });
   } catch (e) { console.error("Semester chart error:", e); }
 }
@@ -591,6 +831,21 @@ async function loadSportChart() {
                 }
               }
             }
+          },
+
+          onClick: (event, elements) => {
+            if (!elements || !elements.length) return;
+            const idx = elements[0].index;
+            const item = rows[idx];
+            if (!item) return;
+            openDataDrilldownModal({
+              title: `Sport: ${item.sport}`,
+              subtitle: `All registered players competing in ${item.sport} (${item.count} players)`,
+              icon: "ri-trophy-line",
+              iconBg: "rgba(255,188,1,0.15)",
+              iconColor: "var(--primary)",
+              filterParams: { sport: item.sport }
+            });
           }
         }
       });
@@ -665,7 +920,7 @@ async function loadMandalGenderChart() {
     analyticsCharts["an-chart-mandal-gender"] = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: data.map(d => d.mandal.replace(" Mandal", "")),
+        labels: data.map(d => (d.mandal || "—").replace(" Mandal", "")),
         datasets: genders.map(g => ({
           label: g,
           data: data.map(d => d[g] || 0),
@@ -685,6 +940,27 @@ async function loadMandalGenderChart() {
             labels: { color: "#000", font: { family: "Outfit", size: 12, weight: "bold" } }
           },
           tooltip: { mode: "index" }
+        },
+        onClick: (event, elements) => {
+          if (!elements || !elements.length) return;
+          const el = elements[0];
+          const datasetIdx = el.datasetIndex;
+          const dataIdx = el.index;
+          const gender = genders[datasetIdx];
+          const item = data[dataIdx];
+          if (!item) return;
+          const rawMandal = item.mandal || "";
+          const fullMandal = rawMandal.includes("Mandal") ? rawMandal : `${rawMandal} Mandal`;
+          const count = item[gender] || 0;
+          const isMale = String(gender).toLowerCase() === "male";
+          openDataDrilldownModal({
+            title: `${fullMandal} — ${gender}`,
+            subtitle: `Registered ${gender.toLowerCase()} players in ${fullMandal} (${count} players)`,
+            icon: isMale ? "ri-men-line" : "ri-women-line",
+            iconBg: isMale ? "rgba(59,130,246,0.15)" : "rgba(236,72,153,0.15)",
+            iconColor: GENDER_COLORS[gender] || "var(--primary)",
+            filterParams: { mandal: fullMandal, gender: gender }
+          });
         }
       }
     });
@@ -703,9 +979,9 @@ async function loadTeamStats() {
     tbody.innerHTML = data.map((t, i) => {
       const rankColor = i === 0 ? "#ffbc01" : i === 1 ? "#94a3b8" : i === 2 ? "#f97316" : "var(--bg-primary)";
       const rankText = i === 0 ? "#000" : i === 1 ? "#000" : i === 2 ? "#000" : "var(--text-muted)";
-      return `<tr>
+      return `<tr style="cursor:pointer" title="Click to view ${esc(t.name)} players" onclick="openDataDrilldownModal({ title: '${esc(t.name)}', subtitle: 'All registered players affiliated with ${esc(t.name)} (${t.playerCount} players)', icon: 'ri-community-line', iconBg: 'rgba(255,188,1,0.15)', iconColor: 'var(--primary)', filterParams: { mandal: '${esc(t.name)}' } })">
         <td><span style="width:26px;height:26px;border-radius:50%;background:${rankColor};color:${rankText};display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${i + 1}</span></td>
-        <td><strong>${esc(t.name)}</strong></td>
+        <td><strong style="color:var(--primary);text-decoration:underline">${esc(t.name)}</strong></td>
         <td>${t.playerCount}</td>
         <td>${t.matchesPlayed}</td>
         <td style="color:#10b981;font-weight:700">${t.wins}</td>
@@ -736,13 +1012,28 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport: "", search: "", page: 1 };
+  analyticsFilters = { mandal: "", course: "", semester: "", gender: "", sport: "", search: "", sortBy: "name", sortOrder: "asc", kpi: "", page: 1 };
+  currentKpiModal = { type: "", filterParams: {}, page: 1, search: "" };
+  const banner = document.getElementById("an-active-kpi-banner");
+  if (banner) banner.style.display = "none";
   const ids = ["an-filter-mandal", "an-filter-course", "an-filter-semester", "an-filter-gender", "an-filter-sport"];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
   const search = document.getElementById("an-filter-search");
   if (search) search.value = "";
   loadPlayers();
 }
+
+function togglePlayerSort(field) {
+  if (analyticsFilters.sortBy === field) {
+    analyticsFilters.sortOrder = analyticsFilters.sortOrder === "asc" ? "desc" : "asc";
+  } else {
+    analyticsFilters.sortBy = field;
+    analyticsFilters.sortOrder = "asc";
+  }
+  analyticsFilters.page = 1;
+  loadPlayers();
+}
+window.togglePlayerSort = togglePlayerSort;
 
 function exportPlayers() {
   const p = new URLSearchParams();
@@ -1372,6 +1663,25 @@ async function loadPlayers() {
   if (analyticsFilters.gender) p.set("gender", analyticsFilters.gender);
   if (analyticsFilters.sport) p.set("sport", analyticsFilters.sport);
   if (analyticsFilters.search) p.set("search", analyticsFilters.search);
+  if (analyticsFilters.sortBy) p.set("sortBy", analyticsFilters.sortBy);
+  if (analyticsFilters.sortOrder) p.set("sortOrder", analyticsFilters.sortOrder);
+  if (analyticsFilters.kpi) p.set("kpi", analyticsFilters.kpi);
+
+  const banner = document.getElementById("an-active-kpi-banner");
+  const bannerText = document.getElementById("an-active-kpi-text");
+  if (analyticsFilters.kpi && KPI_CONFIG[analyticsFilters.kpi]) {
+    if (banner) banner.style.display = "flex";
+    if (bannerText) bannerText.textContent = `Active Filter: ${KPI_CONFIG[analyticsFilters.kpi].title}`;
+  } else {
+    if (banner) banner.style.display = "none";
+  }
+
+  const sortIcon = (field) => {
+    if (analyticsFilters.sortBy !== field) return '<i class="ri-arrow-up-down-line" style="font-size:11px;opacity:0.4;margin-left:4px"></i>';
+    return analyticsFilters.sortOrder === "desc" 
+      ? '<i class="ri-sort-desc" style="font-size:12px;color:var(--primary);margin-left:4px"></i>' 
+      : '<i class="ri-sort-asc" style="font-size:12px;color:var(--primary);margin-left:4px"></i>';
+  };
 
   try {
     const result = await anApiCall(`/api/players?${p.toString()}`);
@@ -1388,8 +1698,16 @@ async function loadPlayers() {
         <table class="an-table">
           <thead>
             <tr>
-              <th>Name</th><th>Scholar ID</th><th>Course</th><th>Sem</th>
-              <th>Mandal</th><th>Gender</th><th>Sport</th><th>Phone</th><th>Reg. Date</th><th></th>
+              <th onclick="togglePlayerSort('name')" style="cursor:pointer;user-select:none" title="Sort by Name">Name ${sortIcon('name')}</th>
+              <th onclick="togglePlayerSort('scholarNo')" style="cursor:pointer;user-select:none" title="Sort by Scholar ID">Scholar ID ${sortIcon('scholarNo')}</th>
+              <th onclick="togglePlayerSort('course')" style="cursor:pointer;user-select:none" title="Sort by Course">Course ${sortIcon('course')}</th>
+              <th>Sem</th>
+              <th onclick="togglePlayerSort('mandal')" style="cursor:pointer;user-select:none" title="Sort by Mandal">Mandal ${sortIcon('mandal')}</th>
+              <th>Gender</th>
+              <th onclick="togglePlayerSort('sport')" style="cursor:pointer;user-select:none" title="Sort by Sport">Sport ${sortIcon('sport')}</th>
+              <th>Phone</th>
+              <th onclick="togglePlayerSort('date')" style="cursor:pointer;user-select:none" title="Sort by Reg. Date">Reg. Date ${sortIcon('date')}</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -1400,7 +1718,7 @@ async function loadPlayers() {
                 <td>${esc(p.course)}</td>
                 <td>${esc(p.semester)}</td>
                 <td>
-                  <span class="an-pill" style="background:rgba(255,188,1,.15);color:var(--primary)">${esc(p.mandalName.replace(" Mandal", ""))}</span>
+                  <span class="an-pill" style="background:rgba(255,188,1,.15);color:var(--primary)">${esc((p.mandalName || "—").replace(" Mandal", ""))}</span>
                 </td>
                 <td>
                   <span class="an-pill" style="background:${GENDER_COLORS[p.gender] || "#94a3b8"}22;color:${GENDER_COLORS[p.gender] || "#94a3b8"}">${esc(p.gender) || "—"}</span>
@@ -1507,9 +1825,289 @@ function closeProfileModal() {
 document.addEventListener("click", (e) => {
   const profileOverlay = document.getElementById("an-profile-modal");
   const addOverlay = document.getElementById("an-addplayer-modal");
+  const kpiOverlay = document.getElementById("an-kpi-modal");
   if (e.target === profileOverlay) closeProfileModal();
   if (e.target === addOverlay) addOverlay.classList.remove("open");
+  if (e.target === kpiOverlay) closeKpiModal();
 });
+
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+window.scrollToSection = scrollToSection;
+
+function openDataDrilldownModal({ title, subtitle, icon, iconBg, iconColor, filterParams, kpiType }) {
+  currentKpiModal = {
+    type: kpiType || "",
+    filterParams: filterParams || {},
+    page: 1,
+    search: "",
+    title: title || "Data Drilldown",
+    subtitle: subtitle || "Showing matching player records",
+    icon: icon || "ri-bar-chart-2-line",
+    iconBg: iconBg || "rgba(255,188,1,0.15)",
+    iconColor: iconColor || "var(--primary)"
+  };
+
+  const modal = document.getElementById("an-kpi-modal");
+  const iconEl = document.getElementById("an-kpi-modal-icon");
+  const titleEl = document.getElementById("an-kpi-modal-title");
+  const subtitleEl = document.getElementById("an-kpi-modal-subtitle");
+  const searchInput = document.getElementById("an-kpi-modal-search");
+
+  if (iconEl) {
+    iconEl.style.background = currentKpiModal.iconBg;
+    iconEl.style.color = currentKpiModal.iconColor;
+    iconEl.innerHTML = `<i class="${currentKpiModal.icon}"></i>`;
+  }
+  if (titleEl) titleEl.textContent = currentKpiModal.title;
+  if (subtitleEl) subtitleEl.textContent = currentKpiModal.subtitle;
+  if (searchInput) searchInput.value = "";
+
+  if (modal) modal.classList.add("open");
+  loadKpiModalData();
+}
+
+async function openKpiModal(kpiType) {
+  const cfg = KPI_CONFIG[kpiType];
+  if (!cfg) return;
+  openDataDrilldownModal({
+    title: cfg.title,
+    subtitle: cfg.subtitle,
+    icon: cfg.icon,
+    iconBg: cfg.iconBg,
+    iconColor: cfg.iconColor,
+    kpiType: kpiType,
+    filterParams: {}
+  });
+}
+
+function closeKpiModal() {
+  const modal = document.getElementById("an-kpi-modal");
+  if (modal) modal.classList.remove("open");
+}
+
+function debounceKpiModalSearch() {
+  clearTimeout(kpiModalTimer);
+  kpiModalTimer = setTimeout(() => {
+    currentKpiModal.search = document.getElementById("an-kpi-modal-search")?.value || "";
+    currentKpiModal.page = 1;
+    loadKpiModalData();
+  }, 300);
+}
+
+function goKpiModalPage(page) {
+  currentKpiModal.page = page;
+  loadKpiModalData();
+}
+
+async function loadKpiModalData() {
+  const wrap = document.getElementById("an-kpi-modal-table-wrap");
+  const paginationEl = document.getElementById("an-kpi-modal-pagination");
+  const badgeEl = document.getElementById("an-kpi-modal-count-badge");
+  if (!wrap) return;
+
+  wrap.innerHTML = `<div style="text-align:center;padding:2.5rem;color:var(--text-muted)"><i class="ri-loader-4-line ri-spin"></i> Loading records...</div>`;
+
+  const p = new URLSearchParams({
+    page: currentKpiModal.page,
+    limit: 20
+  });
+  if (currentKpiModal.type) p.set("kpi", currentKpiModal.type);
+  if (currentKpiModal.filterParams) {
+    for (const [k, v] of Object.entries(currentKpiModal.filterParams)) {
+      if (v) p.set(k, v);
+    }
+  }
+  if (currentKpiModal.search) p.set("search", currentKpiModal.search);
+
+  try {
+    const res = await anApiCall(`/api/players?${p.toString()}`);
+    const { players, total, page, limit, totalPages } = res;
+
+    if (badgeEl) badgeEl.textContent = `${total} ${total === 1 ? "record" : "records"}`;
+
+    if (!players || !players.length) {
+      wrap.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="ri-user-unfollow-line" style="font-size:36px;display:block;margin-bottom:8px"></i>No records found matching query.</div>`;
+      if (paginationEl) paginationEl.innerHTML = "";
+      return;
+    }
+
+    const isEntriesView = currentKpiModal.type === "sport-entries";
+    const isMultiView = currentKpiModal.type === "multi";
+
+    wrap.innerHTML = `
+      <table class="an-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Scholar ID</th>
+            <th>${isEntriesView ? "Sport" : (isMultiView ? "Registered Sports" : "Sport")}</th>
+            <th>Mandal</th>
+            <th>Course</th>
+            <th>Gender</th>
+            ${isEntriesView ? "<th>Role</th><th>Team ID</th>" : "<th>Phone</th>"}
+            <th>Date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${players.map(p => {
+            const sportsMarkup = (p.sports && p.sports.length > 0)
+              ? p.sports.map(s => `<span class="an-pill" style="background:rgba(255,188,1,0.15);color:var(--primary);margin:2px 3px 2px 0;font-size:11px">${esc(s)}</span>`).join("")
+              : (esc(p.sport) || "—");
+
+            return `
+              <tr>
+                <td><span class="an-player-link" onclick="closeKpiModal(); openProfile(${p.id})">${esc(p.name)}</span></td>
+                <td><code style="font-size:12px">${esc(p.scholarNo)}</code></td>
+                <td>${isMultiView ? `<div style="display:flex;flex-wrap:wrap;max-width:240px">${sportsMarkup}</div>` : (esc(p.sport) || "—")}</td>
+                <td><span class="an-pill" style="background:rgba(255,188,1,0.15);color:var(--primary)">${esc((p.mandalName || "—").replace(" Mandal", ""))}</span></td>
+                <td>${esc(p.course)}</td>
+                <td><span class="an-pill" style="background:${GENDER_COLORS[p.gender] || "#94a3b8"}22;color:${GENDER_COLORS[p.gender] || "#94a3b8"}">${esc(p.gender) || "—"}</span></td>
+                ${isEntriesView 
+                  ? `<td>${esc(p.teamRole) || "Player"}</td><td><code style="font-size:11px">${esc(p.teamRegistrationId) || "—"}</code></td>`
+                  : `<td style="font-size:12px;color:var(--text-muted)">${maskPhone(p.phone)}</td>`
+                }
+                <td style="font-size:12px;color:var(--text-muted)">${formatDate(p.registrationDate)}</td>
+                <td>
+                  <button class="an-filter-btn secondary" title="View Profile" onclick="closeKpiModal(); openProfile(${p.id})" style="padding:4px 8px;font-size:12px">
+                    <i class="ri-eye-line"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
+
+    if (paginationEl) {
+      let pHtml = "";
+      if (page > 1) pHtml += `<button class="an-page-btn" onclick="goKpiModalPage(${page - 1})"><i class="ri-arrow-left-s-line"></i></button>`;
+      const start = Math.max(1, page - 2), end = Math.min(totalPages, page + 2);
+      for (let i = start; i <= end; i++) {
+        pHtml += `<button class="an-page-btn ${i === page ? "active" : ""}" onclick="goKpiModalPage(${i})">${i}</button>`;
+      }
+      if (page < totalPages) pHtml += `<button class="an-page-btn" onclick="goKpiModalPage(${page + 1})"><i class="ri-arrow-right-s-line"></i></button>`;
+      paginationEl.innerHTML = pHtml;
+    }
+  } catch (err) {
+    wrap.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--danger)">Error loading records: ${err.message}</div>`;
+  }
+}
+
+function applyKpiToDirectory() {
+  closeKpiModal();
+  analyticsFilters.kpi = currentKpiModal.type || "";
+
+  // Reset filter inputs
+  analyticsFilters.mandal = "";
+  analyticsFilters.course = "";
+  analyticsFilters.semester = "";
+  analyticsFilters.gender = "";
+  analyticsFilters.sport = "";
+  analyticsFilters.search = "";
+
+  const ids = ["an-filter-mandal", "an-filter-course", "an-filter-semester", "an-filter-gender", "an-filter-sport", "an-filter-search"];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+
+  if (currentKpiModal.filterParams) {
+    if (currentKpiModal.filterParams.mandal) {
+      analyticsFilters.mandal = currentKpiModal.filterParams.mandal;
+      const el = document.getElementById("an-filter-mandal");
+      if (el) el.value = currentKpiModal.filterParams.mandal;
+    }
+    if (currentKpiModal.filterParams.course) {
+      analyticsFilters.course = currentKpiModal.filterParams.course;
+      const el = document.getElementById("an-filter-course");
+      if (el) el.value = currentKpiModal.filterParams.course;
+    }
+    if (currentKpiModal.filterParams.semester) {
+      analyticsFilters.semester = currentKpiModal.filterParams.semester;
+      const el = document.getElementById("an-filter-semester");
+      if (el) el.value = currentKpiModal.filterParams.semester;
+    }
+    if (currentKpiModal.filterParams.gender) {
+      analyticsFilters.gender = currentKpiModal.filterParams.gender;
+      const el = document.getElementById("an-filter-gender");
+      if (el) el.value = currentKpiModal.filterParams.gender;
+    }
+    if (currentKpiModal.filterParams.sport) {
+      analyticsFilters.sport = currentKpiModal.filterParams.sport;
+      const el = document.getElementById("an-filter-sport");
+      if (el) el.value = currentKpiModal.filterParams.sport;
+    }
+    if (currentKpiModal.filterParams.date) {
+      analyticsFilters.search = currentKpiModal.filterParams.date;
+      const el = document.getElementById("an-filter-search");
+      if (el) el.value = currentKpiModal.filterParams.date;
+    }
+  }
+
+  const banner = document.getElementById("an-active-kpi-banner");
+  const bannerText = document.getElementById("an-active-kpi-text");
+  if (banner && bannerText) {
+    const filterDesc = currentKpiModal.title || currentKpiModal.type || "Selection";
+    bannerText.textContent = `Filtered by: ${filterDesc}`;
+    banner.style.display = "flex";
+  }
+
+  analyticsFilters.page = 1;
+  loadPlayers();
+  const dirEl = document.getElementById("an-player-directory-section");
+  if (dirEl) dirEl.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function clearKpiFilter() {
+  analyticsFilters.kpi = "";
+  analyticsFilters.mandal = "";
+  analyticsFilters.course = "";
+  analyticsFilters.semester = "";
+  analyticsFilters.gender = "";
+  analyticsFilters.sport = "";
+  const ids = ["an-filter-mandal", "an-filter-course", "an-filter-semester", "an-filter-gender", "an-filter-sport"];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  const banner = document.getElementById("an-active-kpi-banner");
+  if (banner) banner.style.display = "none";
+  analyticsFilters.page = 1;
+  loadPlayers();
+}
+
+function exportKpiModalData() {
+  const p = new URLSearchParams();
+  if (currentKpiModal.type) p.set("kpi", currentKpiModal.type);
+  if (currentKpiModal.filterParams) {
+    for (const [k, v] of Object.entries(currentKpiModal.filterParams)) {
+      if (v) p.set(k, v);
+    }
+  }
+  if (currentKpiModal.search) p.set("search", currentKpiModal.search);
+  p.set("format", "csv");
+  const btn = document.getElementById("an-kpi-modal-export-btn");
+  if (btn) { btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Exporting...'; btn.disabled = true; }
+
+  const prefix = (currentKpiModal.title || currentKpiModal.type || "Data")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_");
+
+  fetch(`/api/analytics/export?${p.toString()}`)
+    .then(r => {
+      if (!r.ok) throw new Error("Export failed");
+      return r.blob();
+    }).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DSSL_${prefix}_${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }).catch(e => alert("Export failed: " + e.message))
+    .finally(() => {
+      if (btn) { btn.innerHTML = '<i class="ri-download-2-line"></i> Export CSV'; btn.disabled = false; }
+    });
+}
 
 function openAddPlayerModal() {
   document.getElementById("an-addplayer-modal").classList.add("open");
@@ -1639,6 +2237,12 @@ function chartDefaults(extraScales = {}) {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    onHover: (evt, activeEls) => {
+      const canvas = evt.chart?.canvas;
+      if (canvas) {
+        canvas.style.cursor = (activeEls && activeEls.length) ? "pointer" : "default";
+      }
+    },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -1672,7 +2276,15 @@ function maskPhone(phone) {
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   try {
+    if (typeof dateStr === "string" && dateStr.startsWith("Date(")) {
+      const match = dateStr.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
+      if (match) {
+        const d = new Date(parseInt(match[1]), parseInt(match[2]), parseInt(match[3]));
+        return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+      }
+    }
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "—";
     return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   } catch { return "—"; }
 }
@@ -1690,3 +2302,13 @@ window.openProfile = openProfile;
 window.closeProfileModal = closeProfileModal;
 window.openAddPlayerModal = openAddPlayerModal;
 window.submitAddPlayer = submitAddPlayer;
+window.openKpiModal = openKpiModal;
+window.openDataDrilldownModal = openDataDrilldownModal;
+window.closeKpiModal = closeKpiModal;
+window.debounceKpiModalSearch = debounceKpiModalSearch;
+window.goKpiModalPage = goKpiModalPage;
+window.applyKpiToDirectory = applyKpiToDirectory;
+window.clearKpiFilter = clearKpiFilter;
+window.exportKpiModalData = exportKpiModalData;
+window.startAutoSync = startAutoSync;
+window.silentAutoRefresh = silentAutoRefresh;
