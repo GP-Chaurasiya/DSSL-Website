@@ -1176,9 +1176,9 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
       const { allRegistrations, uniquePlayers } = await getLiveSheetData();
       const { mandal, course, semester, gender, sport, date, search, kpi } = req.query;
 
-      let filtered = allRegistrations;
-      if (kpi === "unique") {
-        filtered = uniquePlayers;
+      let filtered = uniquePlayers;
+      if (kpi === "sport-entries" || kpi === "entries") {
+        filtered = allRegistrations;
       } else if (kpi === "multi" || kpi === "multi-sport") {
         filtered = uniquePlayers.filter(p => p.sports && p.sports.length > 1);
       } else if (kpi === "male") {
@@ -1194,7 +1194,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
       if (course) filtered = filtered.filter(p => (p.course || "").toLowerCase().includes(course.toLowerCase()));
       if (semester) filtered = filtered.filter(p => p.semester === String(semester));
       if (gender) filtered = filtered.filter(p => (p.gender || "").toLowerCase().includes(gender.toLowerCase()));
-      if (sport) filtered = filtered.filter(p => (p.sport || "").toLowerCase().includes(sport.toLowerCase()));
+      if (sport) filtered = filtered.filter(p => (p.sport || "").toLowerCase().includes(sport.toLowerCase()) || (p.sports && p.sports.some(s => (s || "").toLowerCase().includes(sport.toLowerCase()))));
       if (date) {
         filtered = filtered.filter(p => {
           if (!p.registrationDateParsed) return false;

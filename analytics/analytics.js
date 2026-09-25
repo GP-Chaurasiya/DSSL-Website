@@ -1043,6 +1043,7 @@ function exportPlayers() {
   if (analyticsFilters.gender) p.set("gender", analyticsFilters.gender);
   if (analyticsFilters.sport) p.set("sport", analyticsFilters.sport);
   if (analyticsFilters.search) p.set("search", analyticsFilters.search);
+  if (analyticsFilters.kpi) p.set("kpi", analyticsFilters.kpi);
   p.set("format", "csv");
 
   const btn = document.getElementById("an-export-btn");
