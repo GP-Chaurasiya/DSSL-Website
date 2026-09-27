@@ -239,10 +239,7 @@ async function loadTabData(tab) {
         await loadMatches();
         initFixturesModule();
         break;
-      case "semifinals":
-        await loadDals();
-        await initAdminSemiFinals();
-        break;
+
       case "email-reminders":
         await initEmailRemindersTab();
         break;
@@ -329,33 +326,102 @@ async function loadNews() {
   });
 }
 
+function escapeMediaHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+let currentMediaList = [];
+
 async function loadMedia() {
   const mediaList = await apiCall("/api/media");
+  currentMediaList = Array.isArray(mediaList) ? mediaList : [];
   const tbody = document.getElementById("mediaList");
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  mediaList.forEach((media) => {
+  if (currentMediaList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No media assets found.</td></tr>`;
+    return;
+  }
+
+  currentMediaList.forEach((media) => {
     const tr = document.createElement("tr");
+    const isImage = media.type === "IMAGE";
+    const mediaId = String(media.id).replace(/'/g, "\\'");
+    const displayTitle = media.title && media.title.trim() ? media.title.trim() : "";
     tr.innerHTML = `
       <td>
-        ${media.type === "IMAGE" 
-          ? `<img src="${media.url}" style="height: 35px; border-radius: 4px; object-fit: cover;">` 
-          : `<i class="ri-video-line" style="font-size: 24px; color: var(--primary)"></i>`}
+        ${isImage 
+          ? `<img src="${media.url}" style="height: 38px; width: 38px; border-radius: 4px; object-fit: cover;">` 
+          : `<i class="ri-video-line" style="font-size: 26px; color: var(--primary)"></i>`}
       </td>
-      <td>${media.title || "Untitled"}</td>
+      <td>
+        <span style="font-weight: 500;" id="media-title-text-${media.id}">${displayTitle ? escapeMediaHtml(displayTitle) : '<span style="color: var(--text-muted); font-style: italic;">Untitled</span>'}</span>
+      </td>
       <td><span class="badge badge-paused">${media.type}</span></td>
-      <td><a href="${media.url}" target="_blank" style="color: var(--accent);">${media.url}</a></td>
+      <td><a href="${media.url}" target="_blank" style="color: var(--accent); max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;">${media.url}</a></td>
       <td>${new Date(media.createdAt).toLocaleDateString()}</td>
       <td>
-        <button class="btn btn-icon btn-danger btn-sm" onclick="deleteMedia(${media.id})" title="Delete media">
-          <i class="ri-delete-bin-line"></i>
-        </button>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn btn-icon btn-secondary btn-sm" onclick="openEditMediaModal('${mediaId}')" title="Edit Title">
+            <i class="ri-edit-line"></i>
+          </button>
+          <button class="btn btn-icon btn-danger btn-sm" onclick="deleteMedia('${mediaId}')" title="Delete media">
+            <i class="ri-delete-bin-line"></i>
+          </button>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
+
+window.openEditMediaModal = function(id) {
+  const modal = document.getElementById("editMediaModal");
+  if (!modal) return;
+
+  const item = (currentMediaList || []).find(m => String(m.id) === String(id));
+  const mediaIdInput = document.getElementById("editMediaId");
+  const titleInput = document.getElementById("editMediaTitleInput");
+  const preview = document.getElementById("editMediaPreview");
+  const meta = document.getElementById("editMediaMeta");
+
+  if (mediaIdInput) mediaIdInput.value = id;
+  if (titleInput) {
+    titleInput.value = (item && item.title) ? item.title : "";
+    setTimeout(() => {
+      titleInput.focus();
+      titleInput.select();
+    }, 100);
+  }
+
+  if (preview) {
+    if (item && item.type === "IMAGE") {
+      preview.innerHTML = `<img src="${item.url}" alt="Preview" style="max-height: 150px; max-width: 100%; object-fit: contain; border-radius: 6px;">`;
+    } else if (item && item.type === "VIDEO") {
+      preview.innerHTML = `<video src="${item.url}" controls style="max-height: 150px; max-width: 100%; border-radius: 6px;"></video>`;
+    } else {
+      preview.innerHTML = `<div style="padding: 20px; color: var(--text-muted);"><i class="ri-attachment-line" style="font-size: 32px;"></i></div>`;
+    }
+  }
+
+  if (meta) {
+    meta.textContent = item ? `${item.type} • ID: ${item.id}` : `ID: ${id}`;
+  }
+
+  modal.style.display = "flex";
+};
+
+window.closeEditMediaModal = function() {
+  const modal = document.getElementById("editMediaModal");
+  if (modal) modal.style.display = "none";
+};
 
 window.deleteMedia = async function(id) {
   if (!confirm("Are you sure you want to delete this media asset?")) return;
@@ -371,6 +437,59 @@ window.deleteMedia = async function(id) {
     alert(error.message);
   }
 };
+
+// Edit Media Modal Submission Listener
+document.addEventListener("DOMContentLoaded", () => {
+  const editForm = document.getElementById("editMediaForm");
+  if (editForm) {
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("editMediaId")?.value;
+      const title = document.getElementById("editMediaTitleInput")?.value?.trim() || "";
+      const submitBtn = document.getElementById("saveEditMediaBtn");
+
+      if (!id) return;
+
+      try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `<i class="ri-loader-2-line ri-spin"></i> Saving...`;
+        }
+
+        await apiCall(`/api/media/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ title })
+        });
+
+        closeEditMediaModal();
+
+        const activeTab = document.querySelector(".menu-btn.active")?.getAttribute("data-tab");
+        if (activeTab === "dashboard") {
+          renderDashboard();
+        } else {
+          await loadMedia();
+        }
+      } catch (error) {
+        alert("Failed to update media title: " + error.message);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<i class="ri-save-line"></i> Save Title`;
+        }
+      }
+    });
+  }
+
+  document.getElementById("closeEditMediaModalBtn")?.addEventListener("click", closeEditMediaModal);
+  document.getElementById("cancelEditMediaBtn")?.addEventListener("click", closeEditMediaModal);
+
+  window.addEventListener("click", (e) => {
+    const modal = document.getElementById("editMediaModal");
+    if (modal && e.target === modal) {
+      closeEditMediaModal();
+    }
+  });
+});
 
 async function loadUsers() {
   const tbody = document.getElementById("usersList");
@@ -419,6 +538,7 @@ async function renderDashboard() {
     try {
       mediaList = await apiCall("/api/media");
     } catch (e) { mediaList = []; }
+    currentMediaList = Array.isArray(mediaList) ? mediaList : [];
 
     const totalMedia = mediaList.length;
     const imageCount = mediaList.filter(m => m.type === "IMAGE").length;
@@ -544,10 +664,15 @@ async function renderDashboard() {
                 ? `<img src="${m.url}" style="width: 100%; height: 140px; object-fit: cover;">` 
                 : `<div style="width: 100%; height: 140px; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><i class="ri-video-line" style="font-size: 40px; color: var(--accent);"></i></div>`}
               <div style="padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;" title="${m.title || 'Untitled'}">${m.title || 'Untitled'}</div>
-                <button class="btn btn-icon btn-danger btn-sm" onclick="deleteMedia(${m.id})" title="Delete media">
-                  <i class="ri-delete-bin-line"></i>
-                </button>
+                <div style="font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 115px;" title="${m.title || 'Untitled'}">${m.title || 'Untitled'}</div>
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn btn-icon btn-secondary btn-sm" onclick="openEditMediaModal(${m.id})" title="Edit Title">
+                    <i class="ri-edit-line"></i>
+                  </button>
+                  <button class="btn btn-icon btn-danger btn-sm" onclick="deleteMedia(${m.id})" title="Delete media">
+                    <i class="ri-delete-bin-line"></i>
+                  </button>
+                </div>
               </div>
             </div>
           `).join('')}
@@ -1826,7 +1951,7 @@ socket.on("mediaUpdate", () => {
   const activeTab = document.querySelector(".menu-btn.active")?.getAttribute("data-tab");
   if (activeTab === "media") {
     loadMedia();
-  } else if (activeTab === "dashboard" && user.role === "CREATOR_TEAM") {
+  } else if (activeTab === "dashboard") {
     renderDashboard();
   }
 });
@@ -3345,832 +3470,6 @@ if (document.readyState === "loading") {
 } else {
   renderRegistrationControl();
 }
-
-// ── Semi-Finals Management Module ─────────────────────────────────────────────
-let adminSemiFinalsData = {};
-
-async function initAdminSemiFinals() {
-  populateAdminSemiSportSelect();
-  populateAdminSemiMandalSelects();
-  populateAdminQpSportSelects();
-  loadAdminQualifiedPlayers();
-  fetchSheetPlayersForSelector();
-  
-  try {
-    const res = await fetch("/api/semifinals");
-    if (res.ok) {
-      adminSemiFinalsData = await res.json();
-    }
-  } catch (err) {
-    console.error("Error loading semifinals data in admin:", err);
-  }
-
-  const select = document.getElementById("adminSemiSportSelect");
-  if (select && select.value) {
-    loadAdminSemiDataForSport(select.value);
-  }
-}
-
-function populateAdminSemiSportSelect() {
-  const select = document.getElementById("adminSemiSportSelect");
-  if (!select || select.children.length > 0) return;
-
-  select.innerHTML = SPORTS.map(s => `<option value="${s.name}">${s.icon} ${s.name}</option>`).join("");
-}
-
-function populateAdminSemiMandalSelects() {
-  const mandalSelects = [
-    document.getElementById("sf1_mandalA"),
-    document.getElementById("sf1_mandalB"),
-    document.getElementById("sf2_mandalA"),
-    document.getElementById("sf2_mandalB")
-  ];
-
-  const mandalOptions = `
-    <option value="">-- Select Mandal --</option>
-    ${allDals.map(d => `<option value="${d.name}">${d.name} (${d.abbreviation || ''})</option>`).join("")}
-  `;
-
-  mandalSelects.forEach(sel => {
-    if (sel) {
-      const currentVal = sel.value;
-      sel.innerHTML = mandalOptions;
-      if (currentVal) sel.value = currentVal;
-    }
-  });
-}
-
-function onAdminSemiSportChange() {
-  const select = document.getElementById("adminSemiSportSelect");
-  if (!select) return;
-  loadAdminSemiDataForSport(select.value);
-}
-
-function onAdminSemiFieldChange() {
-  // Can trigger live validation/indicators
-}
-
-function loadAdminSemiDataForSport(sportName) {
-  const sportData = adminSemiFinalsData[sportName] || null;
-  const statusBadge = document.getElementById("adminSemiStatusBadge");
-
-  if (!sportData) {
-    if (statusBadge) {
-      statusBadge.textContent = "NOT CONFIGURED";
-      statusBadge.className = "badge badge-secondary";
-    }
-    resetSemiFinalForm(false);
-    return;
-  }
-
-  if (statusBadge) {
-    statusBadge.textContent = "ACTIVE & CONFIGURED";
-    statusBadge.className = "badge badge-success";
-  }
-
-  // Gender
-  const genderSel = document.getElementById("adminSemiGenderSelect");
-  if (genderSel && sportData.gender) genderSel.value = sportData.gender;
-
-  // SF1
-  const sf1 = sportData.semiFinal1 || {};
-  const pA1 = sf1.playerA || {};
-  const pB1 = sf1.playerB || {};
-
-  setElVal("sf1_nameA", pA1.name || "");
-  setElVal("sf1_mandalA", pA1.mandal || "");
-  setElVal("sf1_scoreA", pA1.score || "");
-  setElVal("sf1_notesA", pA1.notes || "");
-  setElChecked("sf1_isWinnerA", Boolean(pA1.isWinner));
-
-  setElVal("sf1_nameB", pB1.name || "");
-  setElVal("sf1_mandalB", pB1.mandal || "");
-  setElVal("sf1_scoreB", pB1.score || "");
-  setElVal("sf1_notesB", pB1.notes || "");
-  setElChecked("sf1_isWinnerB", Boolean(pB1.isWinner));
-
-  setElVal("sf1_date", sf1.matchDate || "");
-  const sf1TimeVenue = [sf1.matchTime, sf1.venue].filter(Boolean).join(" • ");
-  setElVal("sf1_timeVenue", sf1TimeVenue);
-  setElVal("sf1_status", sf1.status || "Scheduled");
-
-  // SF2
-  const sf2 = sportData.semiFinal2 || {};
-  const pA2 = sf2.playerA || {};
-  const pB2 = sf2.playerB || {};
-
-  setElVal("sf2_nameA", pA2.name || "");
-  setElVal("sf2_mandalA", pA2.mandal || "");
-  setElVal("sf2_scoreA", pA2.score || "");
-  setElVal("sf2_notesA", pA2.notes || "");
-  setElChecked("sf2_isWinnerA", Boolean(pA2.isWinner));
-
-  setElVal("sf2_nameB", pB2.name || "");
-  setElVal("sf2_mandalB", pB2.mandal || "");
-  setElVal("sf2_scoreB", pB2.score || "");
-  setElVal("sf2_notesB", pB2.notes || "");
-  setElChecked("sf2_isWinnerB", Boolean(pB2.isWinner));
-
-  setElVal("sf2_date", sf2.matchDate || "");
-  const sf2TimeVenue = [sf2.matchTime, sf2.venue].filter(Boolean).join(" • ");
-  setElVal("sf2_timeVenue", sf2TimeVenue);
-  setElVal("sf2_status", sf2.status || "Scheduled");
-
-  // Custom Qualifiers
-  const tableBody = document.getElementById("adminSemiQualifiersTable");
-  if (tableBody) {
-    tableBody.innerHTML = "";
-    if (Array.isArray(sportData.customQualifiers)) {
-      sportData.customQualifiers.forEach(q => addAdminSemiQualifierRow(q));
-    }
-  }
-}
-
-function setElVal(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.value = val;
-}
-
-function setElChecked(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.checked = Boolean(val);
-}
-
-function toggleSfWinner(sfKey, slot) {
-  if (slot === 'A') {
-    const isWinnerA = document.getElementById(`${sfKey}_isWinnerA`)?.checked;
-    if (isWinnerA) {
-      setElChecked(`${sfKey}_isWinnerB`, false);
-    }
-  } else {
-    const isWinnerB = document.getElementById(`${sfKey}_isWinnerB`)?.checked;
-    if (isWinnerB) {
-      setElChecked(`${sfKey}_isWinnerA`, false);
-    }
-  }
-}
-
-function addAdminSemiQualifierRow(data = {}) {
-  const tableBody = document.getElementById("adminSemiQualifiersTable");
-  if (!tableBody) return;
-
-  const mandalOptions = `
-    <option value="">-- Mandal --</option>
-    ${allDals.map(d => `<option value="${d.name}" ${data.mandal === d.name ? 'selected' : ''}>${d.name}</option>`).join("")}
-  `;
-
-  const tr = document.createElement("tr");
-  tr.className = "qualifier-row-item";
-  tr.innerHTML = `
-    <td><input type="text" class="input q-name" value="${data.name || ''}" placeholder="Player / Athlete Name" style="width: 100%;"></td>
-    <td><select class="input q-mandal" style="width: 100%;">${mandalOptions}</select></td>
-    <td><input type="text" class="input q-role" value="${data.role || data.lane || ''}" placeholder="Heat 1 / Lane 4 / Rank 1" style="width: 100%;"></td>
-    <td><input type="text" class="input q-timing" value="${data.timing || data.score || ''}" placeholder="11.2s / 25 pts" style="width: 100%;"></td>
-    <td>
-      <select class="input q-status" style="width: 100%;">
-        <option value="Qualified" ${data.status === 'Qualified' ? 'selected' : ''}>Qualified</option>
-        <option value="Semi-Finalist" ${data.status === 'Semi-Finalist' ? 'selected' : ''}>Semi-Finalist</option>
-        <option value="Finalist" ${data.status === 'Finalist' ? 'selected' : ''}>Finalist</option>
-        <option value="Standby" ${data.status === 'Standby' ? 'selected' : ''}>Standby</option>
-      </select>
-    </td>
-    <td>
-      <button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()" style="padding: 4px 8px; font-size: 13px;" title="Remove row">
-        <i class="ri-delete-bin-line"></i>
-      </button>
-    </td>
-  `;
-  tableBody.appendChild(tr);
-}
-
-function resetSemiFinalForm(confirmUser = true) {
-  if (confirmUser && !confirm("Are you sure you want to clear current input fields?")) return;
-
-  const fields = [
-    "sf1_nameA", "sf1_mandalA", "sf1_scoreA", "sf1_notesA",
-    "sf1_nameB", "sf1_mandalB", "sf1_scoreB", "sf1_notesB",
-    "sf1_date", "sf1_timeVenue",
-    "sf2_nameA", "sf2_mandalA", "sf2_scoreA", "sf2_notesA",
-    "sf2_nameB", "sf2_mandalB", "sf2_scoreB", "sf2_notesB",
-    "sf2_date", "sf2_timeVenue"
-  ];
-
-  fields.forEach(id => setElVal(id, ""));
-  setElChecked("sf1_isWinnerA", false);
-  setElChecked("sf1_isWinnerB", false);
-  setElChecked("sf2_isWinnerA", false);
-  setElChecked("sf2_isWinnerB", false);
-  setElVal("sf1_status", "Scheduled");
-  setElVal("sf2_status", "Scheduled");
-
-  const tableBody = document.getElementById("adminSemiQualifiersTable");
-  if (tableBody) tableBody.innerHTML = "";
-}
-
-async function saveSemiFinalData() {
-  const sportSelect = document.getElementById("adminSemiSportSelect");
-  if (!sportSelect || !sportSelect.value) {
-    alert("Please select a sport category first.");
-    return;
-  }
-
-  const sportName = sportSelect.value;
-  const gender = document.getElementById("adminSemiGenderSelect")?.value || "Boys";
-
-  // Parse SF1 time and venue
-  const sf1Tv = (document.getElementById("sf1_timeVenue")?.value || "").split("•");
-  const sf1MatchTime = sf1Tv[0] ? sf1Tv[0].trim() : "";
-  const sf1Venue = sf1Tv[1] ? sf1Tv[1].trim() : "";
-
-  const semiFinal1 = {
-    playerA: {
-      name: document.getElementById("sf1_nameA")?.value.trim() || "",
-      mandal: document.getElementById("sf1_mandalA")?.value || "",
-      score: document.getElementById("sf1_scoreA")?.value.trim() || "",
-      notes: document.getElementById("sf1_notesA")?.value.trim() || "",
-      isWinner: document.getElementById("sf1_isWinnerA")?.checked || false
-    },
-    playerB: {
-      name: document.getElementById("sf1_nameB")?.value.trim() || "",
-      mandal: document.getElementById("sf1_mandalB")?.value || "",
-      score: document.getElementById("sf1_scoreB")?.value.trim() || "",
-      notes: document.getElementById("sf1_notesB")?.value.trim() || "",
-      isWinner: document.getElementById("sf1_isWinnerB")?.checked || false
-    },
-    matchDate: document.getElementById("sf1_date")?.value || "",
-    matchTime: sf1MatchTime,
-    venue: sf1Venue,
-    status: document.getElementById("sf1_status")?.value || "Scheduled"
-  };
-
-  // Parse SF2 time and venue
-  const sf2Tv = (document.getElementById("sf2_timeVenue")?.value || "").split("•");
-  const sf2MatchTime = sf2Tv[0] ? sf2Tv[0].trim() : "";
-  const sf2Venue = sf2Tv[1] ? sf2Tv[1].trim() : "";
-
-  const semiFinal2 = {
-    playerA: {
-      name: document.getElementById("sf2_nameA")?.value.trim() || "",
-      mandal: document.getElementById("sf2_mandalA")?.value || "",
-      score: document.getElementById("sf2_scoreA")?.value.trim() || "",
-      notes: document.getElementById("sf2_notesA")?.value.trim() || "",
-      isWinner: document.getElementById("sf2_isWinnerA")?.checked || false
-    },
-    playerB: {
-      name: document.getElementById("sf2_nameB")?.value.trim() || "",
-      mandal: document.getElementById("sf2_mandalB")?.value || "",
-      score: document.getElementById("sf2_scoreB")?.value.trim() || "",
-      notes: document.getElementById("sf2_notesB")?.value.trim() || "",
-      isWinner: document.getElementById("sf2_isWinnerB")?.checked || false
-    },
-    matchDate: document.getElementById("sf2_date")?.value || "",
-    matchTime: sf2MatchTime,
-    venue: sf2Venue,
-    status: document.getElementById("sf2_status")?.value || "Scheduled"
-  };
-
-  // Collect custom qualifiers
-  const customQualifiers = [];
-  const rows = document.querySelectorAll("#adminSemiQualifiersTable .qualifier-row-item");
-  rows.forEach(r => {
-    const name = r.querySelector(".q-name")?.value.trim();
-    if (name) {
-      customQualifiers.push({
-        name,
-        mandal: r.querySelector(".q-mandal")?.value || "",
-        role: r.querySelector(".q-role")?.value.trim() || "",
-        timing: r.querySelector(".q-timing")?.value.trim() || "",
-        status: r.querySelector(".q-status")?.value || "Qualified"
-      });
-    }
-  });
-
-  const payload = {
-    sportName,
-    gender,
-    semiFinal1,
-    semiFinal2,
-    customQualifiers
-  };
-
-  try {
-    const res = await apiCall("/api/semifinals", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-
-    if (res.success) {
-      adminSemiFinalsData[sportName] = res.data;
-      const statusBadge = document.getElementById("adminSemiStatusBadge");
-      if (statusBadge) {
-        statusBadge.textContent = "ACTIVE & SAVED";
-        statusBadge.className = "badge badge-success";
-      }
-      alert(`Semi-Finalists for ${sportName} saved successfully! Updates are live on the Sports tab.`);
-    }
-  } catch (err) {
-    alert("Error saving semi-finalists: " + err.message);
-  }
-}
-
-async function deleteSemiFinalData() {
-  const sportSelect = document.getElementById("adminSemiSportSelect");
-  if (!sportSelect || !sportSelect.value) return;
-
-  const sportName = sportSelect.value;
-  if (!confirm(`Are you sure you want to completely clear and reset Semi-Finals for ${sportName}?`)) return;
-
-  try {
-    await apiCall(`/api/semifinals/${encodeURIComponent(sportName)}`, {
-      method: "DELETE"
-    });
-
-    delete adminSemiFinalsData[sportName];
-    resetSemiFinalForm(false);
-    const statusBadge = document.getElementById("adminSemiStatusBadge");
-    if (statusBadge) {
-      statusBadge.textContent = "NOT CONFIGURED";
-      statusBadge.className = "badge badge-secondary";
-    }
-    alert(`Semi-Finals for ${sportName} cleared.`);
-  } catch (err) {
-    alert("Error clearing semi-final data: " + err.message);
-  }
-}
-
-// Socket listener for admin semi-final sync
-socket.on("semifinalsUpdate", ({ sportName, data }) => {
-  if (data) {
-    adminSemiFinalsData[sportName] = data;
-  } else {
-    delete adminSemiFinalsData[sportName];
-  }
-
-  const select = document.getElementById("adminSemiSportSelect");
-  if (select && select.value === sportName && document.getElementById("tab-semifinals")?.classList.contains("active")) {
-    loadAdminSemiDataForSport(sportName);
-  }
-});
-
-// ── Admin Qualified Players Management Module ────────────────────────────────
-let adminQualifiedPlayersList = [];
-let sheetPlayersCache = [];
-
-function populateAdminQpSportSelects() {
-  const formSportSelect = document.getElementById("adminQpSportSelect");
-  const filterSportSelect = document.getElementById("adminQpSportFilter");
-
-  if (formSportSelect && formSportSelect.children.length === 0) {
-    formSportSelect.innerHTML = SPORTS.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
-  }
-
-  if (filterSportSelect && filterSportSelect.children.length <= 1) {
-    filterSportSelect.innerHTML = `<option value="ALL">All Sports</option>` + SPORTS.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
-  }
-}
-
-async function loadAdminQualifiedPlayers() {
-  const tbody = document.getElementById("adminQpTableBody");
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 25px; color: var(--text-muted);"><i class="ri-loader-4-line ri-spin" style="font-size: 20px;"></i> Loading qualified players...</td></tr>`;
-  }
-
-  try {
-    const res = await fetch("/api/qualified-players");
-    if (!res.ok) {
-      throw new Error(`Server returned status ${res.status}`);
-    }
-    const data = await res.json();
-    adminQualifiedPlayersList = Array.isArray(data) ? data : [];
-    renderAdminQualifiedPlayersTable();
-  } catch (err) {
-    console.error("Error loading qualified players:", err);
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--danger);"><i class="ri-error-warning-line"></i> Failed to load qualified players: ${err.message}. <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px; margin-left: 8px;" onclick="loadAdminQualifiedPlayers()">Retry</button></td></tr>`;
-    }
-  }
-}
-
-async function fetchSheetPlayersForSelector() {
-  try {
-    const res = await apiCall("/api/players?limit=1000").catch(() => null);
-    if (res && res.players) {
-      sheetPlayersCache = res.players;
-    } else {
-      const pubRes = await fetch("/api/public/players?limit=1000").then(r => r.json()).catch(() => null);
-      if (pubRes && pubRes.players) {
-        sheetPlayersCache = pubRes.players;
-      }
-    }
-  } catch (err) {
-    console.warn("Could not prefetch sheet players:", err);
-  }
-}
-
-function onAdminQpSportSelectChange() {
-  const searchInput = document.getElementById("adminSheetPlayerSearch");
-  if (searchInput && searchInput.value.trim().length >= 2) {
-    onAdminSheetPlayerSearch(searchInput.value);
-  }
-}
-
-function onAdminSheetPlayerSearch(query) {
-  const dropdown = document.getElementById("adminSheetSearchResults");
-  if (!dropdown) return;
-
-  const q = (query || "").toLowerCase().trim();
-  if (!q || q.length < 2) {
-    dropdown.style.display = "none";
-    dropdown.innerHTML = "";
-    return;
-  }
-
-  const selectedSport = (document.getElementById("adminQpSportSelect")?.value || "").trim();
-
-  // Filter sheet players by the sport currently selected in the form
-  const sportFiltered = sheetPlayersCache.filter(p => {
-    if (!selectedSport) return true;
-    const pS = (p.sport || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const tS = selectedSport.toLowerCase().replace(/[^a-z0-9]/g, "");
-    return pS.includes(tS) || tS.includes(pS);
-  });
-
-  const matches = sportFiltered.filter(p =>
-    (p.name || "").toLowerCase().includes(q) ||
-    (p.scholarNo || "").toLowerCase().includes(q) ||
-    (p.course || "").toLowerCase().includes(q)
-  ).slice(0, 10);
-
-  if (matches.length === 0) {
-    const sportLabel = selectedSport ? ` for "${selectedSport}"` : "";
-    dropdown.innerHTML = `<div style="padding: 12px; font-size: 13px; color: var(--text-muted); text-align: center;">No matching player registered in Google Sheet${sportLabel}. (${sportFiltered.length} total registered for this sport). You can fill details manually below.</div>`;
-    dropdown.style.display = "block";
-    return;
-  }
-
-  dropdown.innerHTML = matches.map(p => `
-    <div style="padding: 10px 14px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
-         onmouseover="this.style.background='var(--surface-hover)'" 
-         onmouseout="this.style.background='transparent'"
-         onclick='selectAdminSheetPlayer(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
-      <div>
-        <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${p.name || 'Unnamed'}</div>
-        <div style="font-size: 12px; color: var(--text-muted);">Scholar: ${p.scholarNo || 'N/A'} • ${p.course || ''}</div>
-      </div>
-      <div style="text-align: right;">
-        <span class="badge" style="background: rgba(255,188,1,0.15); color: #e0a500; font-size: 11px;">${p.mandalName || p.mandal || 'General'}</span>
-        ${p.sport ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${p.sport}</div>` : ''}
-      </div>
-    </div>
-  `).join("");
-  dropdown.style.display = "block";
-}
-
-function selectAdminSheetPlayer(player) {
-  document.getElementById("adminQpName").value = player.name || "";
-  document.getElementById("adminQpScholarNo").value = player.scholarNo || "";
-  if (player.course) document.getElementById("adminQpCourse").value = player.course;
-  
-  // Set Gender if present
-  if (player.gender) {
-    const genderSelect = document.getElementById("adminQpGender");
-    if (genderSelect) {
-      genderSelect.value = (player.gender.toLowerCase().includes("girl") || player.gender.toLowerCase().includes("female") || player.gender.toLowerCase() === "f") ? "Girls" : "Boys";
-    }
-  }
-
-  // Set Mandal
-  const mandalName = player.mandalName || player.mandal || "";
-  if (mandalName) {
-    const mandalSelect = document.getElementById("adminQpMandal");
-    if (mandalSelect) {
-      for (let i = 0; i < mandalSelect.options.length; i++) {
-        if (mandalSelect.options[i].value.toLowerCase().includes(mandalName.toLowerCase()) || mandalName.toLowerCase().includes(mandalSelect.options[i].value.toLowerCase())) {
-          mandalSelect.selectedIndex = i;
-          break;
-        }
-      }
-    }
-  }
-
-  // Set Sport if present
-  if (player.sport) {
-    const sportSelect = document.getElementById("adminQpSportSelect");
-    if (sportSelect) {
-      for (let i = 0; i < sportSelect.options.length; i++) {
-        if (sportSelect.options[i].value.toLowerCase().includes(player.sport.toLowerCase()) || player.sport.toLowerCase().includes(sportSelect.options[i].value.toLowerCase())) {
-          sportSelect.selectedIndex = i;
-          break;
-        }
-      }
-    }
-  }
-
-  const dropdown = document.getElementById("adminSheetSearchResults");
-  if (dropdown) dropdown.style.display = "none";
-  document.getElementById("adminSheetPlayerSearch").value = "";
-}
-
-// ── Photo Upload and Preview Handlers ──
-function handleAdminQpPhotoFile(input) {
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        // Compress / resize to max 400x400 for high quality, fast loading, and compact storage
-        const maxDim = 400;
-        let w = img.width;
-        let h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
-          }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        document.getElementById("adminQpPhotoUrl").value = compressedDataUrl;
-        updateAdminQpPhotoPreview(compressedDataUrl);
-      };
-      img.onerror = function() {
-        document.getElementById("adminQpPhotoUrl").value = e.target.result;
-        updateAdminQpPhotoPreview(e.target.result);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
-function updateAdminQpPhotoPreview(url) {
-  const previewBox = document.getElementById("adminQpPhotoPreviewBox");
-  const previewImg = document.getElementById("adminQpPhotoPreviewImg");
-  if (!previewBox || !previewImg) return;
-
-  const cleanUrl = (url || "").trim();
-  if (cleanUrl) {
-    previewImg.src = cleanUrl;
-    previewBox.style.display = "flex";
-  } else {
-    previewBox.style.display = "none";
-  }
-}
-
-function clearAdminQpPhoto() {
-  const fileInput = document.getElementById("adminQpPhotoFile");
-  if (fileInput) fileInput.value = "";
-  const urlInput = document.getElementById("adminQpPhotoUrl");
-  if (urlInput) urlInput.value = "";
-  const previewBox = document.getElementById("adminQpPhotoPreviewBox");
-  if (previewBox) previewBox.style.display = "none";
-}
-
-function clearAdminQpForm() {
-  document.getElementById("adminQpEditId").value = "";
-  document.getElementById("adminQpName").value = "";
-  document.getElementById("adminQpScholarNo").value = "";
-  document.getElementById("adminQpCourse").value = "";
-  const genderSelect = document.getElementById("adminQpGender");
-  if (genderSelect) genderSelect.value = "Boys";
-  clearAdminQpPhoto();
-  document.getElementById("adminQpStage").value = "Semi-Final";
-  document.getElementById("adminSheetPlayerSearch").value = "";
-  const dropdown = document.getElementById("adminSheetSearchResults");
-  if (dropdown) dropdown.style.display = "none";
-}
-
-async function saveAdminQualifiedPlayer() {
-  const editId = document.getElementById("adminQpEditId").value;
-  const sportName = document.getElementById("adminQpSportSelect").value;
-  const name = document.getElementById("adminQpName").value.trim();
-  const scholarNo = document.getElementById("adminQpScholarNo").value.trim();
-  const gender = document.getElementById("adminQpGender") ? document.getElementById("adminQpGender").value : "Boys";
-  const mandal = document.getElementById("adminQpMandal").value;
-  const course = document.getElementById("adminQpCourse").value.trim();
-  const stage = document.getElementById("adminQpStage").value;
-  const photoUrl = document.getElementById("adminQpPhotoUrl").value.trim();
-
-  if (!name || !scholarNo || !sportName) {
-    alert("Please enter Player Name, Scholar No, and select Sport Category.");
-    return;
-  }
-
-  try {
-    const payload = { id: editId || undefined, sportName, name, scholarNo, gender, mandal, course, stage, photoUrl };
-    const res = await apiCall("/api/qualified-players", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-
-    if (res && res.success) {
-      clearAdminQpForm();
-      await loadAdminQualifiedPlayers();
-      alert(`Player "${name}" saved as ${gender} ${stage} Qualifier for ${sportName} successfully!`);
-    }
-  } catch (err) {
-    console.error("Error saving qualified player:", err);
-    alert("Failed to save qualified player: " + err.message);
-  }
-}
-
-async function toggleAdminPlayerStage(id, currentStage) {
-  const newStage = currentStage === "Final" ? "Semi-Final" : "Final";
-  const player = adminQualifiedPlayersList.find(p => p.id === id);
-  if (!player) return;
-
-  try {
-    const res = await apiCall("/api/qualified-players", {
-      method: "POST",
-      body: JSON.stringify({ ...player, stage: newStage })
-    });
-    if (res && res.success) {
-      await loadAdminQualifiedPlayers();
-    }
-  } catch (err) {
-    alert("Error updating stage: " + err.message);
-  }
-}
-
-async function deleteAdminQualifiedPlayer(id, name) {
-  if (!confirm(`Are you sure you want to remove "${name || 'this player'}" from Qualified Players?`)) return;
-
-  try {
-    const res = await apiCall(`/api/qualified-players/${encodeURIComponent(id)}`, {
-      method: "DELETE"
-    });
-    if (res && res.success) {
-      await loadAdminQualifiedPlayers();
-    }
-  } catch (err) {
-    alert("Error deleting player: " + err.message);
-  }
-}
-
-function editAdminQualifiedPlayer(id) {
-  const player = adminQualifiedPlayersList.find(p => p.id === id);
-  if (!player) return;
-
-  document.getElementById("adminQpEditId").value = player.id;
-  document.getElementById("adminQpName").value = player.name || "";
-  document.getElementById("adminQpScholarNo").value = player.scholarNo || "";
-  document.getElementById("adminQpCourse").value = player.course || "";
-  document.getElementById("adminQpPhotoUrl").value = player.photoUrl || "";
-  updateAdminQpPhotoPreview(player.photoUrl || "");
-  document.getElementById("adminQpStage").value = player.stage || "Semi-Final";
-
-  const genderSelect = document.getElementById("adminQpGender");
-  if (genderSelect && player.gender) {
-    genderSelect.value = player.gender.toLowerCase().includes("girl") ? "Girls" : "Boys";
-  }
-
-  const sportSelect = document.getElementById("adminQpSportSelect");
-  if (sportSelect && player.sportName) {
-    sportSelect.value = player.sportName;
-  }
-  
-  const mandalSelect = document.getElementById("adminQpMandal");
-  if (mandalSelect && player.mandal) {
-    for (let i = 0; i < mandalSelect.options.length; i++) {
-      if (mandalSelect.options[i].value.toLowerCase().includes(player.mandal.toLowerCase())) {
-        mandalSelect.selectedIndex = i;
-        break;
-      }
-    }
-  }
-
-  const tab = document.getElementById("tab-semifinals");
-  if (tab) {
-    tab.scrollIntoView({ behavior: "smooth" });
-  }
-}
-
-function renderAdminQualifiedPlayersTable() {
-  const tbody = document.getElementById("adminQpTableBody");
-  const countEl = document.getElementById("adminQpCount");
-  const filterSport = document.getElementById("adminQpSportFilter") ? document.getElementById("adminQpSportFilter").value : "ALL";
-  const filterGender = document.getElementById("adminQpGenderFilter") ? document.getElementById("adminQpGenderFilter").value : "ALL";
-  const filterInput = document.getElementById("adminQpFilterInput");
-  const filterQuery = filterInput ? filterInput.value.toLowerCase().trim() : "";
-
-  let list = adminQualifiedPlayersList;
-
-  if (filterSport && filterSport !== "ALL") {
-    list = list.filter(p => (p.sportName || "").toLowerCase() === filterSport.toLowerCase());
-  }
-
-  if (filterGender && filterGender !== "ALL") {
-    list = list.filter(p => (p.gender || "Boys").toLowerCase() === filterGender.toLowerCase());
-  }
-
-  if (filterQuery) {
-    list = list.filter(p =>
-      (p.name || "").toLowerCase().includes(filterQuery) ||
-      (p.scholarNo || "").toLowerCase().includes(filterQuery) ||
-      (p.mandal || "").toLowerCase().includes(filterQuery) ||
-      (p.course || "").toLowerCase().includes(filterQuery) ||
-      (p.sportName || "").toLowerCase().includes(filterQuery) ||
-      (p.gender || "").toLowerCase().includes(filterQuery) ||
-      (p.stage || "").toLowerCase().includes(filterQuery)
-    );
-  }
-
-  if (countEl) countEl.textContent = list.length;
-  if (!tbody) return;
-
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">No qualified players found. Use the form above to add qualifiers from the Google Sheet.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = list.map(player => {
-    const isFinal = (player.stage || "").toLowerCase() === "final";
-    const stageBadge = isFinal
-      ? `<span class="badge badge-success" style="font-weight:800;"><i class="ri-trophy-line"></i> FINAL</span>`
-      : `<span class="badge badge-warning" style="font-weight:800;"><i class="ri-medal-line"></i> SEMI-FINAL</span>`;
-
-    const isGirl = (player.gender || "").toLowerCase().includes("girl") || (player.gender || "").toLowerCase().includes("female");
-    const genderBadge = isGirl
-      ? `<span class="badge" style="background: rgba(236,72,153,0.15); color: #ec4899; font-weight:700;"><i class="ri-women-line"></i> Girls</span>`
-      : `<span class="badge" style="background: rgba(59,130,246,0.15); color: #3b82f6; font-weight:700;"><i class="ri-men-line"></i> Boys</span>`;
-
-    const avatarUrl = player.photoUrl && player.photoUrl.trim().length > 5
-      ? player.photoUrl
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || 'Player')}&background=ffbc01&color=000&bold=true`;
-
-    return `
-      <tr>
-        <td>
-          <img src="${avatarUrl}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || 'P')}&background=ffbc01&color=000'">
-        </td>
-        <td style="font-weight: 700; color: var(--text-main);">${player.name || '-'}</td>
-        <td style="font-family: monospace; font-weight: 600;">${player.scholarNo || '-'}</td>
-        <td><span class="badge badge-primary" style="font-size: 11px;">${player.sportName || 'General'}</span></td>
-        <td>${genderBadge}</td>
-        <td><span class="badge badge-secondary">${player.mandal || 'General'}</span></td>
-        <td>${player.course || '-'}</td>
-        <td>${stageBadge}</td>
-        <td style="text-align: right;">
-          <div style="display: inline-flex; gap: 6px; align-items: center;">
-            <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" title="Switch Stage" onclick="toggleAdminPlayerStage('${player.id}', '${player.stage || 'Semi-Final'}')">
-              <i class="ri-swap-line"></i> ${isFinal ? 'Set Semi' : 'Set Final'}
-            </button>
-            <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" title="Edit" onclick="editAdminQualifiedPlayer('${player.id}')">
-              <i class="ri-edit-line"></i>
-            </button>
-            <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" title="Delete" onclick="deleteAdminQualifiedPlayer('${player.id}', '${player.name || ''}')">
-              <i class="ri-delete-bin-line"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join("");
-}
-
-// Socket listener for qualified players updates
-socket.on("qualifiedPlayersUpdate", ({ players }) => {
-  if (Array.isArray(players)) {
-    adminQualifiedPlayersList = players;
-    renderAdminQualifiedPlayersTable();
-  } else {
-    loadAdminQualifiedPlayers();
-  }
-});
-
-// Global window bindings for admin inline event handlers
-window.initAdminSemiFinals = initAdminSemiFinals;
-window.onAdminSemiSportChange = onAdminSemiSportChange;
-window.onAdminSemiFieldChange = onAdminSemiFieldChange;
-window.toggleSfWinner = toggleSfWinner;
-window.addAdminSemiQualifierRow = addAdminSemiQualifierRow;
-window.saveSemiFinalData = saveSemiFinalData;
-window.deleteSemiFinalData = deleteSemiFinalData;
-window.resetSemiFinalForm = resetSemiFinalForm;
-
-// Qualified players bindings
-window.populateAdminQpSportSelects = populateAdminQpSportSelects;
-window.loadAdminQualifiedPlayers = loadAdminQualifiedPlayers;
-window.onAdminQpSportSelectChange = onAdminQpSportSelectChange;
-window.onAdminSheetPlayerSearch = onAdminSheetPlayerSearch;
-window.selectAdminSheetPlayer = selectAdminSheetPlayer;
-window.clearAdminQpForm = clearAdminQpForm;
-window.saveAdminQualifiedPlayer = saveAdminQualifiedPlayer;
-window.toggleAdminPlayerStage = toggleAdminPlayerStage;
-window.deleteAdminQualifiedPlayer = deleteAdminQualifiedPlayer;
-window.editAdminQualifiedPlayer = editAdminQualifiedPlayer;
-window.renderAdminQualifiedPlayersTable = renderAdminQualifiedPlayersTable;
-window.handleAdminQpPhotoFile = handleAdminQpPhotoFile;
-window.updateAdminQpPhotoPreview = updateAdminQpPhotoPreview;
-window.clearAdminQpPhoto = clearAdminQpPhoto;
 
 // ── DSSL Match Email Reminders Module ─────────────────────────────────────────
 

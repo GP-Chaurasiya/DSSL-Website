@@ -530,7 +530,46 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
         const uniqueMap = new Map(); // key = student unique key
         const allRegistrations = [];
         const activeSports = new Set();
+        const qualifiedWinnersMap = new Map(); // key = sport_scholar
         let idCounter = 0;
+
+        function checkAndRecordWinner({ name, scholarNo, mandalRaw, courseRaw, semRaw, genderRaw, sportName, row, remarkColIdx }) {
+          if (!name && !scholarNo) return;
+          const getCellV = (idx) => (idx >= 0 && row?.c?.[idx]?.v != null ? String(row.c[idx].v).trim() : "");
+          const remarkVal = remarkColIdx !== -1 ? getCellV(remarkColIdx) : "";
+
+          let isWinner = /winner/i.test(remarkVal);
+          let remarkText = remarkVal;
+
+          if (!isWinner && Array.isArray(row?.c)) {
+            const wCell = row.c.find(c => /winner/i.test(String(c?.v || "")));
+            if (wCell) {
+              isWinner = true;
+              remarkText = String(wCell.v).trim();
+            }
+          }
+
+          if (isWinner) {
+            const isSemi = /semi/i.test(remarkText);
+            const stage = isSemi ? "Semi-Final" : "Final";
+            const cleanScholar = scholarNo || name.toLowerCase().replace(/\s+/g, "_");
+            const winKey = `${sportName}_${cleanScholar}`.toLowerCase().replace(/[^a-z0-9]/g, "_");
+
+            qualifiedWinnersMap.set(winKey, {
+              id: `winner_${winKey}`,
+              name,
+              scholarNo: cleanScholar,
+              sportName,
+              mandal: normalizeMandal(mandalRaw) || (mandalRaw && mandalRaw !== "—" ? mandalRaw.trim() : "Other Mandal"),
+              gender: normalizeGender(genderRaw),
+              course: normalizeCourse(courseRaw),
+              semester: normalizeSemester(semRaw),
+              stage,
+              remarks: remarkText,
+              photoUrl: null
+            });
+          }
+        }
 
     // 1. Process "Input" tab FIRST (master registrations)
     try {
@@ -548,8 +587,9 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
         const regIdCol = findColIndex(table, ["registration", "reg id"]);
         const sportCol = findColIndex(table, ["sport", "category", "game"]);
         const dateCol = findColIndex(table, ["date", "timestamp", "time"]);
+        const remarkCol = findColIndex(table, ["remark", "remarks", "winner", "result", "status", "qualification"]);
 
-        const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, sportCol, dateCol].some(c => c.headerInRow);
+        const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, sportCol, dateCol, remarkCol].some(c => c.headerInRow);
         const startRow = headerInRow ? 1 : 0;
 
         const mIdx = mandalCol.index !== -1 ? mandalCol.index : 7;
@@ -563,6 +603,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
         const eIdx = emailCol.index !== -1 ? emailCol.index : 8;
         const rIdx = regIdCol.index !== -1 ? regIdCol.index : 1;
         const dIdx = dateCol.index !== -1 ? dateCol.index : 11;
+        const remIdx = remarkCol.index;
 
         for (let i = startRow; i < table.rows.length; i++) {
           const row = table.rows[i];
@@ -605,6 +646,18 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           allRegistrations.push(rec);
           activeSports.add(normSport);
 
+          checkAndRecordWinner({
+            name,
+            scholarNo,
+            mandalRaw,
+            courseRaw: getV(cIdx),
+            semRaw: getV(sIdx),
+            genderRaw: getV(gIdx),
+            sportName: normSport,
+            row,
+            remarkColIdx: remIdx
+          });
+
           const uniqueKey = getStudentKey(scholarNo, name, rec.mandalName, rec.email, rec.phone, rec.teamRegistrationId);
           if (!uniqueMap.has(uniqueKey)) {
             uniqueMap.set(uniqueKey, { ...rec, sports: [normSport] });
@@ -642,8 +695,9 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           const regIdCol = findColIndex(table, ["registration", "reg id"]);
           const roleCol = findColIndex(table, ["role", "captain"]);
           const dateCol = findColIndex(table, ["date", "timestamp", "time"]);
+          const remarkCol = findColIndex(table, ["remark", "remarks", "winner", "result", "status", "qualification"]);
 
-          const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, dateCol, roleCol].some(c => c.headerInRow);
+          const headerInRow = [mandalCol, scholarCol, nameCol, courseCol, semCol, genderCol, phoneCol, emailCol, regIdCol, dateCol, roleCol, remarkCol].some(c => c.headerInRow);
           const startRow = headerInRow ? 1 : 0;
 
           // Check if this sheet tab has the master "Input" layout (e.g. Track Marking where row 0 is data)
@@ -662,6 +716,7 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
           const rIdx = regIdCol.index !== -1 ? regIdCol.index : (isInputLayout ? 1 : 0);
           const rlIdx = roleCol.index !== -1 ? roleCol.index : (isInputLayout ? -1 : 1);
           const dIdx = dateCol.index !== -1 ? dateCol.index : 11;
+          const remIdx = remarkCol.index;
 
           const normSport = normalizeSportName("", sheetName);
 
@@ -693,6 +748,19 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
             const email = getV(eIdx);
             const phone = getV(pIdx);
             const regId = getV(rIdx);
+
+            checkAndRecordWinner({
+              name,
+              scholarNo,
+              mandalRaw,
+              courseRaw: getV(cIdx),
+              semRaw: getV(sIdx),
+              genderRaw: getV(gIdx),
+              sportName: normSport,
+              row,
+              remarkColIdx: remIdx
+            });
+
             const uniqueKey = getStudentKey(scholarNo, name, normalizeMandal(mandalRaw), email, phone, regId);
 
             if (uniqueMap.has(uniqueKey)) {
@@ -748,15 +816,18 @@ module.exports = function registerAnalyticsRoutes({ app, prisma, authenticateTok
       }
     });
 
+    const allQualifiedWinners = Array.from(qualifiedWinnersMap.values());
+
     _sheetCache = {
       uniquePlayers,
       allRegistrations,
       activeSports: Array.from(activeSports),
       multiSportStudentsCount,
-      singleSportStudentsCount
+      singleSportStudentsCount,
+      allQualifiedWinners
     };
     _sheetCacheExpiry = Date.now() + 20000; // 20 second cache
-    console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players (${multiSportStudentsCount} multi-sport), ${activeSports.size} active sports`);
+    console.log(`[LiveSheet] Fetched: ${allRegistrations.length} registrations, ${uniquePlayers.length} unique players, ${allQualifiedWinners.length} qualified winners from Remarks, ${activeSports.size} active sports`);
     return _sheetCache;
       } catch (err) {
         if (_sheetCache) {

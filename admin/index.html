@@ -1334,12 +1334,7 @@
           <span>Fixtures</span>
         </button>
       </li>
-      <li class="menu-item" data-access="ORGANISER">
-        <button class="menu-btn" data-tab="semifinals">
-          <i class="ri-user-star-line"></i>
-          <span>Qualified Players</span>
-        </button>
-      </li>
+
       <li class="menu-item" data-access="ORGANISER">
         <button class="menu-btn" data-tab="teams">
           <i class="ri-team-line"></i>
@@ -1978,161 +1973,7 @@
         </div>
       </div>
 
-      <!-- ── TAB: SEMI-FINAL & QUALIFIED PLAYERS ── -->
-      <div class="tab-content" id="tab-semifinals">
-        
-        <!-- ── SECTION: QUALIFIED PLAYERS MANAGER (CONNECTED TO GOOGLE SHEET) ── -->
-        <div class="section-card" style="margin-bottom: 2rem; border: 2px solid rgba(255,188,1,0.35);">
-          <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <div>
-              <h3 style="display: flex; align-items: center; gap: 10px;">
-                <i class="ri-user-star-fill" style="color: var(--primary);"></i>
-                Qualified Players Manager (Sports Tab Highlights &amp; Stage)
-              </h3>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <button type="button" class="btn btn-secondary" onclick="loadAdminQualifiedPlayers()">
-                <i class="ri-refresh-line"></i> Refresh Qualifiers
-              </button>
-            </div>
-          </div>
 
-          <!-- Add / Edit Qualified Player Form -->
-          <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 14px; padding: 1.25rem; margin-bottom: 1.5rem;">
-            <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
-              <i class="ri-user-add-line" style="color: var(--primary);"></i> Add or Edit Qualified Player from Google Sheet
-            </h4>
-
-            <!-- Google Sheet Search Input with Autocomplete (Filtered by selected Sport) -->
-            <div class="form-group" style="position: relative; margin-bottom: 1.25rem;">
-              <input type="text" id="adminSheetPlayerSearch" class="input" placeholder="Type player name or scholar number (filtered by selected sport)..." oninput="onAdminSheetPlayerSearch(this.value)" autocomplete="off">
-              <div id="adminSheetSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; max-height: 240px; overflow-y: auto; z-index: 100; box-shadow: var(--shadow); margin-top: 4px;">
-                <!-- Populated dynamically -->
-              </div>
-            </div>
-
-            <!-- Player Details Form -->
-            <input type="hidden" id="adminQpEditId" value="">
-            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1rem;">
-              <div class="form-group">
-                <label>Sport Category <span style="color:red;">*</span></label>
-                <select id="adminQpSportSelect" class="input" style="font-weight: 700;" onchange="onAdminQpSportSelectChange()">
-                  <!-- Populated dynamically with SPORTS -->
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Player Name <span style="color:red;">*</span></label>
-                <input type="text" id="adminQpName" class="input" placeholder="e.g. Karan Joshi" required>
-              </div>
-              <div class="form-group">
-                <label>Scholar No. <span style="color:red;">*</span></label>
-                <input type="text" id="adminQpScholarNo" class="input" placeholder="e.g. 2424001" required>
-              </div>
-              <div class="form-group">
-                <label>Gender / Category <span style="color:red;">*</span></label>
-                <select id="adminQpGender" class="input" style="font-weight: 700;">
-                  <option value="Boys">Boys</option>
-                  <option value="Girls">Girls</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Mandal / Dal <span style="color:red;">*</span></label>
-                <select id="adminQpMandal" class="input">
-                  <option value="Vashishta Mandal">Vashishta Mandal</option>
-                  <option value="Vishwamitra Mandal">Vishwamitra Mandal</option>
-                  <option value="Atrey Mandal">Atrey Mandal</option>
-                  <option value="Gautam Mandal">Gautam Mandal</option>
-                  <option value="Bharadwaj Mandal">Bharadwaj Mandal</option>
-                  <option value="Jamdagni Mandal">Jamdagni Mandal</option>
-                  <option value="Kashyap Mandal">Kashyap Mandal</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Course</label>
-                <input type="text" id="adminQpCourse" class="input" placeholder="e.g. B.Tech CSE">
-              </div>
-              <div class="form-group">
-                <label>Qualification Stage <span style="color:red;">*</span></label>
-                <select id="adminQpStage" class="input" style="font-weight: 700;">
-                  <option value="Semi-Final">Semi-Final Stage</option>
-                  <option value="Final">Final Stage</option>
-                </select>
-              </div>
-              <div class="form-group" style="grid-column: 1 / -1;">
-                <label style="display: flex; align-items: center; gap: 6px;">
-                  <i class="ri-image-add-line" style="color: var(--primary);"></i> Player Photo (Upload file or enter URL)
-                </label>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                  <input type="file" id="adminQpPhotoFile" accept="image/*" class="input" style="padding: 7px 10px; max-width: 250px;" onchange="handleAdminQpPhotoFile(this)">
-                  <span style="font-size: 12px; color: var(--text-muted);">OR</span>
-                  <input type="text" id="adminQpPhotoUrl" class="input" placeholder="Paste Photo URL (optional)" style="flex: 1; min-width: 200px;" oninput="updateAdminQpPhotoPreview(this.value)">
-                </div>
-                <div id="adminQpPhotoPreviewBox" style="margin-top: 10px; display: none; align-items: center; gap: 10px; padding: 6px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; width: fit-content;">
-                  <img id="adminQpPhotoPreviewImg" src="" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
-                  <span style="font-size: 12px; color: var(--text-main); font-weight: 600;">Selected Photo Preview</span>
-                  <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="clearAdminQpPhoto()">
-                    <i class="ri-close-line"></i> Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 10px;">
-              <button type="button" class="btn btn-secondary" onclick="clearAdminQpForm()">
-                Clear Form
-              </button>
-              <button type="button" class="btn" onclick="saveAdminQualifiedPlayer()" style="display: flex; align-items: center; gap: 6px;">
-                <i class="ri-check-line"></i> Save / Qualify Player
-              </button>
-            </div>
-          </div>
-
-          <!-- Currently Qualified Players Table -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px;">
-              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                <i class="ri-list-check" style="color: var(--primary);"></i> Current Qualified Players List (<span id="adminQpCount">0</span>)
-              </h4>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <select id="adminQpSportFilter" class="input" style="padding: 6px 12px; font-size: 12px; width: 160px;" onchange="renderAdminQualifiedPlayersTable()">
-                  <option value="ALL">All Sports</option>
-                </select>
-                <select id="adminQpGenderFilter" class="input" style="padding: 6px 12px; font-size: 12px; width: 110px;" onchange="renderAdminQualifiedPlayersTable()">
-                  <option value="ALL">All Genders</option>
-                  <option value="Boys">Boys</option>
-                  <option value="Girls">Girls</option>
-                </select>
-                <input type="text" id="adminQpFilterInput" placeholder="Filter by name/scholar..." class="input" style="padding: 6px 12px; font-size: 12px; width: 180px;" oninput="renderAdminQualifiedPlayersTable()">
-              </div>
-            </div>
-
-            <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 12px;">
-              <table class="table" style="margin-bottom: 0;">
-                <thead>
-                  <tr>
-                    <th style="width: 50px;">Photo</th>
-                    <th>Player Name</th>
-                    <th>Scholar No.</th>
-                    <th>Sport</th>
-                    <th>Gender</th>
-                    <th>Mandal</th>
-                    <th>Course</th>
-                    <th>Stage</th>
-                    <th style="text-align: right; width: 180px;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="adminQpTableBody">
-                  <tr>
-                    <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">
-                      <i class="ri-loader-4-line ri-spin" style="font-size: 20px;"></i> Loading qualified players...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
 
 
 
@@ -2566,8 +2407,39 @@
     </div>
   </div>
 
+  <!-- ── MODAL: EDIT MEDIA TITLE ── -->
+  <div class="modal" id="editMediaModal" style="display: none;">
+    <div class="modal-content" style="max-width: 480px;">
+      <button class="modal-close" id="closeEditMediaModalBtn" type="button"><i class="ri-close-line"></i></button>
+      <h3 style="margin-bottom: 1.25rem;"><i class="ri-edit-line"></i> Edit Media Title</h3>
+      
+      <form id="editMediaForm">
+        <input type="hidden" id="editMediaId">
+        
+        <div style="text-align: center; margin-bottom: 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+          <div id="editMediaPreview" style="display: flex; justify-content: center; align-items: center; min-height: 120px; max-height: 180px; overflow: hidden; border-radius: 6px;">
+            <!-- Thumbnail injected dynamically -->
+          </div>
+          <div id="editMediaMeta" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); word-break: break-all;"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="editMediaTitleInput" style="font-weight: 600; display: block; margin-bottom: 6px;">Media Title</label>
+          <input type="text" id="editMediaTitleInput" placeholder="Enter media title..." style="width: 100%;" required>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" id="cancelEditMediaBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveEditMediaBtn">
+            <i class="ri-save-line"></i> Save Title
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="admin.js?v=20260924_v7"></script>
+  <script src="admin.js?v=20260925_v4"></script>
   <script src="../notifications.js"></script>
 </body>
 </html>

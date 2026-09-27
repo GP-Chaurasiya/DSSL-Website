@@ -1050,6 +1050,27 @@ app.get("/api/drive/image/:fileId", async (req, res) => {
 });
 
 
+const mediaTitlesFilePath = path.join(ROOT, "media_titles.json");
+
+function getMediaTitles() {
+  try {
+    if (fs.existsSync(mediaTitlesFilePath)) {
+      return JSON.parse(fs.readFileSync(mediaTitlesFilePath, "utf8"));
+    }
+  } catch (e) {
+    console.error("Error reading media_titles.json:", e);
+  }
+  return {};
+}
+
+function saveMediaTitles(data) {
+  try {
+    fs.writeFileSync(mediaTitlesFilePath, JSON.stringify(data, null, 2), "utf8");
+  } catch (e) {
+    console.error("Error writing media_titles.json:", e);
+  }
+}
+
 // List all media — merges Google Drive folder media with PostgreSQL/Supabase media
 app.get("/api/media", async (req, res) => {
   try {
@@ -1092,16 +1113,30 @@ app.get("/api/media", async (req, res) => {
       console.warn("Database media fetch warning:", dbErr.message);
     }
 
+    const titleOverrides = getMediaTitles();
+
     // Rewrite Drive image URLs to use server proxy → fixes corrupted image rendering
-    const normalizedDrive = driveMedia.map(item => {
-      if (item.type === "IMAGE" && item.driveFileId) {
-        return { ...item, url: `/api/drive/image/${item.driveFileId}?v=2` };
-      }
-      return item;
-    });
+    const normalizedDrive = driveMedia
+      .filter(item => !titleOverrides[item.id + "_deleted"] && !titleOverrides[item.driveFileId + "_deleted"])
+      .map(item => {
+        const customTitle = titleOverrides[item.id] !== undefined 
+          ? titleOverrides[item.id] 
+          : (titleOverrides[item.driveFileId] !== undefined ? titleOverrides[item.driveFileId] : item.title);
+        if (item.type === "IMAGE" && item.driveFileId) {
+          return { ...item, title: customTitle, url: `/api/drive/image/${item.driveFileId}?v=2` };
+        }
+        return { ...item, title: customTitle };
+      });
+
+    const normalizedDbFinal = normalizedDb
+      .filter(item => !titleOverrides[item.id + "_deleted"])
+      .map(item => {
+        const customTitle = titleOverrides[item.id];
+        return customTitle !== undefined ? { ...item, title: customTitle } : item;
+      });
 
     // Return combined media list with Drive files at top
-    res.json([...normalizedDrive, ...normalizedDb]);
+    res.json([...normalizedDrive, ...normalizedDbFinal]);
   } catch (error) {
     console.error("Media list error:", error);
     res.status(500).json({ error: "Error fetching media list" });
@@ -1128,7 +1163,16 @@ app.post("/api/media/upload", authenticateToken, requireRole(["SUPER_ADMIN", "CR
 
 // Creator team delete media endpoint
 app.delete("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), async (req, res) => {
-  const id = parseInt(req.params.id);
+  const rawId = req.params.id;
+  if (rawId && (rawId.startsWith("drive_") || isNaN(parseInt(rawId)))) {
+    const titleOverrides = getMediaTitles();
+    titleOverrides[rawId + "_deleted"] = true;
+    saveMediaTitles(titleOverrides);
+    io.emit("mediaUpdate");
+    return res.json({ success: true });
+  }
+
+  const id = parseInt(rawId);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid media ID" });
 
   try {
@@ -1148,6 +1192,69 @@ app.delete("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CRE
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Error deleting media asset" });
+  }
+});
+
+// Creator team update media title endpoint
+app.patch("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), async (req, res) => {
+  const rawId = req.params.id;
+  const { title } = req.body;
+  if (title === undefined) return res.status(400).json({ error: "Title is required" });
+  const cleanTitle = title ? String(title).trim() : "";
+
+  try {
+    if (rawId && (rawId.startsWith("drive_") || isNaN(parseInt(rawId)))) {
+      const titleOverrides = getMediaTitles();
+      titleOverrides[rawId] = cleanTitle;
+      saveMediaTitles(titleOverrides);
+      io.emit("mediaUpdate", { id: rawId, title: cleanTitle });
+      return res.json({ id: rawId, title: cleanTitle, success: true });
+    }
+
+    const id = parseInt(rawId);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid media ID" });
+
+    const updated = await prisma.media.update({
+      where: { id },
+      data: { title: cleanTitle || null },
+      select: { id: true, type: true, url: true, title: true, createdAt: true }
+    });
+    io.emit("mediaUpdate", updated);
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating media title:", error);
+    res.status(500).json({ error: "Error updating media asset title" });
+  }
+});
+
+app.put("/api/media/:id", authenticateToken, requireRole(["SUPER_ADMIN", "CREATOR_TEAM"]), async (req, res) => {
+  const rawId = req.params.id;
+  const { title } = req.body;
+  if (title === undefined) return res.status(400).json({ error: "Title is required" });
+  const cleanTitle = title ? String(title).trim() : "";
+
+  try {
+    if (rawId && (rawId.startsWith("drive_") || isNaN(parseInt(rawId)))) {
+      const titleOverrides = getMediaTitles();
+      titleOverrides[rawId] = cleanTitle;
+      saveMediaTitles(titleOverrides);
+      io.emit("mediaUpdate", { id: rawId, title: cleanTitle });
+      return res.json({ id: rawId, title: cleanTitle, success: true });
+    }
+
+    const id = parseInt(rawId);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid media ID" });
+
+    const updated = await prisma.media.update({
+      where: { id },
+      data: { title: cleanTitle || null },
+      select: { id: true, type: true, url: true, title: true, createdAt: true }
+    });
+    io.emit("mediaUpdate", updated);
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating media title:", error);
+    res.status(500).json({ error: "Error updating media asset title" });
   }
 });
 
@@ -1412,69 +1519,65 @@ async function syncQualifiedPlayersOnStartup() {
 // Public: Get all qualified players (supports sport, search, stage, gender, and mandal filters)
 app.get("/api/qualified-players", async (req, res) => {
   const { sport, search, stage, gender, mandal } = req.query;
-  const hasFilters = (sport && sport !== "ALL") || (stage && stage !== "ALL") || (gender && gender !== "ALL") || (mandal && mandal !== "ALL") || (search && search.trim().length > 0);
 
   try {
-    const where = {};
-    if (sport && sport !== "ALL") {
-      where.sportName = { equals: sport, mode: "insensitive" };
-    }
-    if (stage && stage !== "ALL") {
-      where.stage = { equals: stage, mode: "insensitive" };
-    }
-    if (gender && gender !== "ALL") {
-      where.gender = { equals: gender, mode: "insensitive" };
-    }
-    if (mandal && mandal !== "ALL") {
-      where.mandal = { contains: mandal, mode: "insensitive" };
-    }
-    if (search) {
-      const q = search.trim();
-      where.OR = [
-        { name: { contains: q, mode: "insensitive" } },
-        { scholarNo: { contains: q, mode: "insensitive" } },
-        { course: { contains: q, mode: "insensitive" } },
-        { mandal: { contains: q, mode: "insensitive" } }
-      ];
+    let list = [];
+
+    // 1. Auto-fetch Winners directly from live Google Sheet (Remarks column containing "Winner")
+    if (typeof app.locals.getLiveSheetData === "function") {
+      try {
+        const sheetData = await app.locals.getLiveSheetData();
+        if (sheetData && Array.isArray(sheetData.allQualifiedWinners) && sheetData.allQualifiedWinners.length > 0) {
+          list = sheetData.allQualifiedWinners;
+        }
+      } catch (sheetErr) {
+        console.warn("LiveSheet winners fetch warning:", sheetErr.message);
+      }
     }
 
-    const list = await prisma.qualifiedPlayer.findMany({
-      where,
-      orderBy: { createdAt: "desc" }
-    });
-
-    // ONLY update local full cache when no filters were applied! Never overwrite full cache with a filtered subset!
-    if (!hasFilters) {
-      syncLocalQualifiedPlayers(list);
+    // 2. Fallback to Database / Local Cache if no winners are yet marked in the Sheet
+    if (!list.length) {
+      try {
+        list = await prisma.qualifiedPlayer.findMany({
+          orderBy: { createdAt: "desc" }
+        });
+      } catch (dbErr) {
+        list = getLocalQualifiedPlayers();
+      }
     }
-    return res.json(list);
-  } catch (err) {
-    console.warn("PostgreSQL read warning, using local cached qualifiers fallback:", err.message);
-    
-    // Resilient fallback to local cache on database hiccup
-    let fallbackList = getLocalQualifiedPlayers();
+
+    // 3. Filter results
+    let filtered = list;
     if (sport && sport !== "ALL") {
-      fallbackList = fallbackList.filter(p => (p.sportName || "").toLowerCase() === sport.toLowerCase());
+      const cleanSport = sport.toLowerCase().replace(/[^a-z0-9]/g, "");
+      filtered = filtered.filter(p => {
+        const pSport = (p.sportName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        return pSport.includes(cleanSport) || cleanSport.includes(pSport);
+      });
     }
     if (stage && stage !== "ALL") {
-      fallbackList = fallbackList.filter(p => (p.stage || "").toLowerCase() === stage.toLowerCase());
+      filtered = filtered.filter(p => (p.stage || "").toLowerCase() === stage.toLowerCase());
     }
     if (gender && gender !== "ALL") {
-      fallbackList = fallbackList.filter(p => (p.gender || "boys").toLowerCase() === gender.toLowerCase());
+      filtered = filtered.filter(p => (p.gender || "Boys").toLowerCase() === gender.toLowerCase());
     }
     if (mandal && mandal !== "ALL") {
-      fallbackList = fallbackList.filter(p => (p.mandal || "").toLowerCase().includes(mandal.toLowerCase()));
+      filtered = filtered.filter(p => (p.mandal || "").toLowerCase().includes(mandal.toLowerCase()));
     }
-    if (search) {
+    if (search && search.trim().length > 0) {
       const q = search.toLowerCase().trim();
-      fallbackList = fallbackList.filter(p =>
+      filtered = filtered.filter(p =>
         (p.name || "").toLowerCase().includes(q) ||
         (p.scholarNo || "").toLowerCase().includes(q) ||
         (p.course || "").toLowerCase().includes(q) ||
         (p.mandal || "").toLowerCase().includes(q)
       );
     }
-    return res.json(fallbackList);
+
+    return res.json(filtered);
+  } catch (err) {
+    console.error("Error in /api/qualified-players:", err.message);
+    return res.json([]);
   }
 });
 

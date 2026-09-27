@@ -1,42 +1,55 @@
 [
   {
-    "id": "cmu4eu8yf000311z2b3gh32r7",
+    "id": "cmufufnpe0003fvlyj792d8k8",
     "sportName": "Athletics (100m)",
     "name": "Deepak Rana",
-    "scholarNo": "SF-671072",
+    "scholarNo": "SF-414850",
     "mandal": "Gautam Mandal",
     "course": "Heat 2 Qualifier",
     "stage": "Semi-Final",
     "gender": "Boys",
     "photoUrl": "",
-    "createdAt": "2026-09-16T18:04:30.808Z",
-    "updatedAt": "2026-09-16T18:04:30.808Z"
+    "createdAt": "2026-09-24T18:06:31.875Z",
+    "updatedAt": "2026-09-24T18:06:31.875Z"
   },
   {
-    "id": "cmu4eu805000211z2oj3post1",
+    "id": "cmufufmv00002fvly377n8jfn",
     "sportName": "Athletics (100m)",
     "name": "Mohit Uniyal",
-    "scholarNo": "SF-579837",
+    "scholarNo": "SF-491211",
     "mandal": "Bharadwaj Mandal",
     "course": "Heat 2 Qualifier",
     "stage": "Semi-Final",
     "gender": "Boys",
     "photoUrl": "",
-    "createdAt": "2026-09-16T18:04:29.573Z",
-    "updatedAt": "2026-09-16T18:04:29.573Z"
+    "createdAt": "2026-09-24T18:06:30.780Z",
+    "updatedAt": "2026-09-24T18:06:30.780Z"
   },
   {
-    "id": "cmu4eu74y000111z2iralbg7n",
+    "id": "cmufufm5m0001fvlyatd93611",
     "sportName": "Athletics (100m)",
     "name": "Suraj Pant",
-    "scholarNo": "SF-795401",
+    "scholarNo": "SF-479707",
     "mandal": "Atrey Mandal",
     "course": "Heat 1 Qualifier",
     "stage": "Semi-Final",
     "gender": "Boys",
     "photoUrl": "",
-    "createdAt": "2026-09-16T18:04:28.451Z",
-    "updatedAt": "2026-09-16T18:04:28.451Z"
+    "createdAt": "2026-09-24T18:06:29.866Z",
+    "updatedAt": "2026-09-24T18:06:29.866Z"
+  },
+  {
+    "id": "cmufuflf20000fvlydiqha7lu",
+    "sportName": "Athletics (100m)",
+    "name": "Pawan Negi",
+    "scholarNo": "SF-747912",
+    "mandal": "Vashishta Mandal",
+    "course": "Heat 1 Qualifier",
+    "stage": "Semi-Final",
+    "gender": "Boys",
+    "photoUrl": "",
+    "createdAt": "2026-09-24T18:06:28.907Z",
+    "updatedAt": "2026-09-24T18:06:28.907Z"
   },
   {
     "id": "cmu4eu66d000011z2z9757zzb",
@@ -48,8 +61,47 @@
     "stage": "Semi-Final",
     "gender": "Boys",
     "photoUrl": "",
-    "createdAt": "2026-09-16T18:04:27.203Z",
-    "updatedAt": "2026-09-16T18:04:27.203Z"
+    "createdAt": "2026-09-24T18:06:27.792Z",
+    "updatedAt": "2026-09-24T18:06:27.792Z"
+  },
+  {
+    "id": "cmu4eu74y000111z2iralbg7n",
+    "sportName": "Athletics (100m)",
+    "name": "Suraj Pant",
+    "scholarNo": "SF-795401",
+    "mandal": "Atrey Mandal",
+    "course": "Heat 1 Qualifier",
+    "stage": "Semi-Final",
+    "gender": "Boys",
+    "photoUrl": "",
+    "createdAt": "2026-09-24T18:06:26.663Z",
+    "updatedAt": "2026-09-24T18:06:26.663Z"
+  },
+  {
+    "id": "cmu4eu805000211z2oj3post1",
+    "sportName": "Athletics (100m)",
+    "name": "Mohit Uniyal",
+    "scholarNo": "SF-579837",
+    "mandal": "Bharadwaj Mandal",
+    "course": "Heat 2 Qualifier",
+    "stage": "Semi-Final",
+    "gender": "Boys",
+    "photoUrl": "",
+    "createdAt": "2026-09-24T18:06:25.622Z",
+    "updatedAt": "2026-09-24T18:06:25.622Z"
+  },
+  {
+    "id": "cmu4eu8yf000311z2b3gh32r7",
+    "sportName": "Athletics (100m)",
+    "name": "Deepak Rana",
+    "scholarNo": "SF-671072",
+    "mandal": "Gautam Mandal",
+    "course": "Heat 2 Qualifier",
+    "stage": "Semi-Final",
+    "gender": "Boys",
+    "photoUrl": "",
+    "createdAt": "2026-09-24T18:06:24.508Z",
+    "updatedAt": "2026-09-24T18:06:24.508Z"
   },
   {
     "id": "cmtjupjl50001r5gda5vasv0t",
