@@ -39,7 +39,7 @@ async function main() {
 
   // Seed Admin Users
   const roles = [
-    { username: "admin", role: "SUPER_ADMIN", password: "admin123" },
+    { username: "admin", role: "SUPER_ADMIN", password: "dssl@dsvv2026" },
     { username: "organiser", role: "ORGANISER_TEAM", password: "organiser123" },
     { username: "creator", role: "CREATOR_TEAM", password: "creator123" },
     { username: "media", role: "MEDIA_TEAM", password: "media123" },
