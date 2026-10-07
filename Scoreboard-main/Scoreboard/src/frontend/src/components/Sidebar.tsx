@@ -17,6 +17,7 @@ import {
   Trophy,
   X,
   Zap,
+  Layers,
 } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -66,6 +67,7 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/", icon: LayoutDashboard },
+  { label: "3D Gallery", path: "/gallery", icon: Layers, badge: "3D" },
   { label: "Live Matches", path: "/live-matches", icon: Zap, badge: "LIVE" },
   { label: "Match Schedule", path: "/schedule", icon: Calendar },
   { label: "Leaderboard", path: "/leaderboard", icon: Trophy },

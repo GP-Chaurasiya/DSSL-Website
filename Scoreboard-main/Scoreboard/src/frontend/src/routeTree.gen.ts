@@ -14,9 +14,11 @@ import { Route as ReportsRoute } from "./routes/reports";
 import { Route as ScheduleRoute } from "./routes/schedule";
 import { Route as SettingsRoute } from "./routes/settings";
 import { Route as SportsSportIdRoute } from "./routes/sports.$sportId";
+import { Route as GalleryRoute } from "./routes/gallery";
 
 const rootRouteWithChildren = rootRoute.addChildren([
   IndexRoute,
+  GalleryRoute,
   LiveMatchesRoute,
   ScheduleRoute,
   LeaderboardRoute,

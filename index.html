@@ -469,18 +469,37 @@
     </div>
   </div>
 
-  <section class="gallery-wrapper">
-    <div class="gallery-container">
-      <h2 class="gallery-title">Gallery Highlights</h2>
-    </div>
-
-    <div class="gallery-track" id="homeGalleryTrack">
-      <!-- Media items loaded dynamically from /api/media -->
-      <div style="width: 100%; text-align: center; color: var(--text-muted); padding: 30px; font-size: 14px;">
-        Loading gallery highlights...
+  <section class="gallery-wrapper home-3d-gallery-wrapper" id="home3DGallerySection">
+    <div class="home-3d-header">
+      <div class="home-3d-title-group">
+        <h2 class="gallery-title">Gallery Highlights</h2>
+        <span class="gallery-3d-tag"><i class="ri-radar-line"></i> 3D Cylindrical View</span>
+      </div>
+      <div class="home-3d-action-group">
+        <p class="gallery-hint">Drag horizontally to spin in 3D &bull; Click card to inspect</p>
+        <a href="gallery.html" class="gallery-view-all-btn">View All (69) <i class="ri-arrow-right-s-line"></i></a>
       </div>
     </div>
 
+    <!-- 3D Cylindrical Carousel Viewport -->
+    <div class="carousel-3d-viewport" id="carousel3DViewport" tabindex="0" role="region" aria-label="3D Gallery Carousel">
+      <div class="carousel-3d-track" id="carousel3DTrack">
+        <!-- 3D Cards rendered dynamically by JS -->
+        <div style="width: 100%; text-align: center; color: var(--text-muted); padding: 50px 20px; font-size: 14px;">
+          <i class="ri-loader-4-line ri-spin" style="font-size:24px;display:block;margin-bottom:8px;color:#ff8400;"></i>
+          Spinning up 3D Gallery Highlights...
+        </div>
+      </div>
+      <div class="carousel-3d-reflection-glow"></div>
+    </div>
+
+    <!-- 3D Carousel Floating Navigation Controls -->
+    <div class="carousel-3d-controls" id="carousel3DControls">
+      <button type="button" class="c3d-ctrl-btn" id="c3dPrevBtn" title="Previous Item" aria-label="Previous"><i class="ri-arrow-left-s-line"></i></button>
+      <button type="button" class="c3d-ctrl-btn c3d-play-btn" id="c3dPlayBtn" title="Toggle Autoplay" aria-label="Toggle Autoplay"><i class="ri-play-fill" id="c3dPlayIcon"></i></button>
+      <div class="c3d-dots-container" id="c3dDots"></div>
+      <button type="button" class="c3d-ctrl-btn" id="c3dNextBtn" title="Next Item" aria-label="Next"><i class="ri-arrow-right-s-line"></i></button>
+    </div>
   </section>
 
 
@@ -497,7 +516,20 @@
     <img id="miniImg" class="hidden">
     <video id="miniVideo" class="hidden" controls autoplay></video>
 
-    <!-- Counter: 3 / 69 -->
+    <!-- GPS Map Camera Style Overlay Badge (From Screenshot) -->
+    <div class="lightbox-gps-badge" id="lightboxGpsBadge">
+      <div class="lightbox-gps-icon"><i class="ri-map-pin-2-fill"></i></div>
+      <div class="lightbox-gps-info">
+        <div class="lightbox-gps-title">Haridwar, Uttarakhand, India 🇮🇳</div>
+        <div class="lightbox-gps-sub">Haridwar Dehradun Road, Haripur Kalan, Haridwar 249411</div>
+        <div class="lightbox-gps-meta" id="lightboxGpsMeta">
+          <span id="lightboxGpsDate">Sunday, 13/09/2026</span>
+          <span class="lightbox-gps-cam">📷 GPS Map Camera</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Counter: 4 / 69 -->
     <div class="gallery-counter" id="galleryCounter"></div>
   </div>
 
@@ -563,6 +595,21 @@
 
       // Update counter
       counter.textContent = `${currentIndex + 1} / ${total}`;
+
+      // Update GPS Map Camera Badge from item metadata
+      const gpsDateEl = document.getElementById("lightboxGpsDate");
+      if (gpsDateEl) {
+        if (item.createdAt) {
+          try {
+            const d = new Date(item.createdAt);
+            gpsDateEl.textContent = d.toLocaleDateString("en-IN", { weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit' }) + " " + d.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' }) + " GMT+05:30";
+          } catch(e) {
+            gpsDateEl.textContent = "Sunday, 13/09/2026 06:44 PM GMT+05:30";
+          }
+        } else {
+          gpsDateEl.textContent = "Sunday, 13/09/2026 06:44 PM GMT+05:30";
+        }
+      }
 
       // Hide nav buttons when only 1 item
       const showNav = total > 1;
@@ -1112,10 +1159,19 @@
       viewFullLeaderboardBtn.onclick = () => window.location.href = "leaderboard.html";
     }
 
-    // Dynamic Home Gallery loader
+    // ── High-Performance 3D Cylindrical Gallery Carousel Engine ────────────────
+    let carousel3D = null;
+
     async function loadHomeGallery() {
-      const track = document.getElementById("homeGalleryTrack");
-      if (!track) return;
+      const track = document.getElementById("carousel3DTrack");
+      const viewport = document.getElementById("carousel3DViewport");
+      const dotsContainer = document.getElementById("c3dDots");
+      const prevBtn = document.getElementById("c3dPrevBtn");
+      const nextBtn = document.getElementById("c3dNextBtn");
+      const playBtn = document.getElementById("c3dPlayBtn");
+      const playIcon = document.getElementById("c3dPlayIcon");
+
+      if (!track || !viewport) return;
 
       try {
         const res = await fetch("/api/media");
@@ -1123,54 +1179,439 @@
         const mediaItems = await res.json();
 
         if (!mediaItems || mediaItems.length === 0) {
-          track.innerHTML = `<div style="width: 100%; text-align: center; color: var(--text-muted); padding: 30px; font-size: 14px;">No gallery media uploaded yet.</div>`;
+          track.innerHTML = `<div style="width: 100%; text-align: center; color: var(--text-muted); padding: 40px; font-size: 14px;">No gallery media uploaded yet.</div>`;
           return;
         }
 
         // Save items globally for lightbox navigation
         galleryItems = mediaItems;
 
+        // Choose highlight items for the 3D cylinder (10-14 items create an optimal polygon)
+        const highlightCount = Math.min(12, mediaItems.length);
+        const highlightItems = mediaItems.slice(0, highlightCount);
+        const N = highlightItems.length;
+        const stepAngle = 360 / N;
+
+        function getCarouselDims() {
+          const w = window.innerWidth;
+          if (w <= 640) return { width: 320, height: 215, vh: 330 };
+          if (w <= 1024) return { width: 460, height: 290, vh: 410 };
+          if (w <= 1280) return { width: 560, height: 350, vh: 460 };
+          return { width: 650, height: 410, vh: 490 };
+        }
+
+        let currentDims = getCarouselDims();
+        let cardWidth = currentDims.width;
+        let cardHeight = currentDims.height;
+        viewport.style.height = currentDims.vh + "px";
+        track.style.width = cardWidth + "px";
+        track.style.height = cardHeight + "px";
+
+        let radius = Math.max(460, Math.round((cardWidth / 2) / Math.tan(Math.PI / N) * 0.96));
+
+        // Reduced motion check
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        // Populate track with 3D cards
         track.innerHTML = "";
-        mediaItems.forEach((item, idx) => {
+        const cardElements = [];
+
+        highlightItems.forEach((item, idx) => {
+          const itemAngle = idx * stepAngle;
           const card = document.createElement("div");
-          card.className = "gallery-card";
+          card.className = "c3d-card";
+          card.setAttribute("role", "button");
+          card.setAttribute("tabindex", "0");
+          card.setAttribute("aria-label", item.title || `Gallery Item ${idx + 1}`);
+          card.style.width = cardWidth + "px";
+          card.style.height = cardHeight + "px";
+          card.style.transform = `rotateY(${itemAngle}deg) translateZ(${radius}px)`;
+
           const isVideo = item.type === "VIDEO";
           const mediaUrl = item.url || `/api/media/file/${item.id}`;
+          const title = item.title || `Match Highlight #${idx + 1}`;
+          const badgeText = isVideo ? "Video Clip" : (item.category || "Highlight");
 
-          // Pass index so lightbox knows where we are in the list
-          card.onclick = () => openPreview(idx);
+          card.innerHTML = `
+            <div class="c3d-card-media-wrap">
+              ${isVideo ? `
+                <video src="${mediaUrl}#t=0.5" muted preload="metadata" playsinline></video>
+                <div class="gallery-video-overlay"><i class="ri-play-circle-fill"></i></div>
+              ` : `
+                <img src="${mediaUrl}" alt="${title}" onerror="this.src='DSSL_LOGO.png'" loading="lazy">
+              `}
+              <div class="c3d-card-overlay">
+                <span class="c3d-card-badge"><i class="${isVideo ? 'ri-video-fill' : 'ri-image-fill'}"></i> ${badgeText}</span>
+                <h4 class="c3d-card-title">${title}</h4>
+                <div class="c3d-card-meta">
+                  <span><i class="ri-map-pin-line"></i> Haridwar Ground</span>
+                  <span>&bull;</span>
+                  <span>Photo ${idx + 1} of ${mediaItems.length}</span>
+                </div>
+              </div>
+            </div>
+          `;
 
-          if (isVideo) {
-            card.innerHTML = `
-          <video src="${mediaUrl}#t=0.5" muted preload="metadata" playsinline></video>
-          <div class="gallery-video-overlay">
-            <i class="ri-play-circle-fill"></i>
-          </div>
-          <div class="gallery-video-unavailable hidden">
-            <i class="ri-video-off-line"></i>
-            <span>Video unavailable</span>
-          </div>
-        `;
-            const videoEl = card.querySelector("video");
-            videoEl.addEventListener("error", () => {
-              videoEl.classList.add("hidden");
-              card.querySelector(".gallery-video-overlay")?.classList.add("hidden");
-              card.querySelector(".gallery-video-unavailable")?.classList.remove("hidden");
-            });
-          } else {
-            card.innerHTML = `
-          <img src="${mediaUrl}" alt="${item.title || 'Gallery image'}" onerror="this.src='DSSL_LOGO.png'">
-        `;
-          }
           track.appendChild(card);
+          cardElements.push(card);
         });
 
-        // Keep scroll speed constant (~60px/sec) regardless of item count
-        const duration = Math.round((mediaItems.length * 215) / 60);
-        track.style.animationDuration = `${duration}s`;
+        // Build navigation dots
+        if (dotsContainer) {
+          dotsContainer.innerHTML = "";
+          for (let i = 0; i < N; i++) {
+            const dot = document.createElement("button");
+            dot.className = `c3d-dot ${i === 0 ? 'is-active' : ''}`;
+            dot.setAttribute("aria-label", `Slide ${i + 1}`);
+            dot.onclick = () => goTo(i);
+            dotsContainer.appendChild(dot);
+          }
+        }
+
+        // ── Direct DOM requestAnimationFrame Engine (Zero Re-renders) ──
+        let angle = 0;
+        let targetAngle = 0;
+        let velocity = 0;
+        let isDragging = false;
+        let isHovered = false;
+        let isAutoPlaying = false;
+        let autoplayTimer = null;
+        let rafId = null;
+        let lastFrameTime = performance.now();
+        let lastActiveIdx = 0;
+
+        // Pointer drag tracking
+        let startX = 0;
+        let lastX = 0;
+        let startTime = 0;
+        let lastTime = 0;
+        let totalDragDistance = 0;
+        let pointerHistory = [];
+
+        // Direct DOM mutation on GPU composite properties
+        function mutateDOM(curAngle) {
+          track.style.transform = `translateZ(-${radius}px) rotateY(${curAngle.toFixed(3)}deg)`;
+
+          const maxBlur = prefersReducedMotion ? 0 : 3.5;
+          const minOpacity = 0.28;
+
+          for (let i = 0; i < N; i++) {
+            const el = cardElements[i];
+            if (!el) continue;
+
+            const baseAngle = i * stepAngle;
+            const relAngle = ((baseAngle + curAngle + 540) % 360) - 180;
+            const rad = (relAngle * Math.PI) / 180;
+            const cosVal = Math.cos(rad);
+            const depthFactor = Math.max(0, Math.min(1, (1 + cosVal) / 2));
+
+            // Z-Index ordering (foreground on top)
+            el.style.zIndex = Math.round(depthFactor * 1000);
+
+            // Opacity & Depth blur
+            const op = minOpacity + (1 - minOpacity) * Math.pow(depthFactor, 1.35);
+            el.style.opacity = op.toFixed(3);
+
+            if (maxBlur > 0) {
+              const blurPx = ((1 - depthFactor) * maxBlur).toFixed(1);
+              const bright = (0.55 + 0.45 * depthFactor).toFixed(2);
+              el.style.filter = `blur(${blurPx}px) brightness(${bright})`;
+            } else {
+              el.style.filter = "none";
+            }
+
+            // Pointer interactivity (only facing cards receive clicks)
+            el.style.pointerEvents = cosVal > 0.15 ? "auto" : "none";
+
+            // Active card border glow
+            const isActive = Math.abs(relAngle) < stepAngle / 2;
+            el.classList.toggle("is-active", isActive);
+          }
+
+          // Update active dot
+          const rawIdx = Math.round(-curAngle / stepAngle);
+          const activeIdx = ((rawIdx % N) + N) % N;
+          if (activeIdx !== lastActiveIdx) {
+            lastActiveIdx = activeIdx;
+            if (dotsContainer) {
+              const dots = dotsContainer.children;
+              for (let d = 0; d < dots.length; d++) {
+                dots[d].classList.toggle("is-active", d === activeIdx);
+              }
+            }
+          }
+        }
+
+        // Animation Loop
+        function animate(now) {
+          const dt = Math.min(32, Math.max(1, now - lastFrameTime));
+          lastFrameTime = now;
+          const dtFactor = dt / 16.667;
+
+          let isMoving = false;
+
+          if (isDragging) {
+            isMoving = true;
+          } else if (prefersReducedMotion) {
+            const diff = targetAngle - angle;
+            if (Math.abs(diff) > 0.1) {
+              angle += diff * 0.35 * dtFactor;
+              isMoving = true;
+            } else {
+              angle = targetAngle;
+              velocity = 0;
+            }
+          } else {
+            const dist = targetAngle - angle;
+            if (Math.abs(velocity) > 0.04) {
+              // Momentum phase
+              angle += velocity * dtFactor;
+              velocity *= Math.pow(0.92, dtFactor); // Friction
+
+              const projectedRest = angle + (velocity * 16.67) / (1 - 0.92);
+              const nearest = Math.round(-projectedRest / stepAngle);
+              targetAngle = -nearest * stepAngle;
+              isMoving = true;
+            } else if (Math.abs(dist) > 0.04) {
+              // Spring snapping phase
+              angle += dist * 0.12 * dtFactor;
+              isMoving = true;
+            } else {
+              angle = targetAngle;
+              velocity = 0;
+            }
+          }
+
+          mutateDOM(angle);
+
+          if (isMoving || isDragging || isAutoPlaying) {
+            rafId = requestAnimationFrame(animate);
+          } else {
+            rafId = null;
+          }
+        }
+
+        function wakeLoop() {
+          if (rafId === null) {
+            lastFrameTime = performance.now();
+            rafId = requestAnimationFrame(animate);
+          }
+        }
+
+        // Navigation Functions
+        function goTo(targetIdx, immediate = false) {
+          const targetDeg = -targetIdx * stepAngle;
+          if (immediate || prefersReducedMotion) {
+            angle = targetDeg;
+            targetAngle = targetDeg;
+            velocity = 0;
+            mutateDOM(targetDeg);
+          } else {
+            const current = angle;
+            const shortestDelta = ((targetDeg - current + 540) % 360) - 180;
+            targetAngle = current + shortestDelta;
+            velocity = 0;
+            wakeLoop();
+          }
+        }
+
+        function next() {
+          const cur = Math.round(-angle / stepAngle);
+          targetAngle = -(cur + 1) * stepAngle;
+          velocity = 0;
+          wakeLoop();
+        }
+
+        function prev() {
+          const cur = Math.round(-angle / stepAngle);
+          targetAngle = -(cur - 1) * stepAngle;
+          velocity = 0;
+          wakeLoop();
+        }
+
+        // Card Click Handler
+        cardElements.forEach((el, index) => {
+          el.addEventListener("click", (e) => {
+            if (totalDragDistance > 6) return; // Ignore drag release
+            const activeIdx = ((lastActiveIdx % N) + N) % N;
+            if (index === activeIdx) {
+              // Foreground card clicked -> Open full lightbox at this index!
+              openPreview(index);
+            } else {
+              // Background card clicked -> Smoothly rotate it to center
+              e.stopPropagation();
+              goTo(index);
+            }
+          });
+        });
+
+        // Pointer Drag & Velocity Tracking
+        viewport.onpointerdown = (e) => {
+          if (e.button !== 0 && e.pointerType === "mouse") return;
+          isDragging = true;
+          viewport.classList.add("is-dragging");
+          velocity = 0;
+          totalDragDistance = 0;
+          startX = e.clientX;
+          lastX = e.clientX;
+          startTime = performance.now();
+          lastTime = startTime;
+          pointerHistory = [{ time: startTime, x: e.clientX }];
+
+          try { viewport.setPointerCapture(e.pointerId); } catch(err) {}
+          wakeLoop();
+        };
+
+        viewport.onpointermove = (e) => {
+          if (!isDragging) return;
+          const now = performance.now();
+          const deltaX = e.clientX - lastX;
+          const dt = Math.max(1, now - lastTime);
+          lastX = e.clientX;
+          lastTime = now;
+          totalDragDistance += Math.abs(deltaX);
+
+          // Convert linear pixel drag to angular degrees
+          const degPerPx = 0.32 * (360 / (2 * Math.PI * radius)) * 1.8;
+          angle += deltaX * degPerPx;
+
+          pointerHistory.push({ time: now, x: e.clientX });
+          const cutoff = now - 90;
+          while (pointerHistory.length > 2 && pointerHistory[0].time < cutoff) {
+            pointerHistory.shift();
+          }
+
+          const instantVel = (deltaX / dt) * degPerPx * 16.67;
+          velocity = velocity * 0.4 + instantVel * 0.6;
+          wakeLoop();
+        };
+
+        const handlePointerEnd = (e) => {
+          if (!isDragging) return;
+          isDragging = false;
+          viewport.classList.remove("is-dragging");
+          try { viewport.releasePointerCapture(e.pointerId); } catch(err) {}
+
+          const totalDist = totalDragDistance;
+          const totalTime = performance.now() - startTime;
+          const wasTap = totalDist < 6 && totalTime < 300;
+
+          if (!wasTap && !prefersReducedMotion) {
+            if (pointerHistory.length >= 2) {
+              const first = pointerHistory[0];
+              const last = pointerHistory[pointerHistory.length - 1];
+              const dt = Math.max(1, last.time - first.time);
+              const dx = last.x - first.x;
+              const degPerPx = 0.32 * (360 / (2 * Math.PI * radius)) * 1.8;
+              velocity = (dx / dt) * degPerPx * 16.67;
+            }
+            velocity = Math.max(-14, Math.min(14, velocity));
+            const projectedRest = angle + (velocity * 16.67) / (1 - 0.92);
+            const nearest = Math.round(-projectedRest / stepAngle);
+            targetAngle = -nearest * stepAngle;
+          } else {
+            const nearest = Math.round(-angle / stepAngle);
+            targetAngle = -nearest * stepAngle;
+            velocity = 0;
+          }
+          wakeLoop();
+        };
+
+        viewport.onpointerup = handlePointerEnd;
+        viewport.onpointercancel = handlePointerEnd;
+
+        // Mouse Wheel & Trackpad Navigation
+        let wheelTimeout = null;
+        viewport.onwheel = (e) => {
+          const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+          if (Math.abs(delta) < 2) return;
+          e.preventDefault();
+
+          angle -= delta * 0.08 * 0.32;
+          velocity = -delta * 0.02;
+
+          if (wheelTimeout) clearTimeout(wheelTimeout);
+          wheelTimeout = setTimeout(() => {
+            const nearest = Math.round(-angle / stepAngle);
+            targetAngle = -nearest * stepAngle;
+            velocity = 0;
+            wakeLoop();
+          }, 120);
+
+          wakeLoop();
+        };
+
+        // Keyboard Arrow Navigation
+        viewport.onkeydown = (e) => {
+          if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+          else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+        };
+
+        // Autoplay Controller
+        function setAutoplay(play) {
+          isAutoPlaying = play;
+          if (playBtn && playIcon) {
+            playIcon.className = play ? "ri-pause-fill" : "ri-play-fill";
+            playBtn.title = play ? "Pause Autoplay" : "Start Autoplay";
+          }
+          if (autoplayTimer) clearInterval(autoplayTimer);
+          if (play) {
+            autoplayTimer = setInterval(() => {
+              if (!isDragging && !isHovered) next();
+            }, 3500);
+            wakeLoop();
+          }
+        }
+
+        if (playBtn) {
+          playBtn.onclick = () => setAutoplay(!isAutoPlaying);
+        }
+        if (prevBtn) prevBtn.onclick = () => prev();
+        if (nextBtn) nextBtn.onclick = () => next();
+
+        viewport.onmouseenter = () => { isHovered = true; };
+        viewport.onmouseleave = () => { isHovered = false; };
+
+        // Window resize responsive recalculation
+        let resizeTimer = null;
+        window.addEventListener("resize", () => {
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            currentDims = getCarouselDims();
+            cardWidth = currentDims.width;
+            cardHeight = currentDims.height;
+            viewport.style.height = currentDims.vh + "px";
+            track.style.width = cardWidth + "px";
+            track.style.height = cardHeight + "px";
+            radius = Math.max(460, Math.round((cardWidth / 2) / Math.tan(Math.PI / N) * 0.96));
+            cardElements.forEach((c, idx) => {
+              c.style.width = cardWidth + "px";
+              c.style.height = cardHeight + "px";
+              c.style.transform = `rotateY(${idx * stepAngle}deg) translateZ(${radius}px)`;
+            });
+            mutateDOM(angle);
+          }, 120);
+        });
+
+        // Start autoplay by default for an engaging home experience
+        setAutoplay(true);
+
+        // Initial render & loop activation
+        mutateDOM(0);
+        wakeLoop();
+
+        // Export imperative controller
+        window.dssl3DCarousel = {
+          next,
+          prev,
+          goTo,
+          pauseAutoplay: () => setAutoplay(false),
+          resumeAutoplay: () => setAutoplay(true)
+        };
+
       } catch (err) {
-        console.error("Home gallery fetch error:", err);
-        track.innerHTML = `<div style="width: 100%; text-align: center; color: var(--text-muted); padding: 30px; font-size: 14px;">Unable to load highlights. <button onclick="loadHomeGallery()" style="margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:#ff6b35;color:#fff;cursor:pointer;font-weight:600;">Retry</button></div>`;
+        console.error("Home gallery 3D fetch error:", err);
+        track.innerHTML = `<div style="width: 100%; text-align: center; color: var(--text-muted); padding: 40px; font-size: 14px;">Unable to load 3D highlights. <button onclick="loadHomeGallery()" style="margin-left:8px;padding:4px 12px;border-radius:6px;border:none;background:#ff6b35;color:#fff;cursor:pointer;font-weight:600;">Retry</button></div>`;
       }
     }
 
